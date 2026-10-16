@@ -107,7 +107,7 @@ apply() {
     # miserable way to find that out.
     if ! command -v swaybg >/dev/null 2>&1; then
         printf '%s swaybg is not installed; cannot draw %s\n' "$(date +%T)" "$img" >> "$log" 2>/dev/null
-        die "swaybg is not installed — pacman -S swaybg (or re-run install.sh)"
+        die "swaybg is not installed — install it, or re-run install.sh"
     fi
 
     # || true is load-bearing. pgrep exits 1 when nothing matches, which is

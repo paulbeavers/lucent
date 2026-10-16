@@ -1,8 +1,10 @@
 # hyprland-setup
 
-Turns a fresh Arch Linux or Fedora install into a working Hyprland desktop, and
-keeps the result editable rather than magic. Fedora includes aarch64 — Fedora
-Asahi Remix on Apple silicon is the tested case.
+Turns a fresh Arch Linux, Fedora or Ubuntu install into a working Hyprland
+desktop, and keeps the result editable rather than magic. Fedora includes
+aarch64 — Fedora Asahi Remix on Apple silicon is the tested case. Ubuntu means
+26.04 LTS or newer, and the Ubuntu-based distributions that keep its
+repositories.
 
 ## On a new machine
 
@@ -72,10 +74,74 @@ On Apple silicon the GPU is recognised from its kernel driver (`asahi`) rather
 than a PCI ID, and needs no environment variables: Mesa's asahi and Honeykrisp
 drivers are picked up on their own.
 
+## On Ubuntu
+
+Ubuntu 26.04 LTS or newer, any edition, amd64 or arm64. The Ubuntu-based
+distributions work too — Linux Mint, Pop!_OS, Zorin, elementary — as long as
+26.04 or newer is the archive underneath, which is read from `UBUNTU_CODENAME`
+rather than the derivative's own version number.
+
+```bash
+sudo apt install git
+git clone https://github.com/paulbeavers/hyprland-setup.git ~/hyprland-setup
+cd ~/hyprland-setup
+./install.sh
+```
+
+**26.04 is the floor, and not an arbitrary one.** The config is Lua, which
+needs Hyprland 0.55 or newer, and the PPA below only reaches 0.54.3 on 24.04.
+24.04 also has no `swayosd`, which is the only thing bound to the volume and
+brightness keys, so that desktop would come up with those keys silently dead.
+An older release is refused with that explanation rather than half-installed.
+
+What differs from Arch:
+
+- **Hyprland comes from a PPA.** Ubuntu does not package it. If a Hyprland is
+  already installed, or an enabled repository already offers one, that is what
+  gets used; only when nothing does is
+  [`ppa:cppiber/hyprland`](https://launchpad.net/~cppiber/+archive/ubuntu/hyprland)
+  enabled. It supplies `hyprland` itself plus `hyprlock`, `hypridle`,
+  `hyprpicker`, `hyprsunset`, `hyprpolkitagent`, `hyprland-guiutils` and
+  `xdg-desktop-portal-hyprland`. Everything else — `uwsm`, `swaybg`, `waybar`,
+  `swayosd`, `swappy`, `cliphist`, `nwg-look`, `nwg-displays`, `tuigreet` —
+  is in Ubuntu's own archive on 26.04.
+- **universe is enabled if it is not already.** Most of the desktop lives
+  there. On Ubuntu Desktop it is on by default; on a minimal image or some
+  derivatives it is not, so it is checked rather than assumed.
+- **Firefox comes from Mozilla, not Ubuntu.** Ubuntu's `firefox` package is a
+  transitional stub that installs snapd and the Firefox snap. The script adds
+  [Mozilla's APT repository](https://packages.mozilla.org/apt) and pins it, so
+  you get a real `.deb` — the same browser Arch and Fedora install, and one
+  that honours the `MOZ_ENABLE_WAYLAND=1` the config already sets. The pin
+  matters: Ubuntu's stub carries a higher version number and apt would
+  otherwise keep choosing it.
+- **Your login screen stays.** Ubuntu Desktop already has GDM, which lists
+  Hyprland's sessions by itself, so greetd is not installed. Pick
+  **Hyprland (uwsm-managed)** from the session menu. `--greetd` replaces it
+  with greetd + tuigreet, as on Arch. Ubuntu's greetd runs as `_greetd`, not
+  Arch's `greeter`, and the script also sets
+  `/etc/X11/default-display-manager` — Debian and Ubuntu arbitrate through
+  that file as well as the systemd alias, and a display manager installed
+  later reads it to decide whether to take the alias back.
+- **Nerd Fonts are downloaded**, exactly as on Fedora: Ubuntu packages
+  JetBrains Mono but not the Nerd Font patched build or the symbols, so they
+  come from the upstream release into `/usr/local/share/fonts/nerd-fonts`.
+- **No full system upgrade**, for the same reason as Fedora: apt supports
+  partial upgrades, so the script only runs `apt-get install`.
+- **NVIDIA is left to `ubuntu-drivers`.** Ubuntu packages several driver
+  branches and picking the wrong one costs you the graphical session, so the
+  script prints `ubuntu-drivers devices` / `install` rather than guessing —
+  including what Secure Boot needs.
+- **Broadcom `wl` is handled**, unlike on Fedora: the same proprietary driver
+  is packaged as `broadcom-sta-dkms` in `restricted`, so a card that needs it
+  gets it, along with the blacklist that keeps the in-kernel drivers off it.
+- **`--gaming` enables multiverse and the i386 architecture**, because Steam
+  lives in multiverse and is a 32-bit package.
+
 ## What it does not touch
 
-The boot. On either distro, `install.sh` leaves Plymouth, the initramfs and the
-kernel command line as it found them — a desktop has no business rebuilding
+The boot. On any of the three, `install.sh` leaves Plymouth, the initramfs and
+the kernel command line as it found them — a desktop has no business rebuilding
 them. The starch boot splash belongs to
 [starch](https://github.com/paulbeavers/starch), which puts it on the machines
 it installs.
@@ -123,7 +189,7 @@ Use `--dry-run` to see what would change without writing anything.
 | `--redetect-monitors` | Regenerate `monitors.lua` from connected displays |
 | `--dry-run` | Show what would change; write nothing |
 | `--aur` | Arch only. Also build `paru`, an AUR helper (off by default) |
-| `--gaming` | Also install Steam, gamemode, mangohud; on Arch, multilib and 32-bit drivers too |
+| `--gaming` | Also install Steam, gamemode, mangohud; on Arch, multilib and 32-bit drivers too; on Ubuntu, multiverse and i386 |
 | `--no-bluetooth` | Skip `bluez` / `blueman` |
 | `--greetd` | Use greetd even if another display manager (GDM) is enabled, disabling it |
 | `--no-greetd` | No login manager — start Hyprland from a TTY |
@@ -141,8 +207,9 @@ The script reads the PCI vendor ID from `/sys/class/drm/card*/device/vendor`
 | VM | `vulkan-virtio`, `vulkan-swrast` | — |
 | Unknown | `vulkan-swrast` (software) | — |
 
-That table is Arch. On Fedora one package, `mesa-vulkan-drivers`, carries every
-Mesa Vulkan driver, so the vendor adds little. ARM GPUs have no PCI ID and are
+That table is Arch. On Fedora and Ubuntu one package, `mesa-vulkan-drivers`,
+carries every Mesa Vulkan driver, so the vendor adds little; Ubuntu also pulls
+`va-driver-all` for VA-API rather than naming a per-vendor driver. ARM GPUs have no PCI ID and are
 recognised by kernel driver instead: `asahi` (Apple silicon), and `panfrost`,
 `panthor`, `msm`, `v3d` and the like (other SoCs). Display-only devices such
 as `apple-drm` are not counted as GPUs.

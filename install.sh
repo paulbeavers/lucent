@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 #
-# install.sh — add Hyprland + a working desktop to a fresh Arch Linux or
-# Fedora install. Fedora includes aarch64, and Fedora Asahi Remix on Apple
-# silicon in particular.
+# install.sh — add Hyprland + a working desktop to a fresh Arch Linux, Fedora
+# or Ubuntu install. Fedora includes aarch64, and Fedora Asahi Remix on Apple
+# silicon in particular. Ubuntu means 26.04 LTS or newer, and the Ubuntu-based
+# distributions that keep its repositories (Mint, Pop!_OS, Zorin, elementary).
 #
 # Designed to be re-run. On a second run it works out that packages and
 # services are already in place and becomes a fast config refresh: only files
@@ -46,11 +47,30 @@ DEFAULT_THEME=catppuccin-mocha-blue
 # which one fits depends on the panel in front of it.
 DEFAULT_WALLPAPER=starch-lattice
 
-# Fedora does not package Hyprland. When nothing on the machine provides it
-# yet, this COPR is enabled; an existing build or COPR is always kept.
+# Neither Fedora nor Ubuntu packages Hyprland. When nothing on the machine
+# provides it yet, this COPR / PPA is enabled; an existing build or an
+# already-enabled repository is always kept.
 # HYPRLAND_MIN is the first release that reads the Lua config.
 HYPRLAND_COPR=nett00n/hyprland
+HYPRLAND_PPA=ppa:cppiber/hyprland
 HYPRLAND_MIN=0.55
+
+# The oldest Ubuntu this supports, and why it is not older. The PPA above
+# builds for 24.04 too, but only reaches 0.54.3 there — below HYPRLAND_MIN, so
+# the Lua config would not be read at all. 24.04's archive is also missing
+# swayosd, which is the only thing bound to the volume and brightness keys, so
+# a 24.04 desktop would come up with those keys silently dead. 26.04 carries
+# all of it and needs the PPA for Hyprland alone.
+UBUNTU_MIN_VERSION=26.04
+
+# Ubuntu ships Firefox only as a transitional package that pulls in snapd and
+# the Firefox snap. This is Mozilla's own APT repository, which serves a real
+# .deb for amd64 and arm64, so Ubuntu gets the same browser as Arch and Fedora.
+# The pin is what stops Ubuntu's transitional package winning on version.
+MOZILLA_APT_KEY=https://packages.mozilla.org/apt/repo-signing-key.gpg
+MOZILLA_APT_KEYRING=/etc/apt/keyrings/packages.mozilla.org.asc
+MOZILLA_APT_LIST=/etc/apt/sources.list.d/mozilla.list
+MOZILLA_APT_PREFS=/etc/apt/preferences.d/mozilla
 
 # Set by --for-user. Normally this script runs as you and calls sudo; an
 # installer runs it as root inside a chroot, where there is no "you" and no
@@ -90,11 +110,13 @@ By default the script decides for itself what still needs doing:
                        default: every package this script installs is in the
                        official repos.
   --gaming             Also install Steam, gamemode and mangohud (on Arch,
-                       multilib and the 32-bit drivers too). Off by default.
+                       multilib and the 32-bit drivers too; on Ubuntu,
+                       multiverse and the i386 architecture). Off by default.
   --no-bluetooth       Skip bluez/blueman.
   --greetd             Use greetd + tuigreet even if another display manager
-                       (GDM on Fedora Workstation) is enabled; that one is
-                       disabled. By default an existing one is kept.
+                       (GDM on Fedora Workstation and Ubuntu Desktop) is
+                       enabled; that one is disabled. By default an existing
+                       one is kept.
   --no-greetd          Skip the login manager.
   --for-user NAME      Run as root and configure the desktop for NAME instead
                        of the invoking user. For installers running this inside
@@ -161,11 +183,17 @@ else
 fi
 [[ -n ${CONFIG_DST_OVERRIDE:-} ]] && CONFIG_DST="$CONFIG_DST_OVERRIDE"
 
-# Arch or Fedora. Everything distro-specific below — package names, the package
-# manager, the initramfs tool, where Hyprland comes from — branches on DISTRO;
-# the configuration it deploys is identical on both.
+# Arch, Fedora or Ubuntu. Everything distro-specific below — package names, the
+# package manager, the initramfs tool, where Hyprland comes from — branches on
+# DISTRO; the configuration it deploys is identical on all three.
+#
+# ID_LIKE, not just ID, so the Ubuntu-based distributions come out as ubuntu:
+# Mint, Pop!_OS, Zorin and elementary all set ID_LIKE=ubuntu and keep Ubuntu's
+# repositories, which is what actually matters here. UBUNTU_CODENAME is the
+# field to trust on those — Mint's own VERSION_ID is 22, not 26.04.
 DISTRO=""
 DISTRO_NAME=""
+UBUNTU_CODENAME=""
 if [[ -r /etc/os-release ]]; then
     # shellcheck disable=SC1091
     DISTRO_NAME="$(. /etc/os-release; echo "${NAME:-}")"
@@ -173,19 +201,55 @@ if [[ -r /etc/os-release ]]; then
     case " $_os_ids " in
         *" arch "*)   DISTRO=arch ;;
         *" fedora "*) DISTRO=fedora ;;
+        *" ubuntu "*) DISTRO=ubuntu ;;
     esac
+    if [[ $DISTRO == ubuntu ]]; then
+        # shellcheck disable=SC1091
+        UBUNTU_CODENAME="$(. /etc/os-release; echo "${UBUNTU_CODENAME:-${VERSION_CODENAME:-}}")"
+    fi
 fi
 [[ -z $DISTRO && -f /etc/arch-release ]] && DISTRO=arch
 case "$DISTRO" in
-    arch)   command -v pacman >/dev/null || die "pacman not found." ;;
-    fedora) command -v dnf    >/dev/null || die "dnf not found." ;;
-    *)      die "This script targets Arch Linux or Fedora." ;;
+    arch)   command -v pacman  >/dev/null || die "pacman not found." ;;
+    fedora) command -v dnf     >/dev/null || die "dnf not found." ;;
+    ubuntu) command -v apt-get >/dev/null || die "apt-get not found." ;;
+    *)      die "This script targets Arch Linux, Fedora or Ubuntu." ;;
 esac
 [[ -n $DISTRO_NAME ]] || DISTRO_NAME="Arch Linux"
 ARCH="$(uname -m)"
 
-if [[ $DISTRO == fedora && $DO_AUR -eq 1 ]]; then
-    warn "--aur is for Arch; ignoring it on Fedora"
+# Refuse an Ubuntu too old to run this, by name rather than by version number:
+# a derivative reports its own VERSION_ID, so the Ubuntu codename is the only
+# field that says which archive is actually underneath. A codename that is not
+# on the list is assumed to be newer than the newest one here — every release
+# older than the minimum is listed, so an unknown one can only be a later
+# one — and it proceeds with a warning rather than refusing a release that did
+# not exist when this was written.
+if [[ $DISTRO == ubuntu ]]; then
+    case "$UBUNTU_CODENAME" in
+        jammy)    _ubuntu_ver=22.04 ;;
+        lunar)    _ubuntu_ver=23.04 ;;
+        mantic)   _ubuntu_ver=23.10 ;;
+        noble)    _ubuntu_ver=24.04 ;;
+        oracular) _ubuntu_ver=24.10 ;;
+        plucky)   _ubuntu_ver=25.04 ;;
+        questing) _ubuntu_ver=25.10 ;;
+        resolute) _ubuntu_ver=26.04 ;;
+        *)        _ubuntu_ver="" ;;
+    esac
+    if [[ -z $UBUNTU_CODENAME ]]; then
+        warn "no UBUNTU_CODENAME in /etc/os-release; assuming $UBUNTU_MIN_VERSION or newer"
+    elif [[ -z $_ubuntu_ver ]]; then
+        warn "unrecognised Ubuntu release '$UBUNTU_CODENAME'; assuming it is newer than $UBUNTU_MIN_VERSION"
+    elif [[ "$(printf '%s\n' "$UBUNTU_MIN_VERSION" "$_ubuntu_ver" | sort -V | head -1)" != "$UBUNTU_MIN_VERSION" ]]; then
+        die "Ubuntu $_ubuntu_ver ($UBUNTU_CODENAME) is too old: this needs $UBUNTU_MIN_VERSION or newer.
+       Hyprland $HYPRLAND_MIN is the first release that reads the Lua config in
+       config/hypr, and no repository builds that for $UBUNTU_CODENAME."
+    fi
+fi
+
+if [[ $DISTRO != arch && $DO_AUR -eq 1 ]]; then
+    warn "--aur is for Arch; ignoring it on $DISTRO_NAME"
     DO_AUR=0
 fi
 [[ -d "$CONFIG_SRC" ]] || die "config/ directory not found next to install.sh"
@@ -201,6 +265,7 @@ fi
 require_network() {
     local host=archlinux.org
     [[ $DISTRO == fedora ]] && host=fedoraproject.org
+    [[ $DISTRO == ubuntu ]] && host=archive.ubuntu.com
     timeout 5 bash -c "exec 3<>/dev/tcp/$host/443" 2>/dev/null && return 0
     die "No network connectivity, and $1 needs it. Connect first (nmtui / iwctl)."
 }
@@ -358,7 +423,8 @@ detect_broadcom_wifi
 
 # On Fedora the wl driver is RPM Fusion's akmod-wl, not something this script
 # installs. Blacklisting the in-kernel drivers without it would leave no wifi
-# at all, so on Fedora the card is only reported.
+# at all, so on Fedora the card is only reported. Arch and Ubuntu both package
+# it, so they go on to install it and write the blacklist.
 BCM_UNHANDLED=""
 if [[ $DISTRO == fedora && -n $BCM_DRIVER ]]; then
     BCM_UNHANDLED="$BCM_NAME"
@@ -483,12 +549,15 @@ PKGS_BLUETOOTH=( bluez bluez-utils blueman )
 # The 32-bit graphics drivers come from PKGS_GPU32, which is vendor-aware.
 PKGS_GAMING=( steam gamemode lib32-gamemode mangohud "${PKGS_GPU32[@]}" )
 
-# Fedora names things differently and does not carry quite the same things, so
-# on Fedora every list above is replaced, group for group.
+# Fedora and Ubuntu name things differently and do not carry quite the same
+# things, so on those every list above is replaced, group for group. Both
+# blocks stay indented: starch's extract-packages.sh pulls the Arch arrays out
+# of this file by column, and anything at column 0 here would land in the ISO's
+# package list.
 #
 # ${DISTRO:-}, not $DISTRO: the one-line arrays above make extract-packages.sh's
-# sed range run on to the next column-0 `)`, which is WANTED's, so this block is
-# evaluated there too — with set -u and no DISTRO.
+# sed range run on to the next column-0 `)`, which is WANTED's, so these blocks
+# are evaluated there too — with set -u and no DISTRO.
 if [[ ${DISTRO:-} == fedora ]]; then
     NVIDIA_NOTES=0
     PKGS_BASE=(
@@ -570,6 +639,113 @@ if [[ ${DISTRO:-} == fedora ]]; then
     # On Fedora Asahi Remix, steam is the Asahi COPR's FEX-emulated build; on
     # x86_64 it comes from RPM Fusion. Skipped with a warning where neither is.
     PKGS_GAMING=( steam gamemode mangohud )
+
+elif [[ ${DISTRO:-} == ubuntu ]]; then
+    NVIDIA_NOTES=0
+    # software-properties-common carries add-apt-repository, which is how both
+    # the Hyprland PPA and the universe component get enabled below. gnupg and
+    # ca-certificates are for Mozilla's repository key.
+    PKGS_BASE=(
+        build-essential git curl wget man-db manpages
+        xdg-user-dirs xdg-utils
+        unzip zip 7zip
+        software-properties-common ca-certificates gnupg
+        nano
+    )
+    # As on Fedora, one package carries every Mesa Vulkan driver — RADV, ANV,
+    # lavapipe and virtio among them — so the vendor adds little. va-driver-all
+    # pulls whichever VA-API driver this card wants; mesa-va-drivers, which the
+    # Fedora list names, no longer exists as a separate package on 26.04.
+    PKGS_GPU=(
+        mesa-vulkan-drivers vulkan-tools libvulkan1
+        libva2 vainfo va-driver-all mesa-utils
+        xwayland
+    )
+    # 32-bit is a foreign architecture on dpkg rather than a parallel set of
+    # packages. --gaming enables i386 and lets steam:i386 pull its own stack.
+    PKGS_GPU32=()
+    for _v in "${GPU_VENDORS[@]}"; do
+        case "$_v" in
+            # The iHD driver for Broadwell and newer. va-driver-all already
+            # depends on it, but naming it keeps the intent visible.
+            intel)  PKGS_GPU+=( intel-media-va-driver ) ;;
+            # Ubuntu does package the NVIDIA driver, but which branch a card
+            # wants is what `ubuntu-drivers` exists to answer, and getting it
+            # wrong costs a graphical session. See the notes at the end.
+            nvidia) NVIDIA_NOTES=1 ;;
+        esac
+    done
+    PKGS_AUDIO=(
+        pipewire pipewire-audio pipewire-alsa pipewire-pulse pipewire-jack
+        wireplumber pavucontrol playerctl
+        alsa-utils alsa-ucm-conf
+    )
+    # PC sound firmware, as on Fedora: an arm64 machine has its own stack.
+    [[ $ARCH == x86_64 ]] && PKGS_AUDIO+=( firmware-sof-signed )
+    # Ubuntu does not package Hyprland itself. hyprland and the hypr* tools
+    # come from the PPA the system phase enables if nothing already provides
+    # them; uwsm, swaybg, the portals and the Qt platform plugins are all in
+    # Ubuntu's own archive.
+    PKGS_HYPRLAND=(
+        hyprland uwsm
+        swaybg hyprlock hypridle hyprpicker hyprsunset
+        hyprpolkitagent hyprland-guiutils
+        xdg-desktop-portal-hyprland xdg-desktop-portal-gtk
+        qtwayland5 qt6-wayland
+    )
+    # Unlike Fedora, 26.04 carries swayosd, swappy, nwg-look and nwg-displays,
+    # so this list maps onto the Arch one almost name for name. mako is
+    # mako-notifier here, and libnotify's notify-send is in libnotify-bin.
+    PKGS_DESKTOP=(
+        waybar wofi mako-notifier libnotify-bin
+        kitty
+        thunar thunar-volman thunar-archive-plugin tumbler file-roller
+        gvfs gvfs-backends gvfs-fuse udiskie
+        network-manager-gnome
+        gnome-keyring
+        swayosd brightnessctl
+        grim slurp swappy wl-clipboard cliphist
+        nwg-look nwg-displays
+        imv mpv
+        imagemagick jq
+        # starch-config is GTK4 through PyGObject: the binding, the cairo
+        # integration and GTK4's own typelib, which is a separate package here.
+        python3-gi python3-gi-cairo gir1.2-gtk-4.0
+        dconf-cli
+    )
+    # The Nerd Fonts are not packaged, so the system phase fetches them from
+    # the upstream release exactly as it does on Fedora.
+    PKGS_FONTS=(
+        fonts-jetbrains-mono
+        fonts-font-awesome
+        fonts-noto-core fonts-noto-mono
+        fonts-noto-color-emoji fonts-noto-cjk
+    )
+    # gnome-themes-extra is where Debian and Ubuntu keep Adwaita-dark for GTK3.
+    # Without it the dark theme this script sets in dconf does not exist and
+    # GTK3 applications come up light.
+    #
+    # libgtk-*-bin rather than the libgtk-3-0t64 / libgtk-4-1 shared libraries
+    # they depend on: those names carry the ABI in them and get renamed by
+    # transitions — the t64 suffix is one such rename already — whereas the
+    # -bin names are stable across releases. They also bring
+    # gtk-update-icon-cache, which the icon theme wants.
+    PKGS_THEME=(
+        papirus-icon-theme adwaita-icon-theme gnome-themes-extra
+        libgtk-3-bin libgtk-4-bin
+    )
+    # firefox comes from Mozilla's APT repository, not Ubuntu's transitional
+    # package — see MOZILLA_APT_* above.
+    PKGS_APPS=( firefox neovim vim )
+    # fd and bat are installed under their Debian names; their binaries are
+    # fdfind and batcat, which nothing in config/ calls.
+    PKGS_SHELL=( fastfetch btop ripgrep fd-find bat eza fzf zoxide starship )
+    PKGS_GREETD=( greetd tuigreet )
+    # bluetoothctl is part of bluez; libspa-0.2-bluetooth is what lets PipeWire
+    # see a Bluetooth audio device at all, and is split out on Ubuntu.
+    PKGS_BLUETOOTH=( bluez blueman libspa-0.2-bluetooth )
+    # steam is in multiverse and is i386; the system phase enables both.
+    PKGS_GAMING=( steam gamemode mangohud )
 fi
 
 # Everything this run is responsible for, honouring the feature flags.
@@ -585,15 +761,62 @@ WANTED=(
 # install media both are already present; this is what makes a plain run of
 # this script on an existing Arch install fix the wifi too. On Fedora the
 # driver is RPM Fusion's akmod-wl, which is left to the user.
-[[ $DISTRO == arch && $BCM_DRIVER == wl ]] && WANTED+=( broadcom-wl-dkms )
+#
+# Ubuntu carries the same driver as broadcom-sta-dkms in restricted, so the
+# card is handled there rather than merely reported. It is a DKMS module, so it
+# needs dkms and headers for the running kernel to build against.
+[[ $DISTRO == arch   && $BCM_DRIVER == wl ]] && WANTED+=( broadcom-wl-dkms )
+[[ $DISTRO == ubuntu && $BCM_DRIVER == wl ]] && WANTED+=( broadcom-sta-dkms dkms linux-headers-generic )
 
 # ── package helpers ───────────────────────────────────────────────────────────
+# Every installed package name on an Ubuntu system, plus everything those
+# packages Provide, as one space-delimited string. Built once and cached:
+# pkg_installed is called for every name in WANTED, and dpkg-query costs about
+# as much for the whole database as it does for a single package.
+#
+# ${Package}, not ${binary:Package}: the latter appends :i386 to foreign-arch
+# packages, which --gaming adds, and those would then never match by name.
+UBUNTU_PKGSET=""
+ubuntu_pkgset() {
+    [[ -n $UBUNTU_PKGSET ]] && return 0
+    UBUNTU_PKGSET=" $(dpkg-query -W -f='${db:Status-Status} ${Package} ${Provides}\n' 2>/dev/null \
+        | sed -n 's/^installed //p' \
+        | tr ',' ' ' | sed 's/([^)]*)//g' | tr '\n' ' ' | tr -s ' ') "
+    return 0
+}
+
+# A package's upstream version, with the epoch and the Debian revision taken
+# off. The PPA calls its build 0.56.2-1ppa2~1resolute1, and comparing that
+# whole string with sort -V against a bare 0.55 gets the answer wrong.
+dpkg_version() {
+    local v
+    v="$(dpkg-query -W -f='${Version}' -- "$1" 2>/dev/null || true)"
+    v="${v#*:}"       # epoch
+    printf '%s' "${v%%-*}"
+}
+
+# True when an enabled repository offers this package. "(none)" is what
+# apt-cache prints for a name it knows only as a dependency, and an empty
+# answer is what it prints for one it has never heard of; neither can be
+# installed.
+apt_candidate_exists() {
+    local cand
+    cand="$(apt-cache policy -- "$1" 2>/dev/null | awk '/^  Candidate:/ {print $2; exit}')"
+    [[ -n $cand && $cand != "(none)" ]]
+}
+
 # True when a package is installed. Also handles package groups (base-devel),
-# which `pacman -Qq` never matches on their own name. On Fedora, anything that
-# provides the name counts too.
+# which `pacman -Qq` never matches on their own name. On Fedora and Ubuntu,
+# anything that provides the name counts too.
 pkg_installed() {
     if [[ $DISTRO == fedora ]]; then
         rpm -q --quiet "$1" 2>/dev/null || rpm -q --quiet --whatprovides "$1" 2>/dev/null
+        return
+    fi
+
+    if [[ $DISTRO == ubuntu ]]; then
+        ubuntu_pkgset
+        [[ $UBUNTU_PKGSET == *" $1 "* ]]
         return
     fi
 
@@ -609,9 +832,34 @@ pkg_installed() {
 
 unit_enabled() { systemctl is-enabled --quiet "$1" 2>/dev/null; }
 
-# Fedora packages none of the Nerd Fonts every config here names, so they are
-# fetched from the upstream release instead: JetBrainsMono Nerd Font for text,
-# Symbols Nerd Font for the icons waybar and wofi draw.
+# True when an APT component (universe, multiverse) is configured. Reads the
+# source definitions rather than `apt-cache policy`, which only knows about
+# components whose lists have actually been downloaded — on a machine that has
+# not run `apt-get update` yet it would report a configured component as
+# missing and this would try to add it again on every run.
+#
+# Both formats: 26.04 ships deb822 /etc/apt/sources.list.d/ubuntu.sources with
+# a `Components:` line, and a one-line sources.list may still be there too.
+#
+# Only the paths that exist are passed to grep, and that is not tidiness. 26.04
+# is deb822-only and ships no /etc/apt/sources.list at all; grep -s suppresses
+# the *message* about a missing file but still exits 2, and under `set -o
+# pipefail` that exit propagates out of the pipeline and reads as "component
+# not enabled". Every run then decided universe needed adding, so the system
+# phase could never report itself complete and a re-run never became the
+# config-only refresh it is supposed to be.
+apt_component_enabled() {
+    local -a where=()
+    [[ -f /etc/apt/sources.list   ]] && where+=( /etc/apt/sources.list )
+    [[ -d /etc/apt/sources.list.d ]] && where+=( /etc/apt/sources.list.d/ )
+    [[ ${#where[@]} -gt 0 ]] || return 1
+    grep -rhsE '^[[:space:]]*(Components:|deb[[:space:]])' "${where[@]}" 2>/dev/null \
+        | grep -qw -- "$1"
+}
+
+# Neither Fedora nor Ubuntu packages the Nerd Fonts every config here names,
+# so they are fetched from the upstream release instead: JetBrainsMono Nerd
+# Font for text, Symbols Nerd Font for the icons waybar and wofi draw.
 NERD_FONTS=( JetBrainsMono NerdFontsSymbolsOnly )
 NERD_FONTS_DIR=/usr/local/share/fonts/nerd-fonts
 nerd_fonts_present() {
@@ -657,15 +905,66 @@ for p in "${WANTED[@]}"; do
     pkg_installed "$p" || MISSING_PKGS+=("$p")
 done
 
-# Not everything exists for every Fedora machine: steam only where the Asahi
-# COPR or RPM Fusion carries it, the iHD driver only with RPM Fusion. Something
-# no enabled repository offers is reported rather than counted as missing, or
-# every re-run would decide the system phase is still needed and try again.
+# Which APT components are configured. universe carries most of the desktop —
+# waybar, wofi, kitty, thunar, swayosd — and is enabled by default on Ubuntu
+# Desktop but not on every derivative or minimal image, so it is checked
+# rather than assumed.
+# steam is in multiverse and is a 32-bit package, so --gaming also needs the
+# i386 architecture added to dpkg.
 #
-# Except while Hyprland itself is unavailable: that means its COPR is not
-# enabled yet, and the system phase is what enables it. What is still
-# unavailable after that is skipped by dnf and warned about there.
+# Decided here, ahead of the availability filter below, which needs to know
+# whether universe is on before it can tell a package that does not exist from
+# one whose component simply is not enabled yet.
+APT_COMPONENTS_READY=1
+if [[ $DISTRO == ubuntu ]]; then
+    apt_component_enabled universe || APT_COMPONENTS_READY=0
+    if [[ $DO_GAMING -eq 1 ]]; then
+        apt_component_enabled multiverse || APT_COMPONENTS_READY=0
+        dpkg --print-foreign-architectures 2>/dev/null | grep -qx i386 || APT_COMPONENTS_READY=0
+    fi
+fi
+
+# Not everything exists for every machine: on Fedora, steam only where the
+# Asahi COPR or RPM Fusion carries it, the iHD driver only with RPM Fusion.
+# Something no enabled repository offers is reported rather than counted as
+# missing, or every re-run would decide the system phase is still needed and
+# try again.
+#
+# Except while Hyprland itself is unavailable: that means its COPR or PPA is
+# not enabled yet, and the system phase is what enables it. What is still
+# unavailable after that is skipped by dnf, or filtered out before apt-get
+# sees it, and warned about there.
 UNAVAILABLE_PKGS=()
+if [[ $DISTRO == ubuntu && ${#MISSING_PKGS[@]} -gt 0 ]]; then
+    # apt-get has no --skip-unavailable: one unknown name fails the whole
+    # transaction. So anything no enabled repository offers is filtered out
+    # here instead, and reported rather than counted as missing.
+    #
+    # Same exception as Fedora below: while hyprland itself has no candidate,
+    # the PPA is not enabled yet and the system phase is what enables it, so
+    # nothing is filtered — otherwise the first run would write off the whole
+    # Hyprland stack as unavailable and then decide it had nothing to do.
+    # A machine that has never run `apt-get update` has no candidates at all
+    # and lands here too, which is the safe way round.
+    #
+    # universe has to be on before this means anything as well: most of the
+    # desktop lives there, and filtering first would write all of it off as
+    # unavailable and then leave it uninstalled on the very run that enables
+    # the component.
+    if [[ $APT_COMPONENTS_READY -eq 1 ]] \
+       && { pkg_installed hyprland || apt_candidate_exists hyprland; }; then
+        _still=()
+        for p in "${MISSING_PKGS[@]}"; do
+            if apt_candidate_exists "$p"; then
+                _still+=("$p")
+            else
+                UNAVAILABLE_PKGS+=("$p")
+            fi
+        done
+        MISSING_PKGS=(${_still[@]+"${_still[@]}"})
+    fi
+fi
+
 if [[ $DISTRO == fedora && ${#MISSING_PKGS[@]} -gt 0 ]]; then
     # Offline the query fails, or answers from stale metadata with nothing at
     # all. Either way everything missing stays missing, the safe way round.
@@ -688,7 +987,7 @@ if [[ $DISTRO == fedora && ${#MISSING_PKGS[@]} -gt 0 ]]; then
 fi
 
 NERD_FONTS_READY=1
-if [[ $DISTRO == fedora ]] && ! nerd_fonts_present; then
+if [[ $DISTRO != arch ]] && ! nerd_fonts_present; then
     NERD_FONTS_READY=0
 fi
 
@@ -715,7 +1014,7 @@ info "packages:  ${#MISSING_PKGS[@]} of ${#WANTED[@]} missing"
 # rebooted.
 [[ ${#MISSING_PKGS[@]} -gt 0 ]] && info "           ${MISSING_PKGS[*]}"
 [[ ${#UNAVAILABLE_PKGS[@]} -gt 0 ]] && info "unavailable here, skipped: ${UNAVAILABLE_PKGS[*]}"
-[[ $DISTRO == fedora ]] && info "nerd fonts: $( ((NERD_FONTS_READY)) && echo installed || echo missing )"
+[[ $DISTRO != arch ]] && info "nerd fonts: $( ((NERD_FONTS_READY)) && echo installed || echo missing )"
 info "services:  ${#PENDING_UNITS[@]} pending"
 if [[ $DO_GREETD -eq 1 ]]; then
     info "greetd:    $( ((GREETD_CONFIGURED)) && echo configured || echo "not configured" )"
@@ -724,10 +1023,12 @@ elif [[ -n $OTHER_DM ]]; then
     info "login:     keeping $OTHER_DM (--greetd to replace it)"
 fi
 [[ $DISTRO == arch && $DO_GAMING -eq 1 ]] && info "multilib:  $( ((MULTILIB_READY))    && echo enabled    || echo disabled )"
+[[ $DISTRO == ubuntu ]] && info "apt repos: $( ((APT_COMPONENTS_READY)) && echo configured || echo "need enabling" )"
 
 SYSTEM_COMPLETE=0
 if [[ ${#MISSING_PKGS[@]} -eq 0 && ${#PENDING_UNITS[@]} -eq 0 \
       && $GREETD_CONFIGURED -eq 1 && $MULTILIB_READY -eq 1 \
+      && $APT_COMPONENTS_READY -eq 1 \
       && $NERD_FONTS_READY -eq 1 ]]; then
     SYSTEM_COMPLETE=1
 fi
@@ -909,7 +1210,7 @@ if [[ $RUN_SYSTEM -eq 1 ]]; then
             fi
         fi
 
-    else
+    elif [[ $DISTRO == fedora ]]; then
         # No whole-system upgrade first, unlike pacman -Syu on Arch: Fedora
         # supports partial upgrades, and dnf updates whatever a new package
         # actually needs.
@@ -962,6 +1263,160 @@ if [[ $RUN_SYSTEM -eq 1 ]]; then
             fi
         fi
 
+    else
+        # ── Ubuntu ────────────────────────────────────────────────────────────
+        # No whole-system upgrade here either, and for the same reason as
+        # Fedora: apt supports partial upgrades and pulls in whatever a new
+        # package actually needs.
+
+        # add-apt-repository is what enables both the component below and the
+        # PPA after it, and it is not on a minimal image. It lives in
+        # software-properties-common, which is in main — so this works before
+        # universe is on, which is the whole point of doing it first.
+        ensure_add_apt_repository() {
+            command -v add-apt-repository >/dev/null && return 0
+            require_network "installing software-properties-common"
+            run $SUDO apt-get update
+            run $SUDO env DEBIAN_FRONTEND=noninteractive \
+                apt-get install -y software-properties-common
+            command -v add-apt-repository >/dev/null
+        }
+
+        step "APT components"
+        if [[ $APT_COMPONENTS_READY -eq 1 ]]; then
+            ok "the components this needs are already enabled"
+        elif [[ $DRY_RUN -eq 1 ]]; then
+            info "[dry-run] would enable universe$( ((DO_GAMING)) && echo ", multiverse and i386" )"
+        else
+            ensure_add_apt_repository || die "add-apt-repository is not available."
+            if apt_component_enabled universe; then
+                ok "universe already enabled"
+            else
+                require_network "enabling the universe component"
+                $SUDO add-apt-repository -y universe
+                ok "enabled universe"
+            fi
+            if [[ $DO_GAMING -eq 1 ]]; then
+                if apt_component_enabled multiverse; then
+                    ok "multiverse already enabled"
+                else
+                    require_network "enabling the multiverse component"
+                    $SUDO add-apt-repository -y multiverse
+                    ok "enabled multiverse"
+                fi
+                # steam is a 32-bit package. Without the foreign architecture
+                # dpkg refuses it outright rather than pulling an i386 stack.
+                if dpkg --print-foreign-architectures | grep -qx i386; then
+                    ok "i386 architecture already added"
+                else
+                    $SUDO dpkg --add-architecture i386
+                    ok "added the i386 architecture (steam is 32-bit)"
+                fi
+            fi
+        fi
+
+        step "Hyprland repository"
+        # Ubuntu does not package Hyprland. As on Fedora, whatever already
+        # provides it is kept — a build installed by hand, or a PPA someone
+        # enabled themselves — and the default PPA goes on only when nothing
+        # does.
+        if pkg_installed hyprland; then
+            ok "hyprland $(dpkg_version hyprland) already installed — keeping it"
+        elif apt_candidate_exists hyprland; then
+            ok "hyprland is available from an enabled repository"
+        elif [[ $DRY_RUN -eq 1 ]]; then
+            info "[dry-run] would enable $HYPRLAND_PPA"
+        else
+            require_network "enabling the Hyprland PPA"
+            ensure_add_apt_repository || die "add-apt-repository is not available."
+            $SUDO add-apt-repository -y "$HYPRLAND_PPA"
+            ok "enabled the ${HYPRLAND_PPA#ppa:} PPA"
+        fi
+
+        # ── Firefox ───────────────────────────────────────────────────────────
+        # Ubuntu's firefox package is a transitional stub that installs snapd
+        # and the Firefox snap. Mozilla's own repository serves a real .deb for
+        # amd64 and arm64, which is what the other two distributions install,
+        # and it honours the MOZ_ENABLE_WAYLAND=1 that env.lua already sets.
+        if printf '%s\n' "${PKGS_APPS[@]}" | grep -qx firefox; then
+            step "Firefox repository"
+            if [[ -f $MOZILLA_APT_LIST ]]; then
+                ok "Mozilla's APT repository is already configured"
+            elif [[ $DRY_RUN -eq 1 ]]; then
+                info "[dry-run] would add Mozilla's APT repository"
+            else
+                require_network "adding Mozilla's APT repository"
+                $SUDO install -d -m 0755 /etc/apt/keyrings
+                if curl -fsSL --retry 3 "$MOZILLA_APT_KEY" \
+                       | $SUDO tee "$MOZILLA_APT_KEYRING" >/dev/null; then
+                    echo "deb [signed-by=$MOZILLA_APT_KEYRING] https://packages.mozilla.org/apt mozilla main" \
+                        | $SUDO tee "$MOZILLA_APT_LIST" >/dev/null
+                    # The pin is not optional. Ubuntu's transitional package
+                    # carries a higher version than Mozilla's real one, so
+                    # without this apt keeps picking the snap.
+                    $SUDO tee "$MOZILLA_APT_PREFS" >/dev/null <<'MOZEOF'
+Package: firefox*
+Pin: origin packages.mozilla.org
+Pin-Priority: 1000
+MOZEOF
+                    ok "added Mozilla's APT repository"
+                else
+                    # Leave nothing half-written, or apt-get update fails on a
+                    # keyring that is not a key and nothing installs at all.
+                    $SUDO rm -f "$MOZILLA_APT_KEYRING"
+                    warn "could not fetch Mozilla's signing key"
+                    warn "Firefox will come from Ubuntu instead, as a snap"
+                fi
+            fi
+        fi
+
+        step "Installing packages"
+        if [[ ${#MISSING_PKGS[@]} -eq 0 ]]; then
+            ok "all wanted packages already installed"
+        else
+            require_network "installing packages"
+            info "${#MISSING_PKGS[@]} to install: ${MISSING_PKGS[*]}"
+            # Unconditionally, not only when a repository was just added: the
+            # lists may be weeks stale, and apt installs the version its lists
+            # name rather than the one on the mirror.
+            run $SUDO apt-get update
+            # DEBIAN_FRONTEND=noninteractive because several of these ask
+            # debconf questions — greetd asks which display manager to use —
+            # and under --for-user there is no terminal for them to appear on.
+            run $SUDO env DEBIAN_FRONTEND=noninteractive \
+                apt-get install -y "${MISSING_PKGS[@]}"
+            if [[ $DRY_RUN -eq 0 ]]; then
+                # The installed-package set was read before any of this ran, so
+                # it now describes the machine as it was. Drop it, or every
+                # package just installed reads back as still missing.
+                UBUNTU_PKGSET=""
+                skipped=()
+                for _p in "${MISSING_PKGS[@]}"; do
+                    pkg_installed "$_p" || skipped+=("$_p")
+                done
+                if [[ ${#skipped[@]} -eq 0 ]]; then
+                    ok "packages installed"
+                else
+                    warn "not available here, skipped: ${skipped[*]}"
+                fi
+            fi
+        fi
+
+        # The configuration is Lua, which Hyprland reads from 0.55 on. An older
+        # build would start with none of it applied.
+        if pkg_installed hyprland; then
+            hypr_ver="$(dpkg_version hyprland)"
+            if [[ -n $hypr_ver ]] \
+               && [[ "$(printf '%s\n' "$HYPRLAND_MIN" "$hypr_ver" | sort -V | head -1)" != "$HYPRLAND_MIN" ]]; then
+                warn "hyprland $hypr_ver is older than $HYPRLAND_MIN, which this Lua config needs"
+            fi
+        fi
+    fi
+
+    # ── Nerd Fonts ────────────────────────────────────────────────────────────
+    # Shared by Fedora and Ubuntu: neither packages the fonts the configs name,
+    # and Arch has them in PKGS_FONTS. NERD_FONTS_READY is always 1 on Arch.
+    if [[ $DISTRO != arch ]]; then
         step "Nerd Fonts"
         if [[ $NERD_FONTS_READY -eq 1 ]]; then
             ok "JetBrainsMono and Symbols Nerd Fonts already installed"
@@ -1038,9 +1493,14 @@ if [[ $RUN_SYSTEM -eq 1 ]]; then
             info "uwsm session file not found; launching Hyprland directly"
         fi
 
-        # Arch's package creates a `greeter` account, Fedora's a `greetd` one.
+        # Each distribution's greetd package creates a differently named
+        # account, and config.toml naming one that does not exist is a login
+        # screen that never appears: Arch makes `greeter`, Fedora `greetd`,
+        # and Debian and Ubuntu `_greetd` (declared in the package's
+        # sysusers.d, with /var/lib/greetd as its home).
         greeter_user=greeter
         [[ $DISTRO == fedora ]] && greeter_user=greetd
+        [[ $DISTRO == ubuntu ]] && greeter_user=_greetd
 
         if [[ $DRY_RUN -eq 1 ]]; then
             info "[dry-run] would write /etc/greetd/config.toml"
@@ -1064,6 +1524,21 @@ EOF
         if [[ -n $OTHER_DM ]]; then
             run $SUDO systemctl disable "$OTHER_DM"
             ok "disabled $OTHER_DM"
+        fi
+
+        # Debian and Ubuntu arbitrate the display manager through this file as
+        # well as through the systemd alias, and a display manager installed or
+        # upgraded later reads it to decide whether to take the alias back. The
+        # unit alone is not enough to keep greetd in charge.
+        if [[ $DISTRO == ubuntu && -d /etc/X11 ]]; then
+            if [[ $DRY_RUN -eq 1 ]]; then
+                info "[dry-run] would set /etc/X11/default-display-manager to greetd"
+            elif [[ "$(cat /etc/X11/default-display-manager 2>/dev/null || true)" == /usr/sbin/greetd ]]; then
+                ok "/etc/X11/default-display-manager already names greetd"
+            else
+                echo /usr/sbin/greetd | $SUDO tee /etc/X11/default-display-manager >/dev/null
+                ok "set /etc/X11/default-display-manager to greetd"
+            fi
         fi
 
         unit_enabled greetd.service && ok "greetd.service already enabled" || {
@@ -1684,6 +2159,21 @@ if [[ ${NVIDIA_NOTES:-0} -eq 1 && $DISTRO == fedora ]]; then
     info "    https://rpmfusion.org/Howto/NVIDIA"
     info "With Secure Boot on, the module has to be signed and its key enrolled"
     info "before it will load — that page covers it."
+elif [[ ${NVIDIA_NOTES:-0} -eq 1 && $DISTRO == ubuntu ]]; then
+    step "NVIDIA notes"
+    warn "No NVIDIA driver was installed. Ubuntu packages several branches and"
+    warn "which one a card wants is what ubuntu-drivers exists to answer —"
+    warn "guessing it wrong costs you the graphical session."
+    info "    sudo ubuntu-drivers devices      # what this card can take"
+    info "    sudo ubuntu-drivers install      # install the recommended one"
+    info "(ubuntu-drivers is in ubuntu-drivers-common, if it is not already here.)"
+    echo
+    info "With Secure Boot on, the installer generates a signing key and asks"
+    info "for a password, which you then have to enrol at the blue MOK screen on"
+    info "the next boot. Skip that and the module will not load."
+    echo
+    info "After rebooting, confirm DRM modesetting with:"
+    info "    cat /sys/module/nvidia_drm/parameters/modeset    # expect Y"
 elif [[ ${NVIDIA_NOTES:-0} -eq 1 ]]; then
     step "NVIDIA notes"
     info "Arch already ships 'options nvidia_drm modeset=1', and fbdev follows it"

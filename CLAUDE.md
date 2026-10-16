@@ -41,14 +41,72 @@ which needs no running compositor, or `hyprctl configerrors` in a session.
 
 ## install.sh
 
-**Two distros, one desktop.** `DISTRO` (arch | fedora, from `/etc/os-release`)
-selects the package lists, the package manager, the greeter account and where
-Hyprland comes from. Everything under `config/` is shared and must stay
-distro-neutral. A package added to one list needs its counterpart in the other;
-Fedora names differ often (`python3-gobject`, `Thunar`, `qt6-qtwayland`), and
-`dnf repoquery <name>` on a Fedora box says whether one exists. Fedora has no
-Hyprland of its own: an installed build or an enabled COPR is always respected,
-and `nett00n/hyprland` is enabled only when nothing provides it.
+**Three distros, one desktop.** `DISTRO` (arch | fedora | ubuntu, from
+`/etc/os-release`) selects the package lists, the package manager, the greeter
+account and where Hyprland comes from. Everything under `config/` is shared and
+must stay distro-neutral. A package added to one list needs its counterpart in
+the other two; names differ often — Fedora has `python3-gobject`, `Thunar`,
+`qt6-qtwayland`, Ubuntu has `python3-gi`, `mako-notifier`, `libnotify-bin`,
+`fd-find`, `qtwayland5`. `dnf repoquery <name>` answers on a Fedora box; for
+Ubuntu, nothing local does, so check the archive before writing a name down:
+
+    curl -s "https://people.canonical.com/~ubuntu-archive/madison.cgi?package=NAME&s=resolute&a=&c=&t="
+
+Only one suite per query — a comma-separated list silently returns nothing.
+The PPA's own contents come from the Launchpad API (`getPublishedSources` /
+`getPublishedBinaries`, which paginate; `total_size` tells you if you only got
+the first page). A source published for a series does not mean a binary was
+built for it: `uwsm` is a published source for resolute with no binary, and
+PPA `waybar` is amd64-only.
+
+Neither Fedora nor Ubuntu has a Hyprland of its own. In both cases an installed
+build or an already-enabled repository is always respected, and the default —
+`nett00n/hyprland` COPR, `ppa:cppiber/hyprland` — is enabled only when nothing
+provides it.
+
+**Ubuntu's floor is 26.04, and both reasons matter.** The PPA reaches only
+0.54.3 on 24.04, below the 0.55 that reads the Lua config; and 24.04's archive
+has no `swayosd`, which is the *only* thing bound to the volume, mute and
+brightness keys — so a 24.04 desktop would come up with those keys silently
+dead, which is this repo's least favourite failure mode. An older release is
+refused by codename, not version number: a derivative reports its own
+`VERSION_ID` (Mint 23 is Ubuntu 26.04), so `UBUNTU_CODENAME` is the only field
+that says which archive is underneath. Every codename *below* the floor is
+listed, so an unrecognised one can only be newer and proceeds with a warning
+rather than refusing a release that did not exist yet.
+
+**The greeter account is named differently on all three**, and `config.toml`
+naming one that does not exist is a login screen that never appears: `greeter`
+on Arch, `greetd` on Fedora, `_greetd` on Debian and Ubuntu (from the package's
+`sysusers.d`). Ubuntu also arbitrates through
+`/etc/X11/default-display-manager` as well as the systemd alias — a display
+manager installed later reads that file to decide whether to take the alias
+back, so the unit alone does not keep greetd in charge.
+
+**`grep -s` still exits 2 on a missing file**, and under `set -o pipefail` that
+exit comes out of the whole pipeline and reads as "no match". 26.04 is
+deb822-only and ships no `/etc/apt/sources.list` at all, so the universe check
+failed on every real machine: each run decided universe needed adding, the
+system phase could never report itself complete, and a re-run never became the
+config-only refresh it is supposed to be. `apt_component_enabled` now passes
+grep only the paths that exist.
+
+**Ubuntu's installed-package set is cached**, because `pkg_installed` is called
+once per name in `WANTED` and one `dpkg-query` pass costs the same as one
+lookup. It is read before anything is installed, so `UBUNTU_PKGSET=""` after
+`apt-get install` is not optional — without it every package just installed
+reads back as still missing and the run reports all of them as skipped.
+
+**apt has no `--skip-unavailable`.** One unknown name fails the whole
+transaction, so anything no enabled repository offers is filtered out *before*
+`apt-get` sees it. That filter has to wait for both universe and the Hyprland
+PPA, or the first run writes the entire desktop off as unavailable and then
+leaves it uninstalled on the very run that enables the component.
+
+**Ubuntu's `firefox` is a transitional stub** that installs snapd and the
+snap, and it carries a *higher* version than Mozilla's real `.deb`, so the
+pin in `/etc/apt/preferences.d/mozilla` is what makes the repository work at
+all. Without it apt keeps choosing the snap.
 
 **It does not touch the boot.** No Plymouth, initramfs or kernel command line:
 the splash lives in starch, which owns the machines it installs. It used to live
@@ -59,6 +117,12 @@ theme and rebuilding every initramfs.
 takes `^PKGS_...=(` through `^)` with sed, so the Arch arrays must stay at
 column 0, and anything between them — the sed range runs past one-line arrays
 to the next column-0 `)` — is evaluated there with `set -u` and no `DISTRO`.
+That is why both the Fedora and the Ubuntu override blocks are indented and
+test `${DISTRO:-}` rather than `$DISTRO`: they are inside the swallowed range
+and get evaluated by starch too. After touching any of them, check the ISO list
+did not move:
+
+    diff <(cd ../starch && ./extract-packages.sh) <previous output>
 
 Idempotent by design: a second run detects that packages and services are in
 place and becomes a config sync. It backs up only files that actually changed.
