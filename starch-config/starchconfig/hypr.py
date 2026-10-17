@@ -69,6 +69,14 @@ def reload() -> str:
     return _run(["reload"], check=False).strip()
 
 
+def center_window(pid: int) -> str:
+    """Centre the floating window belonging to `pid` on its monitor."""
+    return _run(
+        ["dispatch", f'hl.dsp.window.center({{ window = "pid:{pid}" }})'],
+        check=False,
+    ).strip()
+
+
 def get_option(name: str):
     """Read one config value from the running compositor.
 

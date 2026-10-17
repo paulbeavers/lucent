@@ -7,6 +7,8 @@ anywhere says so. Here the menu contains only the values that survive that
 test, which means what you pick is what you get.
 """
 
+import os
+
 from .. import generate, hypr, paths, scales
 from ..widgets import Page, Row, dropdown
 
@@ -170,6 +172,11 @@ def _writer(all_state):
             generate.monitors_lua([st.entry() for st in all_state]),
         )
         hypr.reload()
+        # Hyprland leaves floating windows where they were when the logical
+        # size shrinks, so going from 100% to 200% put this window past the
+        # right-hand edge — and the Settings bind only re-presents the existing
+        # window, so the app looked like it would no longer open.
+        hypr.center_window(os.getpid())
 
     return apply
 
