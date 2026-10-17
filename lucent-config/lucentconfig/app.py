@@ -81,7 +81,7 @@ class Window(Gtk.ApplicationWindow):
         bar = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=8)
         bar.add_css_class("sc-titlebar")
 
-        name = Gtk.Label(label="starch")
+        name = Gtk.Label(label="lucent")
         name.add_css_class("sc-app-title")
 
         accent = Gtk.Label(label="config")
