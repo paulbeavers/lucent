@@ -5,8 +5,6 @@ and offer to stop appearing. A first-run screen that cannot be dismissed
 permanently is a nuisance rather than a welcome.
 """
 
-from pathlib import Path
-
 from gi.repository import Gtk
 
 from .. import hypr, readback, state
@@ -33,20 +31,7 @@ TOUR = [
 
 
 def build(window):
-    page = Page("")  # the logo is the heading
-
-    logo = _logo()
-    if logo is not None:
-        page.append(logo)
-
-    hello = Gtk.Label(xalign=0.5)
-    hello.add_css_class("sc-page-subtitle")
-    hello.set_wrap(True)
-    hello.set_max_width_chars(58)
-    hello.set_justify(Gtk.Justification.CENTER)
-    hello.set_text(INTRO)
-    hello.set_margin_bottom(6)
-    page.append(hello)
+    page = Page("Welcome", INTRO)
 
     card = page.section("What is here")
     for icon, name, what in TOUR:
@@ -78,15 +63,3 @@ def _set_show_at_login(value):
     # point.
     state.set("show_at_login", bool(value))
 
-
-def _logo():
-    path = Path(__file__).parent.parent / "assets" / "logo.png"
-    if not path.exists():
-        return None
-    image = Gtk.Picture.new_for_filename(str(path))
-    image.set_content_fit(Gtk.ContentFit.CONTAIN)
-    image.set_can_shrink(True)
-    image.set_size_request(-1, 190)
-    image.set_margin_top(10)
-    image.set_margin_bottom(14)
-    return image

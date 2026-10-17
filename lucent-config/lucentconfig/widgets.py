@@ -69,7 +69,6 @@ class Page(Gtk.Box):
         super().__init__(orientation=Gtk.Orientation.VERTICAL, spacing=0)
         self.add_css_class("sc-content")
 
-        # The welcome page leads with the logo and passes no title.
         if title:
             self.append(_label(title, "sc-page-title"))
         if subtitle:
