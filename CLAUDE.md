@@ -257,6 +257,60 @@ If brcmfmac claims it, `wl` is the wrong answer. And `wl` matches on PCI
 races the right driver — which is why a card that is not on the list now gets
 `blacklist wl` written for it rather than nothing.
 
+## Parallels on a Mac: the display and the cursor
+
+Fedora aarch64 under Parallels, virtio-gpu (vendor 0x1af4, so `gpu_has
+virtual`), `systemd-detect-virt` says `parallels`. GNOME looks right there out
+of the box; Hyprland did not, in four ways.
+
+**Black bars left and right, cursor still visible in them.** `monitors.lua`
+said `highrr`, and a virtual display advertises thirty-odd modes all near
+60Hz, so that picked 1600x1200 for a 2936x1846 window and the host
+pillarboxed the 4:3 frame. The Mac draws the cursor, which is why it could go
+into the bars. On a virtual GPU `install.sh` now writes `preferred` — the
+mode that matches the host window, and the one it already worked the scale
+out from. Real hardware still gets `highrr`.
+
+**Two cursors.** virtio-gpu only exposes a cursor plane to a compositor that
+sets the hotspot client cap; mutter does, aquamarine 0.15.1 does not — the log
+lists no plane of type 2 at all. So `no_hardware_cursors = 0` changes nothing:
+Hyprland draws a software cursor and Parallels draws the Mac's over it. On
+Parallels only, `gpu.lua` sets `cursor.invisible`. The cost is a pointer that
+never changes shape. Not for other hypervisors: QEMU and friends hide the
+host pointer instead, and there this would leave no cursor at all. If
+aquamarine gains the hotspot cap, the line can go.
+
+**The cursor at half size once the VM has the mouse.** The image Parallels
+shows then comes from the guest, one pixel per Retina pixel, so 24 reads as
+half the Mac's. `gpu.lua` sets `XCURSOR_SIZE`/`HYPRCURSOR_SIZE` to 48 on
+Parallels — chosen because it looked right, not derived. Two things had to
+change for that to hold: `autostart.lua` hard-coded `setcursor Adwaita 24`,
+and it ran only at login, while **a reload puts the cursor back to the size
+Hyprland launched with**. `setcursor` now reads `$XCURSOR_SIZE` and runs at
+the top level of `autostart.lua` as well as in the start handler.
+
+**Option+I "stopped working" after picking 200%.** The window was floating at
+x=1843 on a desktop now 1468 wide; starch-config is single-instance, so the
+bind re-presented a window nobody could see. starch-config now centres its own
+window, by pid, after any display change. Option+Ctrl+C does it by hand.
+
+Still open, as of 2026-10-17:
+
+- **The cursor is sometimes small again.** Probably per-window: on Wayland
+  each client picks its own cursor size, and GTK apps get conflicting answers
+  — `config/gtk-{3,4}.0/settings.ini` say 24, the `gsettings` GNOME left
+  behind says 48. Find out which window it happens over first; if it is the
+  GTK apps, raise the settings.ini size on Parallels only.
+- **Only 100% and 200% are offered at 2936x1846.** Not a bug: 1846 = 2·13·71,
+  so no fraction of 1/120 between 1 and 2 divides both axes. A fixed
+  resolution in Parallels (2880x1800 or 2560x1600) gives many more. GNOME
+  offered the same two for the same reason.
+- **`prlcc` does not run under Hyprland** — it is Parallels Tools' X11 session
+  helper — so clipboard sharing with the Mac probably does not work. Untested.
+- starch-config writes an explicit mode such as `2936x1846@59.98`, which
+  stops following the host window if it is resized, and once wrote
+  `1600x1200@60.32`, a rate that mode does not have. Not looked into.
+
 ## Install the hooks on a fresh clone
 
 `.git/hooks` is not tracked, so a clone has none — and starch's CLAUDE.md says
