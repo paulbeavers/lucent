@@ -304,7 +304,8 @@ Still open, as of 2026-10-17:
 - **Only 100% and 200% are offered at 2936x1846.** Not a bug: 1846 = 2·13·71,
   so no fraction of 1/120 between 1 and 2 divides both axes. A fixed
   resolution in Parallels (2880x1800 or 2560x1600) gives many more. GNOME
-  offered the same two for the same reason.
+  offered the same two for the same reason. 2560x1600 at 1.6, picked in
+  starch-config, looks sharp on the machine this was worked out on.
 - **`prlcc` does not run under Hyprland** — it is Parallels Tools' X11 session
   helper — so clipboard sharing with the Mac probably does not work. Untested.
 - starch-config writes an explicit mode such as `2936x1846@59.98`, which
