@@ -61,13 +61,13 @@ def build(window):
     card.add(Row(
         "Show this at login",
         switch(state.get("show_at_login"), on_change=_set_show_at_login),
-        "Turn this off and starch-config stays out of the way until you open "
+        "Turn this off and lucent-config stays out of the way until you open "
         f"it yourself, with {readback.modifier()}+I.",
     ))
 
     if not hypr.available():
         page.note("No compositor answered, so the other pages have nothing to "
-                  "read. Start Hyprland and reopen starch-config.")
+                  "read. Start Hyprland and reopen lucent-config.")
     return page
 
 

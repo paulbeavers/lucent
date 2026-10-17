@@ -21,7 +21,7 @@ sudo reboot
 ```
 
 That installs the packages, enables the services, writes the config into
-`~/.config`, detects the displays and the GPU, and installs `starch-config`.
+`~/.config`, detects the displays and the GPU, and installs `lucent-config`.
 It takes a while on a cold pacman cache, and asks for your password once.
 
 `--dry-run` shows what it would do and writes nothing. Re-running afterwards is
@@ -63,7 +63,7 @@ What differs from Arch:
   anything, because it does not support partial upgrades. Fedora does, so the
   script only runs `dnf install`.
 - **Not packaged, so not installed:** `nwg-look` and `nwg-displays`
-  (`starch-config` covers displays), and `starship`, which nothing here uses.
+  (`lucent-config` covers displays), and `starship`, which nothing here uses.
   Anything no enabled repository offers on this machine, such as Steam away
   from Asahi or the Intel iHD driver without RPM Fusion, is reported and
   skipped.
@@ -275,7 +275,7 @@ generated, never shipped:
   monitors.lua     written at install time from your connected displays
   gpu.lua          written from the card that was detected
   colors.lua       written by scripts/theme.sh from the active palette
-  settings.lua     written by starch-config; loaded last, so it wins
+  settings.lua     written by lucent-config; loaded last, so it wins
 ```
 
 Hyprland reloads on save — no restart needed. Check a change with
@@ -298,7 +298,7 @@ For a terminal dump instead of the popup:
 Or straight from Hyprland: `hyprctl binds` (raw), `hyprctl -j binds` (JSON).
 
 **The modifier is configurable.** Every key below starts with `SUPER` —
-Command on a Mac keyboard — and starch-config's **Input → Primary modifier**
+Command on a Mac keyboard — and lucent-config's **Input → Primary modifier**
 switches it to `Alt`/`Option`. That is the setting to reach for when running
 this in a VM on a Mac, where the host keeps Command for itself and a desktop
 whose every shortcut begins with it is unusable.
@@ -356,7 +356,7 @@ keymap keeps one shape.
 | `SUPER + R` | Resize mode (`hjkl`, Escape to exit) |
 | `SUPER + X` | Clipboard history |
 | `SUPER + SHIFT + S` | Screenshot region → annotate |
-| `SUPER + I` | Settings (starch-config) |
+| `SUPER + I` | Settings (lucent-config) |
 | `SUPER + Escape` | Lock |
 | `SUPER + SHIFT + E` | Power menu |
 | `SUPER + SHIFT + M` | Exit Hyprland |
@@ -383,7 +383,7 @@ keymap keeps one shape.
   `hyprctl keyword`, so `hyprctl reload` or a new session returns to the
   `theme.lua` default; change that line to start in scrolling instead.
   `SUPER + ALT + ...` binds drive the tape and do nothing under dwindle.
-- **`starch-config` is the settings app.** `SUPER + I`, or "Settings" in the
+- **`lucent-config` is the settings app.** `SUPER + I`, or "Settings" in the
   launcher. It also opens on its welcome page at first login, and that page
   has a switch to stop it doing so. It covers display scale, resolution and refresh; the idle timeouts
   and the lid; keyboard and touchpad; theme, wallpaper, cursor and font. Two

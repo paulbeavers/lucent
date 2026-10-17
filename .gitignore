@@ -14,6 +14,6 @@
 # Safe to delete with: sudo rm -rf iso/
 iso/
 
-# Python bytecode from starch-config.
+# Python bytecode from lucent-config.
 __pycache__/
 *.pyc

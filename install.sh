@@ -527,7 +527,7 @@ PKGS_DESKTOP=(
     nwg-look nwg-displays
     imv mpv
     imagemagick jq
-    # starch-config is GTK4 through PyGObject. gtk4 itself comes with
+    # lucent-config is GTK4 through PyGObject. gtk4 itself comes with
     # PKGS_THEME; this is the Python binding, and the only thing the settings
     # app adds to the image.
     python-gobject
@@ -604,7 +604,7 @@ if [[ ${DISTRO:-} == fedora ]]; then
         xdg-desktop-portal-hyprland xdg-desktop-portal-gtk
         qt5-qtwayland qt6-qtwayland
     )
-    # nwg-look and nwg-displays are not packaged for Fedora. starch-config
+    # nwg-look and nwg-displays are not packaged for Fedora. lucent-config
     # covers the display side; GTK theming is in settings.ini and dconf.
     PKGS_DESKTOP=(
         waybar wofi mako libnotify
@@ -708,7 +708,7 @@ elif [[ ${DISTRO:-} == ubuntu ]]; then
         nwg-look nwg-displays
         imv mpv
         imagemagick jq
-        # starch-config is GTK4 through PyGObject: the binding, the cairo
+        # lucent-config is GTK4 through PyGObject: the binding, the cairo
         # integration and GTK4's own typelib, which is a separate package here.
         python3-gi python3-gi-cairo gir1.2-gtk-4.0
         dconf-cli
@@ -1608,7 +1608,7 @@ if [[ $DO_CONFIGS -eq 1 ]]; then
     fi
 
     # ── the settings app ──────────────────────────────────────────────────────
-    # starch-config is a GTK4 application, not a config file, so it does not go
+    # lucent-config is a GTK4 application, not a config file, so it does not go
     # through the sync above. It lands in /usr/local — the FHS home for software
     # the administrator installed rather than the package manager — with a
     # launcher on PATH and a desktop entry so the launcher and any menu can find
@@ -1618,27 +1618,35 @@ if [[ $DO_CONFIGS -eq 1 ]]; then
     # should keep working after this checkout is deleted, which is exactly what
     # people do with a clone they used once.
     step "Settings app"
-    app_src="$SCRIPT_DIR/starch-config"
-    app_dst=/usr/local/lib/starch-config
+    app_src="$SCRIPT_DIR/lucent-config"
+    app_dst=/usr/local/lib/lucent-config
     if [[ ! -d $app_src ]]; then
-        warn "starch-config is missing from this checkout — skipping"
+        warn "lucent-config is missing from this checkout — skipping"
     elif [[ $DRY_RUN -eq 1 ]]; then
-        info "[dry-run] would install starch-config to $app_dst"
+        info "[dry-run] would install lucent-config to $app_dst"
     else
         run $SUDO rm -rf "$app_dst"
         run $SUDO mkdir -p "$app_dst"
-        run $SUDO cp -r "$app_src/starchconfig" "$app_src/starch-config" "$app_dst/"
-        run $SUDO chmod 755 "$app_dst/starch-config"
+        run $SUDO cp -r "$app_src/lucentconfig" "$app_src/lucent-config" "$app_dst/"
+        run $SUDO chmod 755 "$app_dst/lucent-config"
         # Python bytecode from running it out of the checkout has no business
         # being shipped; it is regenerated and it names the old paths.
         $SUDO find "$app_dst" -name __pycache__ -type d -exec rm -rf {} + 2>/dev/null || true
 
         # The launcher is a symlink, and the entry point resolves its own real
         # path before adding it to sys.path, so the package is found through it.
-        run $SUDO ln -sfn "$app_dst/starch-config" /usr/local/bin/starch-config
-        run $SUDO install -Dm644 "$app_src/starch-config.desktop" \
-            /usr/share/applications/starch-config.desktop
-        ok "starch-config installed — SUPER+I, or \"Settings\" in the launcher"
+        run $SUDO ln -sfn "$app_dst/lucent-config" /usr/local/bin/lucent-config
+        run $SUDO install -Dm644 "$app_src/lucent-config.desktop" \
+            /usr/share/applications/lucent-config.desktop
+        # It was starch-config until 2026-10-17. Left in place, the old copy is
+        # a second "Settings" in the launcher that opens a stale app.
+        if [[ -e /usr/local/lib/starch-config || -L /usr/local/bin/starch-config \
+              || -e /usr/share/applications/starch-config.desktop ]]; then
+            run $SUDO rm -rf /usr/local/lib/starch-config /usr/local/bin/starch-config \
+                /usr/share/applications/starch-config.desktop
+            info "removed the old starch-config"
+        fi
+        ok "lucent-config installed — SUPER+I, or \"Settings\" in the launcher"
     fi
 
     # ── monitors ──────────────────────────────────────────────────────────────

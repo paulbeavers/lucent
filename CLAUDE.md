@@ -2,7 +2,7 @@
 
 The desktop half of [starch](https://github.com/paulbeavers/starch): a script
 that turns a fresh Arch install into a Hyprland desktop, the configuration it
-deploys, and `starch-config`. `README.md` is written for someone using it; this
+deploys, and `lucent-config`. `README.md` is written for someone using it; this
 file is for someone changing it.
 
 ## The configuration is Lua, and that has consequences
@@ -33,7 +33,7 @@ modules instead. Anything new that "does nothing when clicked" is worth
 checking here first.
 
 **`hl.config` sets one key and leaves its siblings alone.** That is what makes
-`settings.lua` safe: `hyprland.lua` loads it last, so `starch-config` can
+`settings.lua` safe: `hyprland.lua` loads it last, so `lucent-config` can
 override four input settings without rewriting `input.lua`.
 
 **`settings.lua` is loaded last, which makes it useless for anything the
@@ -45,7 +45,7 @@ decided before a module runs needs the same treatment.
 
 **The modifier is a *trio*: `mod`, `alt` and `solo`.** `keybinds.lua` spells
 no modifier literally. Default is `mod=SUPER, alt=ALT, solo=ALT`; picking
-Alt/Option in starch-config gives `mod=ALT, alt=CTRL, solo="ALT + CTRL"`.
+Alt/Option in lucent-config gives `mod=ALT, alt=CTRL, solo="ALT + CTRL"`.
 
 Two wrong answers, both of which were written before this one. Reassigning
 only `mod` collapses `mod + ALT + H` into `ALT + H` — already Focus left —
@@ -188,7 +188,7 @@ own greetd config as foreign, and the system phase stops reporting complete.
 install media strips modes, so without it every keybind that runs a script is a
 silent no-op. A new script that is not `*.sh` will not get the bit.
 
-## starch-config
+## lucent-config
 
 GTK4 through PyGObject, **deliberately without libadwaita** — it encodes
 GNOME's design language and resists being overridden.
@@ -296,8 +296,8 @@ Hyprland launched with**. `setcursor` now reads `$XCURSOR_SIZE` and runs at
 the top level of `autostart.lua` as well as in the start handler.
 
 **Option+I "stopped working" after picking 200%.** The window was floating at
-x=1843 on a desktop now 1468 wide; starch-config is single-instance, so the
-bind re-presented a window nobody could see. starch-config now centres its own
+x=1843 on a desktop now 1468 wide; lucent-config is single-instance, so the
+bind re-presented a window nobody could see. lucent-config now centres its own
 window, by pid, after any display change. Option+Ctrl+C does it by hand.
 
 Still open, as of 2026-10-17:
@@ -311,10 +311,10 @@ Still open, as of 2026-10-17:
   so no fraction of 1/120 between 1 and 2 divides both axes. A fixed
   resolution in Parallels (2880x1800 or 2560x1600) gives many more. GNOME
   offered the same two for the same reason. 2560x1600 at 1.6, picked in
-  starch-config, looks sharp on the machine this was worked out on.
+  lucent-config, looks sharp on the machine this was worked out on.
 - **`prlcc` does not run under Hyprland** — it is Parallels Tools' X11 session
   helper — so clipboard sharing with the Mac probably does not work. Untested.
-- starch-config writes an explicit mode such as `2936x1846@59.98`, which
+- lucent-config writes an explicit mode such as `2936x1846@59.98`, which
   stops following the host window if it is resized, and once wrote
   `1600x1200@60.32`, a rate that mode does not have. Not looked into.
 

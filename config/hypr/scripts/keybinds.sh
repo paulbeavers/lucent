@@ -4,7 +4,7 @@
 # Reads the binds out of the running compositor rather than parsing
 # keybinds.lua, so it can never drift out of sync with what is actually bound.
 # That includes the modifier: the names below are decoded from each bind's
-# modmask, so they follow starch-config's Primary modifier setting by
+# modmask, so they follow lucent-config's Primary modifier setting by
 # themselves.
 #
 # Dump to stdout instead of opening wofi:
@@ -12,7 +12,7 @@
 set -euo pipefail
 
 # The one label that cannot come from a modmask, because it describes a bind
-# by name rather than listing it. keys.lua is written by starch-config and is
+# by name rather than listing it. keys.lua is written by lucent-config and is
 # absent until the modifier has been changed, which means SUPER.
 MOD=SUPER
 if [[ -f ${XDG_CONFIG_HOME:-$HOME/.config}/hypr/keys.lua ]] &&

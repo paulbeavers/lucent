@@ -72,7 +72,7 @@ hl.on("hyprland.start", function()
     -- the app exits without drawing anything if its own "Show at login"
     -- switch has been turned off. So this line stays regardless of the
     -- choice, and the choice lives where it is made.
-    hl.exec_cmd("starch-config --welcome")
+    hl.exec_cmd("lucent-config --welcome")
 end)
 
 -- Set the cursor explicitly so XWayland apps do not fall back to X11's. Outside

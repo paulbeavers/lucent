@@ -21,7 +21,7 @@ COLORS_CSS = WAYBAR / "colors.css"
 # Hand-written, and left alone.
 INPUT_LUA = HYPR / "input.lua"
 
-# Generated. starch-config owns these outright and rewrites them whole; each
+# Generated. lucent-config owns these outright and rewrites them whole; each
 # one carries a header saying so.
 MONITORS_LUA = HYPR / "monitors.lua"
 HYPRIDLE_CONF = HYPR / "hypridle.conf"

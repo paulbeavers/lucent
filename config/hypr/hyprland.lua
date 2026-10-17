@@ -44,7 +44,7 @@ require("keybinds")
 require("rules")
 require("autostart")
 
--- Written by starch-config, and only if you have used it. It comes last so it
+-- Written by lucent-config, and only if you have used it. It comes last so it
 -- wins: hl.config overrides one key at a time and leaves the siblings alone, so
 -- a handful of settings here override the same handful above without the app
 -- having to rewrite — or understand — the hand-written modules.

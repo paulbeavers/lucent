@@ -126,8 +126,8 @@ hl.window_rule({
 -- it is obvious which window has focus. The app draws no frame of its own and
 -- lets the compositor round its corners.
 hl.window_rule({
-    name  = "starch-config",
-    match = { class = "^(dev\\.starch\\.config)$" },
+    name  = "lucent-config",
+    match = { class = "^(dev\\.lucent\\.config)$" },
     float = true, size = { 880, 620 }, center = true,
 })
 

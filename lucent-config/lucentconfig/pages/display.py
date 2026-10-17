@@ -20,7 +20,7 @@ def build(window):
     if not monitors:
         page.note(
             "No compositor answered, so there is nothing to read. Start "
-            "Hyprland and reopen starch-config."
+            "Hyprland and reopen lucent-config."
         )
         return page
 

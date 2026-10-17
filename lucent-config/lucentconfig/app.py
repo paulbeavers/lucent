@@ -25,7 +25,7 @@ from .pages import input as input_page  # noqa: E402
 from .pages import look as look_page  # noqa: E402
 from .pages import about as about_page  # noqa: E402
 
-APP_ID = "dev.starch.config"
+APP_ID = "dev.lucent.config"
 
 # icon, label, module
 SECTIONS = [
@@ -40,7 +40,7 @@ SECTIONS = [
 
 class Window(Gtk.ApplicationWindow):
     def __init__(self, app, start_page=None):
-        super().__init__(application=app, title="starch-config")
+        super().__init__(application=app, title="lucent-config")
         self.start_page = start_page
 
         # Undecorated, so the title bar below is the real one. GTK's own

@@ -2,7 +2,7 @@
 
 The second half matters more than the first. Every other page ends by saying
 "applying rewrites such-and-such a file"; this is the one place that lists them
-together, so it is possible to see at a glance what starch-config owns and what
+together, so it is possible to see at a glance what lucent-config owns and what
 it will never touch.
 """
 
@@ -36,7 +36,7 @@ def build(window):
     page = Page("About", "What this is, and what it writes.")
 
     card = page.section("Versions")
-    card.add(Row("starch-config", _value(__version__)))
+    card.add(Row("lucent-config", _value(__version__)))
     card.add(Row("Hyprland", _value(_hyprland_version())))
     card.add(Row("Waybar", _value(_version("waybar"))))
     card.add(Row("GTK", _value("%d.%d.%d" % (
