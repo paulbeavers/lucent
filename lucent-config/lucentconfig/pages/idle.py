@@ -186,8 +186,9 @@ def _write_lid(action: str):
                 # logind can reload, so the setting takes effect now rather
                 # than at the next boot. Reload rather than restart:
                 # restarting logind takes the session down with it.
-                "mkdir -p /etc/systemd/logind.conf.d && "
-                "cat > /etc/systemd/logind.conf.d/10-starch-lid.conf && "
+                f"mkdir -p {readback.LID_CONF.parent} && "
+                f"cat > {readback.LID_CONF} && "
+                f"rm -f {readback.OLD_LID_CONF} && "
                 "systemctl reload systemd-logind",
             ],
             input=body,

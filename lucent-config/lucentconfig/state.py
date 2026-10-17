@@ -23,8 +23,9 @@ DEFAULTS = {
 
 def load() -> dict:
     values = dict(DEFAULTS)
+    source = paths.STATE if paths.STATE.exists() else paths.OLD_STATE
     try:
-        stored = json.loads(paths.STATE.read_text())
+        stored = json.loads(source.read_text())
     except (OSError, ValueError):
         return values
     if isinstance(stored, dict):
@@ -43,3 +44,8 @@ def set(key, value) -> None:  # noqa: A001 — reads better than set_value here
     tmp = paths.STATE.with_suffix(".json.tmp")
     tmp.write_text(json.dumps(values, indent=2, sort_keys=True) + "\n")
     tmp.replace(paths.STATE)
+    try:
+        paths.OLD_STATE.unlink(missing_ok=True)
+        paths.OLD_STATE.parent.rmdir()
+    except OSError:
+        pass  # not empty, or never existed — either way, not ours to force

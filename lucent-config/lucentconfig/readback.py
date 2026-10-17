@@ -13,7 +13,10 @@ from pathlib import Path
 
 from . import paths
 
-LID_CONF = Path("/etc/systemd/logind.conf.d/10-starch-lid.conf")
+LID_CONF = Path("/etc/systemd/logind.conf.d/10-lucent-lid.conf")
+# The name it had until 2026-10-17. Read when the new one is absent, and
+# removed whenever the new one is written, so the two can never disagree.
+OLD_LID_CONF = Path("/etc/systemd/logind.conf.d/10-starch-lid.conf")
 
 
 def hypridle_timeouts():
@@ -70,7 +73,7 @@ def lid_action() -> str:
     systemd's own default is suspend, so that is what an absent drop-in means.
     """
     try:
-        text = LID_CONF.read_text()
+        text = (LID_CONF if LID_CONF.exists() else OLD_LID_CONF).read_text()
     except OSError:
         return "suspend"
     match = re.search(r"^\s*HandleLidSwitch\s*=\s*(\S+)", text, re.M)

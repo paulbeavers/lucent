@@ -37,7 +37,11 @@ KEYS_LUA = HYPR / "keys.lua"
 # are rendered from. Kept separate because a generated file cannot always be
 # read back: "suspend after 10 minutes" survives a round trip, but "scale 1.6 on
 # a display that cannot do 1.6" does not.
-STATE = CONFIG / "starch" / "settings.json"
+STATE = CONFIG / "lucent" / "settings.json"
+# Where it lived until 2026-10-17, when the app was starch-config. Still read
+# when the new file does not exist yet, so someone who had turned the welcome
+# page off does not get it back; removed the first time the new one is written.
+OLD_STATE = CONFIG / "starch" / "settings.json"
 
 SCRIPTS = HYPR / "scripts"
 THEME_SH = SCRIPTS / "theme.sh"
