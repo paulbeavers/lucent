@@ -13,7 +13,7 @@
 #     ./make-wallpaper.sh lattice 5120 2160 starch-lattice-5120x2160.png
 #
 # mark.sh is vendored next to this script rather than read out of ~/starch:
-# hyprland-setup installs on its own, with no ISO builder present. It is a copy
+# lucent installs on its own, with no ISO builder present. It is a copy
 # of starch/splash/mark.sh and the two have to be changed together.
 set -euo pipefail
 HERE="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"

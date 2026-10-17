@@ -1,4 +1,4 @@
-# hyprland-setup
+# lucent
 
 Turns a fresh Arch Linux, Fedora or Ubuntu install into a working Hyprland
 desktop, and keeps the result editable rather than magic. Fedora includes
@@ -14,8 +14,8 @@ for the few steps that need it.
 
 ```bash
 sudo pacman -S --needed git
-git clone https://github.com/paulbeavers/hyprland-setup.git ~/hyprland-setup
-cd ~/hyprland-setup
+git clone https://github.com/paulbeavers/lucent.git ~/lucent
+cd ~/lucent
 ./install.sh
 sudo reboot
 ```
@@ -38,8 +38,8 @@ including Fedora Asahi Remix on Apple silicon. The steps are the same:
 
 ```bash
 sudo dnf install git
-git clone https://github.com/paulbeavers/hyprland-setup.git ~/hyprland-setup
-cd ~/hyprland-setup
+git clone https://github.com/paulbeavers/lucent.git ~/lucent
+cd ~/lucent
 ./install.sh
 ```
 
@@ -83,8 +83,8 @@ rather than the derivative's own version number.
 
 ```bash
 sudo apt install git
-git clone https://github.com/paulbeavers/hyprland-setup.git ~/hyprland-setup
-cd ~/hyprland-setup
+git clone https://github.com/paulbeavers/lucent.git ~/lucent
+cd ~/lucent
 ./install.sh
 ```
 

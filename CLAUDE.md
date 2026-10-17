@@ -1,4 +1,4 @@
-# Working on hyprland-setup
+# Working on lucent
 
 The desktop half of [starch](https://github.com/paulbeavers/starch): a script
 that turns a fresh Arch install into a Hyprland desktop, the configuration it
@@ -177,6 +177,12 @@ did not move:
 Idempotent by design: a second run detects that packages and services are in
 place and becomes a config sync. It backs up only files that actually changed.
 `monitors.lua` is left alone once written, so a hand-tuned layout survives.
+
+**The repo was `hyprland-setup` until 2026-10-17**, and installed machines
+still say so: `/etc/greetd/config.toml` carries `Managed by hyprland-setup`,
+and that marker is how a re-run knows greetd is already done. The check
+accepts both names. Drop the old one and every existing install treats its
+own greetd config as foreign, and the system phase stops reporting complete.
 
 **Anything `*.sh` under `config/` is chmod 755 on deploy**, deliberately:
 install media strips modes, so without it every keybind that runs a script is a
