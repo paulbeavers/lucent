@@ -1764,10 +1764,22 @@ if [[ $DO_CONFIGS -eq 1 ]]; then
     # A drop-in rather than editing logind.conf: that file belongs to systemd,
     # and an edited copy earns a .pacnew on every update that someone then has
     # to reconcile. Nothing here applies to a machine with no lid.
+    #
+    # Written once, then left alone like monitors.lua: lucent-config owns this
+    # file afterwards, and rewriting it on every run would quietly undo a lid
+    # set to "lock" or "ignore" there. It was 10-starch-lid.conf until
+    # 2026-10-17; an old one is renamed in place so its setting carries over.
     step "Lid switch"
-    lid_conf=/etc/systemd/logind.conf.d/10-starch-lid.conf
+    lid_conf=/etc/systemd/logind.conf.d/10-lucent-lid.conf
+    old_lid_conf=/etc/systemd/logind.conf.d/10-starch-lid.conf
     if [[ $DRY_RUN -eq 1 ]]; then
         info "[dry-run] would write $lid_conf"
+    elif [[ -f $lid_conf ]]; then
+        $SUDO rm -f "$old_lid_conf"
+        ok "lid already configured"
+    elif [[ -f $old_lid_conf ]]; then
+        run $SUDO mv "$old_lid_conf" "$lid_conf"
+        ok "lid setting kept, renamed to $(basename "$lid_conf")"
     else
         lid_tmp="$(mktemp)"
         {
@@ -1779,12 +1791,8 @@ if [[ $DO_CONFIGS -eq 1 ]]; then
             echo "HandleLidSwitchExternalPower=suspend"
             echo "HandleLidSwitchDocked=ignore"
         } > "$lid_tmp"
-        if [[ -f $lid_conf ]] && cmp -s "$lid_tmp" "$lid_conf"; then
-            ok "lid already configured"
-        else
-            run $SUDO install -Dm644 "$lid_tmp" "$lid_conf"
-            ok "closing the lid suspends"
-        fi
+        run $SUDO install -Dm644 "$lid_tmp" "$lid_conf"
+        ok "closing the lid suspends"
         rm -f "$lid_tmp"
     fi
 
