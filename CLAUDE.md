@@ -36,6 +36,56 @@ checking here first.
 `settings.lua` safe: `hyprland.lua` loads it last, so `starch-config` can
 override four input settings without rewriting `input.lua`.
 
+**`settings.lua` is loaded last, which makes it useless for anything the
+hand-written modules *act on* rather than read.** Binds are the case in point:
+`keybinds.lua` registers all 132 of them when `hyprland.lua` requires it, long
+before `settings.lua` exists. That is why the modifier lives in its own
+`keys.lua`, which `keybinds.lua` requires itself. Anything else that has to be
+decided before a module runs needs the same treatment.
+
+**The modifier is a *trio*: `mod`, `alt` and `solo`.** `keybinds.lua` spells
+no modifier literally. Default is `mod=SUPER, alt=ALT, solo=ALT`; picking
+Alt/Option in starch-config gives `mod=ALT, alt=CTRL, solo="ALT + CTRL"`.
+
+Two wrong answers, both of which were written before this one. Reassigning
+only `mod` collapses `mod + ALT + H` into `ALT + H` — already Focus left —
+eleven collisions Hyprland reports not one of. Then *swapping* the pair, so
+the secondary becomes SUPER, fixes every collision and is still wrong: SUPER
+is Command, and the whole reason the setting exists is a Mac host that keeps
+Command for itself. Thirteen binds would read as bound and never fire, which
+beats a collision for being completely silent. **The test for this layout is
+that no bind references SUPER at all**, not merely that nothing collides:
+
+    luajit tools/keymap-dump.lua config/hypr ALT | grep SUPER   # must be empty
+
+`solo` exists because `CTRL + Tab` and `CTRL + bracketleft` belong to the
+applications running under the compositor, so the three binds that use the
+secondary alone take the primary too when ALT leads.
+
+`ALT + CTRL` is a busier namespace than `SUPER + ALT`, because `mod + CTRL`
+already carries the resize and silent-workspace binds. That is why the
+consume/expel and fit-into-view scrolling binds sit on X and F: on C and V
+they collide with Centre window and Toggle floating. Changed in both layouts,
+not just the one that needs it, so the keymap keeps one shape. Check both
+after touching binds — it normalises modifiers into a modmask the way Hyprland
+does, so it catches collisions spelled in a different order that a string
+comparison misses:
+
+    luajit tools/keymap-dump.lua config/hypr SUPER   # exits 1 on a collision
+    luajit tools/keymap-dump.lua config/hypr ALT
+
+**`hyprctl reload` builds a fresh Lua state.** Verified on 0.56.2: a global set
+through `hyprctl repl` is gone afterwards, and every module is re-`require`d
+from disk. So rewriting a generated module and reloading is enough — if the
+state had been reused, `require`'s cache would have made a changed `keys.lua`
+do nothing until the next login, silently.
+
+**`keys.lua` must never be added to `config/`.** It is generated, like
+`monitors.lua` and `settings.lua`, and none of those are in the repo. Put it
+there and `install.sh` deploys it on every run, overwriting the chosen
+modifier — and because the sync only backs up files that differ, it would look
+like the setting simply refused to stick.
+
 Check a change with `Hyprland --verify-config -c config/hypr/hyprland.lua`,
 which needs no running compositor, or `hyprctl configerrors` in a session.
 

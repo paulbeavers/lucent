@@ -297,6 +297,44 @@ For a terminal dump instead of the popup:
 
 Or straight from Hyprland: `hyprctl binds` (raw), `hyprctl -j binds` (JSON).
 
+**The modifier is configurable.** Every key below starts with `SUPER` —
+Command on a Mac keyboard — and starch-config's **Input → Primary modifier**
+switches it to `Alt`/`Option`. That is the setting to reach for when running
+this in a VM on a Mac, where the host keeps Command for itself and a desktop
+whose every shortcut begins with it is unusable.
+
+Both modifiers move, and where the *secondary* goes is the part that matters.
+Eleven binds use both at once (`SUPER + ALT + H`) or `ALT` alone (`ALT + Tab`),
+so pointing the primary at Alt and leaving the secondary alone would collapse
+`SUPER + ALT + H` into `ALT + H` — already Focus left — eleven collisions
+Hyprland reports none of.
+
+The obvious fix is to hand the secondary to Super, and that is wrong for the
+one situation this setting exists for: Super is Command, and macOS keeps
+`Command + Tab` and friends for itself, so thirteen binds would read as bound
+and never fire. Silent, and worse than a collision. **With Alt leading the
+secondary is Control instead** — no bind in that layout needs Command at all,
+which is checked rather than assumed. The three binds that use the secondary
+alone take the primary too, since `Ctrl + Tab` and `Ctrl + [` belong to the
+applications running under the compositor.
+
+Read `SUPER` as "the primary modifier" throughout the table below.
+
+The cheatsheet decodes each bind's modmask from the compositor, so it relabels
+itself and needs no telling. `tools/keymap-dump.lua` prints the whole keymap
+for either layout and exits non-zero on a collision:
+
+```bash
+diff <(luajit tools/keymap-dump.lua config/hypr SUPER) \
+     <(luajit tools/keymap-dump.lua config/hypr ALT)
+```
+
+One consequence worth knowing: the two scrolling-layout binds for
+consume/expel column and fit-into-view sit on `X` and `F` rather than `C` and
+`V`, because with Control as the secondary those would collide with Centre
+window and Toggle floating. They are on the same keys in both layouts, so the
+keymap keeps one shape.
+
 | Key | Action |
 | --- | --- |
 | `SUPER + Return` | Terminal |
@@ -350,10 +388,13 @@ Or straight from Hyprland: `hyprctl binds` (raw), `hyprctl -j binds` (JSON).
   has a switch to stop it doing so. It covers display scale, resolution and refresh; the idle timeouts
   and the lid; keyboard and touchpad; theme, wallpaper, cursor and font. Two
   things worth knowing about it. It never edits a hand-written config: it owns
-  `monitors.lua`, `hypridle.conf` and `settings.lua` outright and rewrites them
-  whole, keeping the previous version as `.bak`, and `settings.lua` is loaded
-  last by `hyprland.lua` so it overrides `input.lua` without either file having
-  to know about the other — delete it to go back to the defaults. And the scale
+  `monitors.lua`, `hypridle.conf`, `settings.lua` and `keys.lua` outright and
+  rewrites them whole, keeping the previous version as `.bak`, and
+  `settings.lua` is loaded last by `hyprland.lua` so it overrides `input.lua`
+  without either file having to know about the other — delete it to go back to
+  the defaults. `keys.lua` is the one exception to that ordering: it holds the
+  modifier, and `keybinds.lua` reads it before it binds anything, which is why
+  it is a file of its own rather than another entry in `settings.lua`. And the scale
   menu offers only scales that are legal for the mode: Hyprland accepts any
   number and then silently snaps to one that divides the resolution into whole
   pixels, so a config can say 1.5 while the session runs at 1.6.

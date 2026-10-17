@@ -1,7 +1,7 @@
 """Look — theme, wallpaper, cursor and font.
 
 Almost nothing here is implemented twice. theme.sh and wallpaper.sh already do
-this work, are already bound to SUPER+SHIFT+T and SUPER+W, and already know
+this work, are already bound to the theme and wallpaper keys, and already know
 about every consumer of a palette — waybar, kitty, mako, wofi, hyprlock. The
 page drives those scripts rather than reimplementing what they do, so there is
 one code path and it is the one that already worked.
@@ -9,7 +9,7 @@ one code path and it is the one that already worked.
 
 import subprocess
 
-from .. import paths
+from .. import paths, readback
 from ..widgets import Page, Row, button, dropdown
 
 CURSOR_SIZES = [16, 20, 24, 32, 40, 48, 64]
@@ -74,7 +74,7 @@ def build(window):
     card.add(Row("Current", state.wallpaper_label(),
                  state.wallpaper_path() or "Nothing recorded yet."))
     card.add(Row("Choose", button("Pick a wallpaper…", on_click=state.pick_wallpaper),
-                 "Opens the same picker as SUPER+W."))
+                 f"Opens the same picker as {readback.modifier()}+W."))
     card.add(Row("Random", button("Surprise me", on_click=state.random_wallpaper)))
 
     card = page.section("Size")

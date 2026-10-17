@@ -9,10 +9,27 @@ Writing goes the other way. Rather than edit input.lua, which is hand-written
 and full of comments, the page emits hypr/settings.lua — a generated module
 hyprland.lua loads last. hl.config sets one key and leaves its siblings alone,
 so overriding four settings does not disturb the twenty around them.
+
+The modifier at the top of the page is the exception to both halves of that.
+It is not an hl.config key, so the compositor cannot be asked for it and it
+cannot go in settings.lua — keybinds.lua binds with it, and that runs before
+settings.lua is loaded. It is read from and written to hypr/keys.lua instead.
+
+Picking Alt moves the secondary modifier to Control as well. Leaving it on
+Super would park thirteen binds on Command, which is the one key the host
+machine this setting exists for does not pass through.
 """
 
-from .. import generate, hypr, paths
+from .. import generate, hypr, paths, readback
 from ..widgets import Page, Row, dropdown, switch
+
+# The key every shortcut starts with. Labelled with both names because the
+# keycap says one thing on a PC keyboard and another on a Mac one, and the
+# whole reason to change this is running on Mac hardware.
+MODIFIERS = [
+    ("SUPER", "Super / Command"),
+    ("ALT", "Alt / Option"),
+]
 
 # xkb layouts worth putting in a menu. Anything else can go in input.lua by
 # hand, and this page will show it as the current value even so.
@@ -51,8 +68,21 @@ CAPS = [
 def build(window):
     page = Page("Input", "Keyboard and touchpad.")
 
+    # Ahead of the compositor check deliberately. This one is read from a file
+    # rather than from hyprctl, and it is the setting someone whose modifier
+    # key never reaches the desktop most needs to be able to reach.
+    card = page.section("Shortcuts")
+    card.add(Row("Primary modifier", _modifier_control(window),
+                 "The key every shortcut starts with. Alt/Option is the one "
+                 "to pick in a virtual machine on a Mac, where the host keeps "
+                 "Command for itself. The handful of shortcuts that use Alt "
+                 "today move to Control, not Command — nothing in that layout "
+                 "needs a key macOS intercepts."))
+
     if not hypr.available():
-        page.note("No compositor answered, so there is nothing to read.")
+        page.note("No compositor answered, so the keyboard and touchpad "
+                  "settings are not shown. The modifier above is read from "
+                  "the config file, so it can still be changed.")
         return page
 
     state = _InputState(window)
@@ -87,6 +117,43 @@ def build(window):
         "defaults in input.lua."
     )
     return page
+
+
+def _modifier_control(window):
+    """Dropdown for the primary modifier.
+
+    Its own control rather than another entry in _InputState: everything else
+    on this page is an hl.config key bound for settings.lua, and this is not a
+    Hyprland setting at all. It is a value keybinds.lua reads before it binds
+    anything, so it has its own generated file.
+    """
+    current = readback.modifier()
+    codes = [code for code, _name in MODIFIERS]
+    names = [name for _code, name in MODIFIERS]
+
+    def choose(index):
+        chosen = codes[index]
+        # Putting the dropdown back where it started is not a pending change.
+        if chosen == readback.modifier():
+            window.unstage("modifier")
+            return
+        window.stage("modifier", lambda: _apply_modifier(chosen), "modifier key")
+
+    return dropdown(names, selected=codes.index(current), on_change=choose)
+
+
+def _apply_modifier(chosen):
+    generate.write(paths.KEYS_LUA, generate.keys_lua(chosen))
+    # A reload is enough, and that is worth knowing rather than assuming: it
+    # builds a fresh Lua state and re-requires every module, so the new
+    # keys.lua is read and all 132 binds are registered again. Checked on
+    # 0.56.2 — a global set through `hyprctl repl` does not survive a reload.
+    # If it had reused the state, require()'s cache would have made this
+    # change do nothing until the next login.
+    try:
+        hypr.reload()
+    except hypr.NotRunning:
+        pass
 
 
 class _InputState:

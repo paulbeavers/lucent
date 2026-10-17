@@ -27,6 +27,12 @@ MONITORS_LUA = HYPR / "monitors.lua"
 HYPRIDLE_CONF = HYPR / "hypridle.conf"
 SETTINGS_LUA = HYPR / "settings.lua"
 
+# Which key the keybinds start with. Its own file rather than another entry in
+# settings.lua, because it is not a Hyprland setting: keybinds.lua reads it and
+# binds with it, and hyprland.lua requires keybinds.lua *before* settings.lua —
+# so a value arriving in settings.lua would arrive after everything is bound.
+KEYS_LUA = HYPR / "keys.lua"
+
 # Our own record of what the user chose, which is the thing the generated files
 # are rendered from. Kept separate because a generated file cannot always be
 # read back: "suspend after 10 minutes" survives a round trip, but "scale 1.6 on

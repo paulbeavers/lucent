@@ -1,12 +1,25 @@
 #!/usr/bin/env bash
-# Keybind cheatsheet — SUPER + /
+# Keybind cheatsheet — MOD + /
 #
 # Reads the binds out of the running compositor rather than parsing
-# keybinds.conf, so it can never drift out of sync with what is actually bound.
+# keybinds.lua, so it can never drift out of sync with what is actually bound.
+# That includes the modifier: the names below are decoded from each bind's
+# modmask, so they follow starch-config's Primary modifier setting by
+# themselves.
 #
 # Dump to stdout instead of opening wofi:
 #     ~/.config/hypr/scripts/keybinds.sh --print
 set -euo pipefail
+
+# The one label that cannot come from a modmask, because it describes a bind
+# by name rather than listing it. keys.lua is written by starch-config and is
+# absent until the modifier has been changed, which means SUPER.
+MOD=SUPER
+if [[ -f ${XDG_CONFIG_HOME:-$HOME/.config}/hypr/keys.lua ]] &&
+   grep -qE 'mod[[:space:]]*=[[:space:]]*"ALT"' \
+        "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/keys.lua" 2>/dev/null; then
+    MOD=ALT
+fi
 
 format_binds() {
     # Tab-separated: bind arguments routinely contain '|' (shell pipes inside
@@ -44,14 +57,14 @@ format_binds() {
         }' \
     | LC_ALL=C sort -t "$(printf '\t')" -k1,1 -k2,2 \
     | uniq \
-    | awk -F'\t' '
+    | awk -F'\t' -v mod="$MOD" '
         {
             if (!seen || $1 != last) {
                 if (seen) print ""
                 if ($1 == "")
                     print "── GLOBAL ───────────────────────────────────────────"
                 else
-                    print "── SUBMAP: " $1 "  (SUPER+R enters, Esc leaves) ─────"
+                    print "── SUBMAP: " $1 "  (" mod "+R enters, Esc leaves) ─────"
                 last = $1; seen = 1
             }
             printf "  %-28s  %s\n", $2, $3

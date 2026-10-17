@@ -42,7 +42,11 @@ def _header(what: str, extra: str = "") -> str:
         f"-- {what}",
     ]
     if extra:
-        lines += ["--"] + [f"-- {line}" for line in extra.strip().splitlines()]
+        # A blank line in `extra` becomes a bare "--" rather than "-- ", so a
+        # generated file carries no trailing whitespace.
+        lines += ["--"] + [
+            f"-- {line}".rstrip() for line in extra.strip().splitlines()
+        ]
     return "\n".join(lines) + "\n\n"
 
 
@@ -152,6 +156,39 @@ def _minutes(seconds: int) -> str:
         return f"{seconds} seconds"
     m = seconds // 60
     return "1 minute" if m == 1 else f"{m} minutes"
+
+
+# ── the modifier ─────────────────────────────────────────────────────────────
+
+
+def keys_lua(mod: str) -> str:
+    """The modifier pair keybinds.lua reads before it binds anything.
+
+    Not an hl.config override, so not part of settings.lua: by the time
+    hyprland.lua gets to settings.lua, keybinds.lua has already bound
+    everything. keybinds.lua requires this module itself instead.
+    """
+    primary = "ALT" if str(mod).upper() == "ALT" else "SUPER"
+    secondary = "CTRL" if primary == "ALT" else "ALT"
+    body = _header(
+        "Which key every keybind starts with.",
+        f"""
+The primary modifier is {primary} and the secondary one is {secondary}.
+
+Both move, which is the point. Several binds use the two at once
+(primary + secondary + H) and three use the secondary alone, so changing only
+the primary would collapse eleven of them onto combinations already in use —
+and Hyprland reports none of that.
+
+With ALT leading, the secondary is CTRL rather than SUPER on purpose: SUPER is
+Command, and in a VM on a Mac the host keeps it. Binds sent there would read
+as bound and never fire, which is worse than a collision because nothing says
+so. No bind in the ALT layout needs Command at all.
+
+Delete this file to go back to SUPER leading.
+        """,
+    )
+    return body + 'return { mod = "%s" }\n' % primary
 
 
 # ── the Lua override module ──────────────────────────────────────────────────

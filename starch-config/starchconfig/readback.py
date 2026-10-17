@@ -46,6 +46,24 @@ def hypridle_timeouts():
     return found
 
 
+# keys.lua is a two-token module, so a regex beats carrying a Lua parser.
+_MODIFIER_RE = re.compile(r"""\bmod\s*=\s*["'](SUPER|ALT)["']""", re.I)
+
+
+def modifier() -> str:
+    """"SUPER" or "ALT" — the key every keybind starts with.
+
+    keys.lua is generated and does not exist until the setting has been
+    changed, so a missing file is the ordinary case and means the default.
+    """
+    try:
+        text = paths.KEYS_LUA.read_text()
+    except OSError:
+        return "SUPER"
+    match = _MODIFIER_RE.search(text)
+    return match.group(1).upper() if match else "SUPER"
+
+
 def lid_action() -> str:
     """"suspend", "lock", "ignore" — what closing the lid does.
 

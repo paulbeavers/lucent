@@ -9,7 +9,7 @@ from pathlib import Path
 
 from gi.repository import Gtk
 
-from .. import hypr, state
+from .. import hypr, readback, state
 from ..widgets import Page, Row, switch
 
 INTRO = (
@@ -62,7 +62,7 @@ def build(window):
         "Show this at login",
         switch(state.get("show_at_login"), on_change=_set_show_at_login),
         "Turn this off and starch-config stays out of the way until you open "
-        "it yourself, with SUPER+I.",
+        f"it yourself, with {readback.modifier()}+I.",
     ))
 
     if not hypr.available():
