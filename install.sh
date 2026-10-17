@@ -1701,6 +1701,15 @@ if [[ $DO_CONFIGS -eq 1 ]]; then
             echo 'hl.monitor({ output = "", mode = "preferred", position = "auto", scale = "auto" })' >> "$monitors_conf"
             warn "no connected display detected; wrote the catch-all rule"
         else
+            # A VM's virtual display advertises dozens of modes, all at about
+            # 60Hz, and the one that matches the host window is the preferred
+            # one. highrr breaks the tie elsewhere: under Parallels it chose
+            # 1600x1200 for a 2936x1846 window, and the host letterboxed the
+            # 4:3 frame with black bars the cursor could still wander into.
+            # The scale below is worked out from that preferred mode too.
+            mode=highrr
+            gpu_has virtual && mode=preferred
+
             x_offset=0
             for conn in "${connected[@]}"; do
                 res="$(head -1 "/sys/class/drm/card"*"-${conn}/modes" 2>/dev/null || true)"
@@ -1725,7 +1734,7 @@ if [[ $DO_CONFIGS -eq 1 ]]; then
                     warn "  scale $DEFAULT_SCALE does not divide ${width}x${height} evenly; using 1"
                 fi
 
-                echo "hl.monitor({ output = \"${conn}\", mode = \"highrr\", position = \"${x_offset}x0\", scale = ${scale} })" >> "$monitors_conf"
+                echo "hl.monitor({ output = \"${conn}\", mode = \"${mode}\", position = \"${x_offset}x0\", scale = ${scale} })" >> "$monitors_conf"
                 x_offset=$(( x_offset + ${width:-1920} ))
             done
             echo >> "$monitors_conf"
@@ -1911,6 +1920,23 @@ env = LIBVA_DRIVER_NAME,
 env = WLR_RENDERER_ALLOW_SOFTWARE,1
 
 EOF
+                    if [[ "$(systemd-detect-virt 2>/dev/null || true)" == parallels ]]; then
+                        cat >> "$gpu_tmp" <<'EOF'
+# Parallels draws the Mac's cursor over the guest, and Hyprland cannot hand it
+# the cursor: virtio-gpu only exposes a cursor plane to a compositor that sets
+# the hotspot client cap, which mutter does and aquamarine 0.15 does not. The
+# result is Hyprland's software cursor under the Mac's, two pointers on screen.
+# Hide the guest's; the cost is that the pointer no longer changes shape.
+# Other hypervisors hide the host pointer instead, so this stays Parallels-only.
+hl.config({ cursor = { invisible = true } })
+
+# The pointer Parallels shows while the VM has the mouse is the guest's image at
+# one pixel per Retina pixel, so the usual 24 comes out at half size.
+env = XCURSOR_SIZE,48
+env = HYPRCURSOR_SIZE,48
+
+EOF
+                    fi
                     ;;
                 apple)
                     cat >> "$gpu_tmp" <<'EOF'

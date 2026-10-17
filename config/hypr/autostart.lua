@@ -2,12 +2,17 @@
 --  Autostart
 --
 --  The hyprlang `exec-once` became an event handler: everything here runs once,
---  when the compositor finishes starting. There is no `exec` (run on reload)
---  equivalent, which is fine — nothing here wanted that.
+--  when the compositor finishes starting. The `exec` (run on reload) equivalent
+--  is a call at the top level of this file, which a reload runs again; only the
+--  cursor needs that.
 --
 --  uwsm-managed sessions start the portals and polkit agent as systemd user
 --  units, so this stays short on purpose.
 --------------------------------------------------------------------------------
+
+local function set_cursor()
+    hl.exec_cmd('hyprctl setcursor Adwaita "${XCURSOR_SIZE:-24}"')
+end
 
 hl.on("hyprland.start", function()
     -- Tell systemd and D-Bus about the session so portals, screen sharing and
@@ -58,8 +63,9 @@ hl.on("hyprland.start", function()
 
     hl.exec_cmd("mkdir -p ~/Pictures/Screenshots")
 
-    -- Set the cursor explicitly so XWayland apps do not fall back to X11's.
-    hl.exec_cmd("hyprctl setcursor Adwaita 24")
+    -- Again at login: the copy below runs while the config is still loading,
+    -- possibly before hyprctl has a socket to talk to.
+    set_cursor()
 
     -- The settings app, on its welcome page. --welcome is the difference
     -- between "the desktop started me" and "someone asked for me": with it,
@@ -68,6 +74,13 @@ hl.on("hyprland.start", function()
     -- choice, and the choice lives where it is made.
     hl.exec_cmd("starch-config --welcome")
 end)
+
+-- Set the cursor explicitly so XWayland apps do not fall back to X11's. Outside
+-- the start handler, because a reload builds a fresh Lua state and runs this
+-- file again, and it also puts the cursor back to the size Hyprland read at
+-- launch — so a size gpu.lua overrides would hold only until the first reload.
+-- The size comes from the environment for the same reason.
+set_cursor()
 
 -- And stop it again, so a later login does not find a session still marked
 -- active with portals attached to a compositor that has gone. A no-op under
