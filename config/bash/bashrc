@@ -1,0 +1,200 @@
+# lucent's bash setup: a prompt that shows git state, and the tools
+# install.sh puts on every machine (eza, bat, fd, fzf, zoxide).
+#
+# install.sh adds one line to the end of ~/.bashrc that loads this, and
+# keeps this file up to date, backing up anything it replaces. So a change
+# of your own belongs in ~/.bashrc, after that line, where it wins.
+#
+# Everything a distribution's own ~/.bashrc does — /etc/bashrc on Fedora,
+# completion on Ubuntu, PATH — has already happened by the time this runs.
+#
+# Every optional tool is guarded, so a machine missing one loses that
+# feature instead of printing an error at every new shell.
+
+[[ $- == *i* ]] || return 0
+
+# ---- History ---------------------------------------------------------------
+
+HISTSIZE=100000
+HISTFILESIZE=200000
+HISTCONTROL=ignoreboth:erasedups
+HISTTIMEFORMAT='%F %T  '
+shopt -s histappend cmdhist
+shopt -s checkwinsize globstar extglob cdspell dirspell
+
+# ---- Environment -----------------------------------------------------------
+
+if command -v nvim >/dev/null; then
+    export EDITOR=nvim VISUAL=nvim
+    alias vi=nvim
+fi
+export LESS='-R -F -i -M'
+export VIRTUAL_ENV_DISABLE_PROMPT=1     # the prompt below shows the venv itself
+
+# Debian and Ubuntu install bat and fd as batcat and fdfind.
+__lucent_bat=bat __lucent_fd=fd
+if ! command -v bat >/dev/null && command -v batcat >/dev/null; then
+    __lucent_bat=batcat; alias bat=batcat
+fi
+if ! command -v fd >/dev/null && command -v fdfind >/dev/null; then
+    __lucent_fd=fdfind; alias fd=fdfind
+fi
+
+# ---- Aliases ---------------------------------------------------------------
+
+if command -v eza >/dev/null; then
+    alias ls='eza --group-directories-first'
+    alias ll='eza -l --git --group-directories-first --time-style=long-iso'
+    alias la='eza -la --git --group-directories-first --time-style=long-iso'
+    alias lt='eza --tree --level=2 --git-ignore'
+else
+    alias ls='ls --color=auto'
+    alias ll='ls -lh --color=auto'
+    alias la='ls -lha --color=auto'
+fi
+alias grep='grep --color=auto'
+alias ..='cd ..' ...='cd ../..'
+alias cl='clear'
+
+alias g='git'
+alias gs='git status -sb'
+alias gd='git diff'
+alias gds='git diff --staged'
+alias gl='git log --oneline --graph --decorate -20'
+alias gla='git log --oneline --graph --decorate --all -30'
+
+# ---- fzf and zoxide --------------------------------------------------------
+
+if command -v fzf >/dev/null; then
+    if command -v "$__lucent_fd" >/dev/null; then
+        export FZF_DEFAULT_COMMAND="$__lucent_fd --type f --hidden --exclude .git"
+        export FZF_CTRL_T_COMMAND=$FZF_DEFAULT_COMMAND
+        export FZF_ALT_C_COMMAND="$__lucent_fd --type d --hidden --exclude .git"
+    fi
+    if command -v "$__lucent_bat" >/dev/null; then
+        export FZF_CTRL_T_OPTS="--preview '$__lucent_bat --color=always --style=numbers --line-range=:200 {}'"
+    fi
+    # Ctrl-R history, Ctrl-T files, Alt-C directories. fzf --bash is 0.48+.
+    if __lucent_fzf=$(fzf --bash 2>/dev/null); then
+        eval "$__lucent_fzf"
+    elif [[ -f /usr/share/fzf/shell/key-bindings.bash ]]; then
+        . /usr/share/fzf/shell/key-bindings.bash
+    fi
+    unset __lucent_fzf
+fi
+
+# z <part of a path> jumps to a directory you have visited; zi picks one.
+if command -v zoxide >/dev/null; then
+    eval "$(zoxide init bash)"
+fi
+
+# ---- Prompt ----------------------------------------------------------------
+#
+#   user@fedora:~/lucent/config/hypr (main*) ↑1 ❯
+#
+# In the parentheses with the branch: * for changes not yet committed
+# (staged or not), ? for untracked files. After them, ↑/↓ for commits
+# ahead of / behind upstream, and any merge, rebase or cherry-pick in
+# progress.
+#
+# PS1 is only ever '${__lucent_ps1}'. Bash expands a variable in PS1 once
+# and does not re-read the result, so a branch named '$(rm -rf ~)' prints
+# as text. Putting it into PS1 directly would run it. That is also why the
+# colours use \001/\002, which work inside a variable, rather than \[ \].
+
+__lucent_c() { printf '\001\e[%sm\002' "$1"; }
+__lucent_reset=$(__lucent_c 0)
+__lucent_dim=$(__lucent_c 2)
+__lucent_bold=$(__lucent_c 1)
+__lucent_red=$(__lucent_c 31)
+__lucent_green=$(__lucent_c 32)
+__lucent_yellow=$(__lucent_c 33)
+__lucent_blue=$(__lucent_c 34)
+__lucent_magenta=$(__lucent_c 35)
+__lucent_cyan=$(__lucent_c 36)
+unset -f __lucent_c
+
+# Sets __lucent_path and __lucent_git for the working directory.
+__lucent_git_state() {
+    __lucent_git=
+    local top gitdir
+    {
+        IFS= read -r top
+        IFS= read -r gitdir
+    } < <(git rev-parse --show-toplevel --absolute-git-dir 2>/dev/null)
+
+    __lucent_path=$PWD
+    if [[ $PWD == "$HOME" || $PWD == "$HOME"/* ]]; then
+        __lucent_path="~${PWD#"$HOME"}"
+    fi
+    __lucent_path=$__lucent_blue$__lucent_bold$__lucent_path$__lucent_reset
+    [[ -n $top ]] || return
+
+    local line head= oid= ahead=0 behind=0 dirty= untracked=
+    while IFS= read -r line; do
+        case $line in
+            '# branch.oid '*)  oid=${line#'# branch.oid '} ;;
+            '# branch.head '*) head=${line#'# branch.head '} ;;
+            '# branch.ab '*)
+                line=${line#'# branch.ab +'}
+                ahead=${line%% *}
+                behind=${line##*-} ;;
+            '? '*)             untracked=1 ;;
+            [12u]' '*)         dirty=1 ;;
+        esac
+    done < <(git --no-optional-locks status --porcelain=v2 --branch 2>/dev/null)
+
+    if [[ $head == '(detached)' ]]; then
+        head=${oid:0:7}
+    fi
+
+    local op=
+    if [[ -d $gitdir/rebase-merge ]]; then
+        op="REBASE $(<"$gitdir/rebase-merge/msgnum")/$(<"$gitdir/rebase-merge/end")"
+    elif [[ -d $gitdir/rebase-apply ]]; then
+        op=REBASE
+    elif [[ -f $gitdir/MERGE_HEAD ]]; then
+        op=MERGING
+    elif [[ -f $gitdir/CHERRY_PICK_HEAD ]]; then
+        op=CHERRY-PICK
+    elif [[ -f $gitdir/REVERT_HEAD ]]; then
+        op=REVERTING
+    elif [[ -f $gitdir/BISECT_LOG ]]; then
+        op=BISECTING
+    fi 2>/dev/null
+
+    __lucent_git=" $__lucent_magenta($head$__lucent_reset"
+    [[ -n $dirty ]]     && __lucent_git+="$__lucent_yellow$__lucent_bold*$__lucent_reset"
+    [[ -n $untracked ]] && __lucent_git+="$__lucent_red?$__lucent_reset"
+    __lucent_git+="$__lucent_magenta)$__lucent_reset"
+    (( ahead ))  && __lucent_git+=" $__lucent_cyan↑$ahead$__lucent_reset"
+    (( behind )) && __lucent_git+=" $__lucent_cyan↓$behind$__lucent_reset"
+    [[ -n $op ]] && __lucent_git+=" $__lucent_red$__lucent_bold$op$__lucent_reset"
+}
+
+__lucent_prompt() {
+    __lucent_git_state
+
+    local who="$__lucent_green$__lucent_user@${HOSTNAME%%.*}$__lucent_reset:"
+    local venv=
+    if [[ -n ${VIRTUAL_ENV:-} ]]; then
+        venv="$__lucent_dim(${VIRTUAL_ENV##*/})$__lucent_reset "
+    fi
+    local mark=❯
+    (( EUID == 0 )) && mark='#'
+
+    # The window title, which kitty shows on its tabs.
+    local title=${PWD/#"$HOME"/'~'}
+    __lucent_ps1=$'\001\e]0;'"$title"$'\a\002'
+    __lucent_ps1+="$venv$who$__lucent_path$__lucent_git "
+    __lucent_ps1+="$__lucent_green$mark$__lucent_reset "
+}
+
+# $USER is not set everywhere, a chroot for one.
+__lucent_user=${USER:-$(id -un)}
+
+PS1='${__lucent_ps1}'
+
+if [[ $PROMPT_COMMAND != *__lucent_prompt* ]]; then
+    PROMPT_COMMAND="__lucent_prompt${PROMPT_COMMAND:+;$PROMPT_COMMAND}"
+fi

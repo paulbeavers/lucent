@@ -543,7 +543,7 @@ PKGS_THEME=( papirus-icon-theme adwaita-icon-theme gtk3 gtk4 )
 # End-user applications. Firefox already gets MOZ_ENABLE_WAYLAND=1 from env.conf
 # and a Picture-in-Picture window rule from rules.conf.
 PKGS_APPS=( firefox neovim vim )
-PKGS_SHELL=( fastfetch btop ripgrep fd bat eza fzf zoxide starship )
+PKGS_SHELL=( fastfetch btop ripgrep fd bat eza fzf zoxide starship bash-completion )
 PKGS_GREETD=( greetd greetd-tuigreet )
 PKGS_BLUETOOTH=( bluez bluez-utils blueman )
 # The 32-bit graphics drivers come from PKGS_GPU32, which is vendor-aware.
@@ -631,7 +631,7 @@ if [[ ${DISTRO:-} == fedora ]]; then
     PKGS_THEME=( papirus-icon-theme adwaita-icon-theme gtk3 gtk4 )
     PKGS_APPS=( firefox neovim vim-enhanced )
     # starship is not packaged for Fedora, and nothing here depends on it.
-    PKGS_SHELL=( fastfetch btop ripgrep fd-find bat eza fzf zoxide )
+    PKGS_SHELL=( fastfetch btop ripgrep fd-find bat eza fzf zoxide bash-completion )
     # greetd-selinux: without its policy, SELinux stops greetd starting a session.
     PKGS_GREETD=( greetd greetd-selinux tuigreet )
     # bluetoothctl is part of bluez on Fedora.
@@ -739,7 +739,7 @@ elif [[ ${DISTRO:-} == ubuntu ]]; then
     PKGS_APPS=( firefox neovim vim )
     # fd and bat are installed under their Debian names; their binaries are
     # fdfind and batcat, which nothing in config/ calls.
-    PKGS_SHELL=( fastfetch btop ripgrep fd-find bat eza fzf zoxide starship )
+    PKGS_SHELL=( fastfetch btop ripgrep fd-find bat eza fzf zoxide starship bash-completion )
     PKGS_GREETD=( greetd tuigreet )
     # bluetoothctl is part of bluez; libspa-0.2-bluetooth is what lets PipeWire
     # see a Bluetooth audio device at all, and is split out on Ubuntu.
@@ -1605,6 +1605,13 @@ if [[ $DO_CONFIGS -eq 1 ]]; then
         for f in "${CHANGED_FILES[@]}"; do info "updated  $f"; done
         ok "$N_ADDED added, $N_CHANGED updated, $N_SAME unchanged"
         [[ $N_CHANGED -gt 0 && $DRY_RUN -eq 0 ]] && info "previous versions saved to $BACKUP_DIR"
+    fi
+
+    # ~/.bashrc gets one line that loads config/bash/bashrc, synced above.
+    # Appended once, so the rest of the file stays the user's.
+    if [[ $DRY_RUN -eq 0 ]] && ! grep -qsF '.config/bash/bashrc' "$HOME/.bashrc"; then
+        printf '\n[[ -f ~/.config/bash/bashrc ]] && . ~/.config/bash/bashrc\n' >> "$HOME/.bashrc"
+        ok "~/.bashrc now loads ~/.config/bash/bashrc"
     fi
 
     # ── the settings app ──────────────────────────────────────────────────────
