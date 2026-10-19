@@ -543,7 +543,7 @@ PKGS_THEME=( papirus-icon-theme adwaita-icon-theme gtk3 gtk4 )
 # End-user applications. Firefox already gets MOZ_ENABLE_WAYLAND=1 from env.conf
 # and a Picture-in-Picture window rule from rules.conf.
 PKGS_APPS=( firefox neovim vim )
-PKGS_SHELL=( fastfetch btop ripgrep fd bat eza fzf zoxide starship bash-completion )
+PKGS_SHELL=( fastfetch btop ripgrep fd bat eza fzf zoxide starship bash-completion lazygit )
 PKGS_GREETD=( greetd greetd-tuigreet )
 PKGS_BLUETOOTH=( bluez bluez-utils blueman )
 # The 32-bit graphics drivers come from PKGS_GPU32, which is vendor-aware.
@@ -631,7 +631,9 @@ if [[ ${DISTRO:-} == fedora ]]; then
     PKGS_THEME=( papirus-icon-theme adwaita-icon-theme gtk3 gtk4 )
     PKGS_APPS=( firefox neovim vim-enhanced )
     # starship is not packaged for Fedora, and nothing here depends on it.
-    PKGS_SHELL=( fastfetch btop ripgrep fd-find bat eza fzf zoxide bash-completion )
+    # Nor is lazygit: it installs only where the atim/lazygit COPR is enabled,
+    # and is reported as skipped elsewhere.
+    PKGS_SHELL=( fastfetch btop ripgrep fd-find bat eza fzf zoxide bash-completion lazygit )
     # greetd-selinux: without its policy, SELinux stops greetd starting a session.
     PKGS_GREETD=( greetd greetd-selinux tuigreet )
     # bluetoothctl is part of bluez on Fedora.
@@ -739,7 +741,7 @@ elif [[ ${DISTRO:-} == ubuntu ]]; then
     PKGS_APPS=( firefox neovim vim )
     # fd and bat are installed under their Debian names; their binaries are
     # fdfind and batcat, which nothing in config/ calls.
-    PKGS_SHELL=( fastfetch btop ripgrep fd-find bat eza fzf zoxide starship bash-completion )
+    PKGS_SHELL=( fastfetch btop ripgrep fd-find bat eza fzf zoxide starship bash-completion lazygit )
     PKGS_GREETD=( greetd tuigreet )
     # bluetoothctl is part of bluez; libspa-0.2-bluetooth is what lets PipeWire
     # see a Bluetooth audio device at all, and is split out on Ubuntu.
@@ -1612,6 +1614,20 @@ if [[ $DO_CONFIGS -eq 1 ]]; then
     if [[ $DRY_RUN -eq 0 ]] && ! grep -qsF '.config/bash/bashrc' "$HOME/.bashrc"; then
         printf '\n[[ -f ~/.config/bash/bashrc ]] && . ~/.config/bash/bashrc\n' >> "$HOME/.bashrc"
         ok "~/.bashrc now loads ~/.config/bash/bashrc"
+    fi
+
+    # LazyVim, from its starter, only when there is no nvim config at all.
+    # Plugins download on the first start of nvim. Without network this only
+    # warns: an editor config is not worth failing the install over.
+    nvim_dir="$CONFIG_DST/nvim"
+    if [[ $DRY_RUN -eq 0 && ! -e $nvim_dir ]]; then
+        if git clone -q --depth 1 https://github.com/LazyVim/starter "$nvim_dir" 2>/dev/null; then
+            rm -rf "$nvim_dir/.git"
+            ok "LazyVim starter in ~/.config/nvim"
+        else
+            rm -rf "$nvim_dir"
+            warn "could not fetch LazyVim; nvim keeps its default config"
+        fi
     fi
 
     # ── the settings app ──────────────────────────────────────────────────────
