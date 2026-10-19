@@ -305,36 +305,56 @@ into the bars. On a virtual GPU `install.sh` now writes `preferred` — the
 mode that matches the host window, and the one it already worked the scale
 out from. Real hardware still gets `highrr`.
 
-**Two cursors.** virtio-gpu only exposes a cursor plane to a compositor that
-sets the hotspot client cap; mutter does, aquamarine 0.15.1 does not — the log
-lists no plane of type 2 at all. So `no_hardware_cursors = 0` changes nothing:
-Hyprland draws a software cursor and Parallels draws the Mac's over it. On
-Parallels only, `gpu.lua` sets `cursor.invisible`. The cost is a pointer that
-never changes shape. Not for other hypervisors: QEMU and friends hide the
-host pointer instead, and there this would leave no cursor at all. If
-aquamarine gains the hotspot cap, the line can go.
+**Two cursors, and a pointer that never changed shape.** virtio-gpu only
+exposes a cursor plane to an *atomic* client that sets the hotspot client cap.
+mutter does; aquamarine never does — not 0.15.1, not master as of 2026-10-17,
+and its atomic path never writes the hotspot properties either, so an upgrade
+will not help. Under atomic, Hyprland can only draw a software cursor, and
+Parallels draws the Mac's over it. The first answer was `cursor.invisible`,
+which left the Mac's pointer: one cursor, but never a resize arrow.
 
-**The cursor at half size once the VM has the mouse.** The image Parallels
-shows then comes from the guest, one pixel per Retina pixel, so 24 reads as
-half the Mac's. `gpu.lua` sets `XCURSOR_SIZE`/`HYPRCURSOR_SIZE` to 48 on
-Parallels — chosen because it looked right, not derived. Two things had to
-change for that to hold: `autostart.lua` hard-coded `setcursor Adwaita 24`,
-and it ran only at login, while **a reload puts the cursor back to the size
-Hyprland launched with**. `setcursor` now reads `$XCURSOR_SIZE` and runs at
-the top level of `autostart.lua` as well as in the start handler.
+What works is `AQ_NO_ATOMIC=1`, aquamarine's legacy DRM path, plus
+`no_hardware_cursors = 1`. On that path the Mac's pointer stays hidden behind
+Hyprland's software cursor, which changes shape properly. That was found by
+testing, not derived; the legacy path sets cursors through
+`DRM_IOCTL_MODE_CURSOR2`, which carries a hotspot, and is the likely reason.
+`gpu.lua` sets both on Parallels only — QEMU and friends hide the host pointer
+themselves. `hl.env` in the config is early enough for `AQ_` variables: the log
+shows the config read well before aquamarine opens the GPU. But it only takes
+effect **at login**, never on reload.
+
+The hardware plane does show up on the legacy path (planes of type 2 in the
+log), and it is the wrong answer. Rendered on the GPU its buffer came out
+blank, so the pointer vanished whenever it fitted in the 64x64 plane; with
+`use_cpu_buffer = 1` it flickered and hid itself.
+
+**Judge any of this from a fresh login, not from `hyprctl eval`.** Switching
+to the software cursor at runtime left the old hardware image on the plane,
+which hid the Mac's pointer and made it look as if the software cursor alone
+did that. The next config reload cleared the plane and the second pointer came
+back. The same thing happened in reverse when a rollback was copied over
+`gpu.lua` just before a login: the test that was meant to run never did. Check
+`AQ_NO_ATOMIC enabled, using the legacy drm iface` in `hyprland.log` before
+believing a result.
+
+**Cursor size is the default 24.** Hyprland's cursor is scaled by the monitor
+scale like everything else, so 24 at 1.6 is about the Mac's size. `gpu.lua`
+used to set 48, for the Mac's pointer, which showed the guest's image
+unscaled; with Hyprland's own cursor that came out double. One fix from that
+time still matters: **a reload puts the cursor back to the size Hyprland
+launched with**, so `setcursor` reads `$XCURSOR_SIZE` and runs at the top
+level of `autostart.lua` as well as in the start handler.
 
 **Option+I "stopped working" after picking 200%.** The window was floating at
 x=1843 on a desktop now 1468 wide; lucent-config is single-instance, so the
 bind re-presented a window nobody could see. lucent-config now centres its own
 window, by pid, after any display change. Option+Ctrl+C does it by hand.
 
-Still open, as of 2026-10-17:
+Still open, as of 2026-10-18:
 
-- **The cursor is sometimes small again.** Probably per-window: on Wayland
-  each client picks its own cursor size, and GTK apps get conflicting answers
-  — `config/gtk-{3,4}.0/settings.ini` say 24, the `gsettings` GNOME left
-  behind says 48. Find out which window it happens over first; if it is the
-  GTK apps, raise the settings.ini size on Parallels only.
+- **GNOME left `gsettings` cursor-size at 48.** Everything lucent sets says
+  24 and nothing has shown a big cursor since, but if a GTK app ever does,
+  that is the first place to look — the settings portal can hand it to GTK.
 - **Only 100% and 200% are offered at 2936x1846.** Not a bug: 1846 = 2·13·71,
   so no fraction of 1/120 between 1 and 2 divides both axes. A fixed
   resolution in Parallels (2880x1800 or 2560x1600) gives many more. GNOME

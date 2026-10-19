@@ -1963,18 +1963,21 @@ env = WLR_RENDERER_ALLOW_SOFTWARE,1
 EOF
                     if [[ "$(systemd-detect-virt 2>/dev/null || true)" == parallels ]]; then
                         cat >> "$gpu_tmp" <<'EOF'
-# Parallels draws the Mac's cursor over the guest, and Hyprland cannot hand it
-# the cursor: virtio-gpu only exposes a cursor plane to a compositor that sets
-# the hotspot client cap, which mutter does and aquamarine 0.15 does not. The
-# result is Hyprland's software cursor under the Mac's, two pointers on screen.
-# Hide the guest's; the cost is that the pointer no longer changes shape.
-# Other hypervisors hide the host pointer instead, so this stays Parallels-only.
-hl.config({ cursor = { invisible = true } })
-
-# The pointer Parallels shows while the VM has the mouse is the guest's image at
-# one pixel per Retina pixel, so the usual 24 comes out at half size.
-env = XCURSOR_SIZE,48
-env = HYPRCURSOR_SIZE,48
+# Parallels shows the Mac's pointer over the guest unless the guest hands it a
+# cursor the way mutter does, and aquamarine's atomic path cannot: virtio-gpu
+# only exposes a cursor plane to an atomic client that sets the hotspot cap,
+# which aquamarine (0.15.1, and master as of 2026-10) never sets. On its legacy
+# path the Mac's pointer stays hidden behind Hyprland's own, which changes shape
+# for resizing and text. That was found by testing, not derived. AQ_NO_ATOMIC is
+# read before the GPU is opened, so it takes effect at login, not on reload.
+#
+# Software cursor, not the hardware plane: rendered on the GPU the plane's
+# buffer came out blank, and with use_cpu_buffer it flickered. The size is the
+# default 24, which the display scale enlarges like everything else.
+# Other hypervisors hide the host pointer themselves, so this stays
+# Parallels-only.
+env = AQ_NO_ATOMIC,1
+hl.config({ cursor = { no_hardware_cursors = 1 } })
 
 EOF
                     fi
