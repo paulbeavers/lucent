@@ -352,6 +352,17 @@ window, by pid, after any display change. Option+Ctrl+C does it by hand.
 
 Still open, as of 2026-10-18:
 
+- **Two pointers again along the top edge, on a notched MacBook in full
+  screen.** The strip level with the notch is the Mac's menu-bar area: the
+  moment the pointer enters it anywhere, the Mac draws its own pointer over
+  Hyprland's, and it stays until the pointer goes up to the menu bar and back.
+  The workspace numbers sit in that strip, so clicking them is the usual way
+  to set it off — which made it look like the fix above coming and going.
+  Nothing in the guest changes it. "Optimize for games" does not help, and
+  Finder's "Scale to fit below built-in camera" is not offered for Parallels.
+  What works is a 16:10 resolution on the Mac (1512x945 rather than 1512x982
+  on a 14"), which keeps the whole desktop below the notch — for every Mac
+  app too, which is why it is not a default.
 - **GNOME left `gsettings` cursor-size at 48.** Everything lucent sets says
   24 and nothing has shown a big cursor since, but if a GTK app ever does,
   that is the first place to look — the settings portal can hand it to GTK.
