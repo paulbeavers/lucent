@@ -269,6 +269,17 @@ require_network() {
     timeout 5 bash -c "exec 3<>/dev/tcp/$host/443" 2>/dev/null && return 0
     die "No network connectivity, and $1 needs it. Connect first (nmtui / iwctl)."
 }
+
+# True when every server pacman would use is a file:// one, so syncing and
+# installing need no network at all. starch's installer runs this script in a
+# chroot with the mirrorlist pointed at the package repository on its medium,
+# and a local mirror on any machine is the same case.
+mirrors_local() {
+    local ml=/etc/pacman.d/mirrorlist
+    [[ $DISTRO == arch && -r $ml ]] || return 1
+    grep -qE '^[[:space:]]*Server[[:space:]]*=[[:space:]]*file://' "$ml" || return 1
+    ! grep -E '^[[:space:]]*Server[[:space:]]*=' "$ml" | grep -qv 'file://'
+}
 # $USER is not set inside arch-chroot, and `set -u` turns that into an abort
 # rather than an empty string. id -un always works.
 ok "$DISTRO_NAME ($ARCH), running as ${FOR_USER:-$(id -un)}"
@@ -1120,7 +1131,7 @@ if [[ $RUN_SYSTEM -eq 1 ]]; then
             ok "all ${#WANTED[@]} already installed; nothing to download"
         else
             step "Synchronising databases and updating the system"
-            require_network "installing packages"
+            mirrors_local || require_network "installing packages"
             run $SUDO pacman -Syu --noconfirm
             ok "system up to date"
         fi
