@@ -764,10 +764,18 @@ WANTED=(
 # this script on an existing Arch install fix the wifi too. On Fedora the
 # driver is RPM Fusion's akmod-wl, which is left to the user.
 #
+# It is a DKMS module on both, so it needs headers for every kernel to build
+# against. broadcom-wl-dkms depends on dkms, and dkms lists linux-headers only
+# as optional: without them the package installs cleanly, no module is built,
+# and a 2013 retina MacBook Pro has no wifi. The install medium used to carry
+# headers, which is what hid this.
+#
 # Ubuntu carries the same driver as broadcom-sta-dkms in restricted, so the
-# card is handled there rather than merely reported. It is a DKMS module, so it
-# needs dkms and headers for the running kernel to build against.
-[[ $DISTRO == arch   && $BCM_DRIVER == wl ]] && WANTED+=( broadcom-wl-dkms )
+# card is handled there rather than merely reported.
+if [[ $DISTRO == arch && $BCM_DRIVER == wl ]]; then
+    WANTED+=( broadcom-wl-dkms )
+    while read -r _h; do [[ -n $_h ]] && WANTED+=( "$_h" ); done < <(kernel_headers)
+fi
 [[ $DISTRO == ubuntu && $BCM_DRIVER == wl ]] && WANTED+=( broadcom-sta-dkms dkms linux-headers-generic )
 
 # ── package helpers ───────────────────────────────────────────────────────────
