@@ -517,7 +517,7 @@ PKGS_HYPRLAND=(
 )
 PKGS_DESKTOP=(
     waybar wofi mako libnotify
-    kitty
+    kitty foot
     thunar thunar-volman thunar-archive-plugin tumbler file-roller
     gvfs gvfs-mtp udiskie
     network-manager-applet
@@ -608,7 +608,7 @@ if [[ ${DISTRO:-} == fedora ]]; then
     # covers the display side; GTK theming is in settings.ini and dconf.
     PKGS_DESKTOP=(
         waybar wofi mako libnotify
-        kitty
+        kitty foot
         Thunar thunar-volman thunar-archive-plugin tumbler file-roller
         gvfs gvfs-mtp udiskie
         network-manager-applet
@@ -700,7 +700,7 @@ elif [[ ${DISTRO:-} == ubuntu ]]; then
     # mako-notifier here, and libnotify's notify-send is in libnotify-bin.
     PKGS_DESKTOP=(
         waybar wofi mako-notifier libnotify-bin
-        kitty
+        kitty foot
         thunar thunar-volman thunar-archive-plugin tumbler file-roller
         gvfs gvfs-backends gvfs-fuse udiskie
         network-manager-gnome

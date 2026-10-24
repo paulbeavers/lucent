@@ -237,7 +237,7 @@ vendor-specific is hardcoded in the shipped configs.
 | Bar | `waybar` |
 | Launcher | `wofi` |
 | Notifications | `mako` |
-| Terminal | `kitty` |
+| Terminal | `kitty`, or `foot` where kitty cannot run (VMware) |
 | Browser | `firefox` |
 | Editors | `neovim`, `vim` |
 | Files | `thunar` + `gvfs` + `udiskie` |
@@ -341,7 +341,7 @@ keymap keeps one shape.
 | `SUPER + D` | App launcher |
 | `SUPER + E` | File manager |
 | `SUPER + B` | Browser (firefox) |
-| `SUPER + N` | Editor (nvim in kitty) |
+| `SUPER + N` | Editor (nvim in the terminal) |
 | `SUPER + Q` | Close window |
 | `SUPER + F` | Fullscreen |
 | `SUPER + CTRL + V` | Toggle floating |
