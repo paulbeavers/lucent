@@ -239,12 +239,10 @@ What has been worked through:
 
 - **Parallels on a Mac** works. lucent switches Hyprland to the legacy DRM
   path and its own cursor there, so the Mac's pointer stays hidden.
-- **VMware Fusion** gets as far as a usable session, not a good one: two
-  pointers, and kitty exits at launch, so the terminal is foot instead.
 - **QEMU** needs a virtio-gpu display with GL (virgl) on. `-vga std` gives
   no usable OpenGL at all.
 
-On VMware and Parallels the keys start with Option rather than Command,
+On Parallels the keys start with Option rather than Command,
 because the Mac keeps Command for itself — see [Keys](#keys).
 
 ## What it installs
@@ -256,7 +254,7 @@ because the Mac keeps Command for itself — see [Keys](#keys).
 | Bar | `waybar` |
 | Launcher | `wofi` |
 | Notifications | `mako` |
-| Terminal | `kitty`, or `foot` where kitty cannot run (VMware) |
+| Terminal | `kitty`, or `foot` where kitty cannot run |
 | Browser | `firefox` |
 | Editors | `neovim`, `vim` |
 | Files | `thunar` + `gvfs` + `udiskie` |
@@ -320,7 +318,7 @@ Or straight from Hyprland: `hyprctl binds` (raw), `hyprctl -j binds` (JSON).
 Command on a Mac keyboard — and lucent-config's **Input → Primary modifier**
 switches it to `Alt`/`Option`. That is the setting to reach for when running
 this in a VM on a Mac, where the host keeps Command for itself and a desktop
-whose every shortcut begins with it is unusable. On VMware and Parallels the
+whose every shortcut begins with it is unusable. On Parallels the
 installer starts you on `Option` already, since otherwise `SUPER + I` — the
 way into that setting — could never be pressed.
 

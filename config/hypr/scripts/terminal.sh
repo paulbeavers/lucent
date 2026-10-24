@@ -4,13 +4,12 @@
 #     terminal.sh [--class NAME] [-e] [COMMAND [ARGS...]]
 #
 # kitty, unless it cannot run, and then foot. kitty draws with OpenGL 3.3 and
-# exits if it cannot get a context; under VMware Fusion it showed a grey window
-# and was gone, with 3D acceleration on. foot draws on the CPU, so a broken
-# graphics stack cannot keep it from opening — and without a terminal there is
-# no way left to fix anything from inside the session.
+# exits if it cannot get a context, showing nothing but a grey flash. foot
+# draws on the CPU, so a broken graphics stack cannot keep it from opening —
+# and without a terminal there is no way left to fix anything from inside the
+# session.
 #
-# foot is used outright on VMware, where kitty is known not to start, and as a
-# fallback anywhere kitty fails within a few seconds of launch. A fallback
+# foot is used anywhere kitty fails within a few seconds of launch. A fallback
 # leaves a line and kitty's error in /tmp/terminal.log, because a grey flash
 # leaves no other trace.
 #
@@ -33,10 +32,6 @@ run_foot() {
 }
 
 command -v kitty >/dev/null || run_foot "$@"
-if command -v foot >/dev/null &&
-   [[ "$(systemd-detect-virt 2>/dev/null || true)" == vmware ]]; then
-    run_foot "$@"
-fi
 
 args=()
 [[ -n $class ]] && args+=(--class "$class")

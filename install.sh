@@ -1780,18 +1780,18 @@ if [[ $DO_CONFIGS -eq 1 ]]; then
     fi
 
     # ── primary modifier ──────────────────────────────────────────────────────
-    # In a VM on a Mac, Command never reaches the guest as SUPER: VMware Fusion
+    # In a VM on a Mac, Command never reaches the guest as SUPER: the host
     # keeps it for itself, so every default bind is dead — including SUPER+I,
-    # the only way into the lucent-config setting that would fix it. On those
-    # hypervisors start with Option leading instead, in the same keys.lua that
+    # the only way into the lucent-config setting that would fix it. On
+    # Parallels start with Option leading instead, in the same keys.lua that
     # lucent-config writes. Written once and then left alone, like
     # monitors.lua: lucent-config owns it afterwards, and an existing file is
     # someone's choice. Never under config/ — see CLAUDE.md.
     step "Primary modifier"
     keys_conf="$CONFIG_DST/hypr/keys.lua"
     case "$(systemd-detect-virt 2>/dev/null || true)" in
-        vmware|parallels) mac_vm=1 ;;
-        *)                mac_vm=0 ;;
+        parallels) mac_vm=1 ;;
+        *)         mac_vm=0 ;;
     esac
     if [[ -f $keys_conf ]]; then
         ok "keeping your existing keys.lua"
