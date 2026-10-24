@@ -228,6 +228,25 @@ vendor-specific is hardcoded in the shipped configs.
 > this rather than guessing. Early KMS is deliberately *not* configured
 > automatically, since it can break resume-from-hibernation.
 
+## In a virtual machine
+
+**Native hardware is the target. A VM is best effort.** Hyprland needs a
+working GPU more than most desktops do, and its display backend does not
+hand the hypervisor a cursor the way GNOME does — so a VM that runs GNOME
+perfectly can come up with two pointers, or with programs that cannot draw.
+
+What has been worked through:
+
+- **Parallels on a Mac** works. lucent switches Hyprland to the legacy DRM
+  path and its own cursor there, so the Mac's pointer stays hidden.
+- **VMware Fusion** gets as far as a usable session, not a good one: two
+  pointers, and kitty exits at launch, so the terminal is foot instead.
+- **QEMU** needs a virtio-gpu display with GL (virgl) on. `-vga std` gives
+  no usable OpenGL at all.
+
+On VMware and Parallels the keys start with Option rather than Command,
+because the Mac keeps Command for itself — see [Keys](#keys).
+
 ## What it installs
 
 | Role | Package |
@@ -301,7 +320,9 @@ Or straight from Hyprland: `hyprctl binds` (raw), `hyprctl -j binds` (JSON).
 Command on a Mac keyboard — and lucent-config's **Input → Primary modifier**
 switches it to `Alt`/`Option`. That is the setting to reach for when running
 this in a VM on a Mac, where the host keeps Command for itself and a desktop
-whose every shortcut begins with it is unusable.
+whose every shortcut begins with it is unusable. On VMware and Parallels the
+installer starts you on `Option` already, since otherwise `SUPER + I` — the
+way into that setting — could never be pressed.
 
 Both modifiers move, and where the *secondary* goes is the part that matters.
 Eleven binds use both at once (`SUPER + ALT + H`) or `ALT` alone (`ALT + Tab`),
