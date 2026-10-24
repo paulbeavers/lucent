@@ -23,22 +23,19 @@ window.background {
   background-color: transparent;
 }
 
-/* Two layers, not one.
- *
- * The shell is the chrome — the title bar and the sidebar — and it is the more
- * transparent of the two, so the blurred desktop reads through it. A single
- * layer at one opacity made that whole area a flat grey slab, because nothing
- * was painted over it the way the card is painted over the middle.
- *
- * The content pane then paints @base again on top, which lands the settings
- * themselves at roughly 0.8 and keeps them readable. Same colour, two depths.
+/* The shell is solid. It used to let the blurred desktop through, and even
+ * at 97% that made the settings harder to read than they needed to be. The
+ * layers painted over it — the content pane, and the @surface0 tint on the
+ * title bar and sidebar — now only set the shade, and the two palettes still
+ * carry different alphas for them because a tint reads differently on a
+ * light @base than on a dark one.
  */
 /* No border and no radius of our own. Hyprland draws the same 2px gradient
  * border it draws on every other window and rounds the corners to match, so
  * focus is as obvious here as anywhere else; drawing a second frame inside
  * that one only ever looked like a mistake. */
 .sc-shell {
-  background-color: alpha(@base, 0.62);
+  background-color: @base;
 }
 
 .sc-content-pane {
@@ -55,13 +52,7 @@ window.background {
   background-color: alpha(@surface0, 0.62);
 }
 
-/* Light palettes cannot take the same translucency. A light @base at 62% over
- * a dark wallpaper turns grey and swallows its own dark text; theme.py works
- * out which way the palette goes and sets this class. */
-window.sc-light .sc-shell {
-  background-color: alpha(@base, 0.82);
-}
-
+/* theme.py works out which way the palette goes and sets this class. */
 window.sc-light .sc-content-pane {
   background-color: alpha(@base, 0.45);
 }
