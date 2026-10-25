@@ -1486,12 +1486,15 @@ MOZEOF
     fi
 
     # `systemctl --user` talks to a session bus, which does not exist inside a
-    # chroot — and under --for-user it would enable the units for root anyway,
-    # not for the account being set up. --global writes the same symlinks into
-    # /etc/systemd/user, which applies to every user and needs no session.
+    # chroot. SYSTEMD_OFFLINE makes it write the links without one, into the
+    # account's own ~/.config/systemd/user — the same six links a normal run
+    # makes. --global would put them in /etc instead, for every user, which a
+    # machine set up by hand does not have. They are chowned with the rest.
     if [[ -n $FOR_USER ]]; then
-        if run $SUDO systemctl --global enable pipewire.service pipewire-pulse.service wireplumber.service >/dev/null 2>&1; then
-            ok "PipeWire user services enabled for all users"
+        if run env -u XDG_RUNTIME_DIR -u DBUS_SESSION_BUS_ADDRESS SYSTEMD_OFFLINE=1 \
+               XDG_CONFIG_HOME="$FOR_USER_HOME/.config" \
+               systemctl --user enable pipewire.service pipewire-pulse.service wireplumber.service >/dev/null 2>&1; then
+            ok "PipeWire user services enabled for $FOR_USER"
         else
             warn "PipeWire user services will start on first graphical login"
         fi
