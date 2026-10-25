@@ -36,4 +36,10 @@ hl.env("MOZ_ENABLE_WAYLAND", "1")
 
 -- Many Electron apps still default to XWayland; this nudges newer ones over.
 hl.env("ELECTRON_OZONE_PLATFORM_HINT", "auto")
-hl.env("GTK_THEME", "Adwaita:dark")
+
+-- GTK 3 follows the colour theme's mode, which theme.sh writes into
+-- colors.lua. Environment variables are read at login, so a switch between a
+-- light and a dark theme reaches GTK_THEME then; color-scheme, which Firefox
+-- reads, changes immediately. Dark if colors.lua is not there yet.
+local has_colors, colors = pcall(require, "colors")
+hl.env("GTK_THEME", (has_colors and colors.mode == "light") and "Adwaita" or "Adwaita:dark")

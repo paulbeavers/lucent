@@ -97,8 +97,31 @@ render_hypr() {
                     lavender mauve pink; do
             printf '    %-9s = "%s",\n' "$role" "${C[$role]}"
         done
+        # Not a colour: env.lua reads it to set GTK_THEME at login.
+        printf '    %-9s = "%s",\n' mode "${C[mode]:-dark}"
         echo "}"
     } | emit "$CFG/hypr/colors.lua"
+}
+
+# GTK and the portal follow the theme's mode. color-scheme is what Firefox and
+# every portal-aware app read, and they change live; gtk-theme and icon-theme
+# are what GTK 3 reads. Without a session bus — install time, in a chroot —
+# gsettings fails and the system dconf defaults install.sh writes stay in
+# charge, which are dark like the default theme.
+set_gtk_mode() {
+    command -v gsettings >/dev/null || return 0
+    local k=org.gnome.desktop.interface
+    if [[ ${C[mode]:-dark} == light ]]; then
+        # prefer-light is GNOME 47's; older schemas only know default.
+        gsettings set $k color-scheme prefer-light 2>/dev/null ||
+            gsettings set $k color-scheme default 2>/dev/null || true
+        gsettings set $k gtk-theme  Adwaita       2>/dev/null || true
+        gsettings set $k icon-theme Papirus-Light 2>/dev/null || true
+    else
+        gsettings set $k color-scheme prefer-dark  2>/dev/null || true
+        gsettings set $k gtk-theme  Adwaita-dark  2>/dev/null || true
+        gsettings set $k icon-theme Papirus-Dark  2>/dev/null || true
+    fi
 }
 
 define_colors() {
@@ -280,6 +303,7 @@ apply() {
     render_mako
     patch_hyprlock
     patch_waybar_json
+    set_gtk_mode
     printf '%s\n' "$slug" > "$ACTIVE_FILE"
     reload_apps
     [[ $RELOAD -eq 1 ]] && note "Theme" "${C[name]:-$slug}"

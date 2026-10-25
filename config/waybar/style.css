@@ -44,7 +44,9 @@ window#waybar {
 }
 
 #workspaces label {
-  color: @surface1;
+  /* @overlay, the palette's dim text. @surface1 is a surface: dim on a dark
+   * bar, near-invisible on a light one. */
+  color: @overlay;
   padding: 0 8px;
   margin: 4px 2px;
   border-radius: 8px;
@@ -76,7 +78,7 @@ window#waybar {
 }
 
 #workspaces label.empty {
-  color: @surface1;
+  color: @overlay;
 }
 
 /* ── generic module spacing ──────────────────────────────────────────────── */

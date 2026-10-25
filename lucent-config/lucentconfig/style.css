@@ -248,6 +248,14 @@ popover > contents {
   color: @text;
 }
 
+/* The colour is set on the row and its label, not left to inherit: GTK's own
+ * theme colours them, and under Adwaita-dark that is white whatever this
+ * palette says, which disappears on a light theme. */
+popover listview > row,
+popover listview > row label {
+  color: @text;
+}
+
 popover listview > row {
   border-radius: 7px;
   padding: 5px 8px;
