@@ -188,9 +188,32 @@ render_kitty() {
         echo "inactive_tab_background #${C[mantle]}"
         echo "tab_bar_background      #${C[crust]}"
         echo
-        echo "# black"
-        echo "color0  #${C[surface1]}"
-        echo "color8  #${C[overlay]}"
+        # Black and white are the two ANSI colours that assume a background.
+        # Programs print "black" as text and "white" as a fill, so on a light
+        # theme black has to be dark and white light — the swap every light
+        # terminal scheme makes. Kitty also draws dark text on light thinner
+        # than the reverse; the composition strategy is its fix, and the
+        # background goes opaque, since kitty.conf's translucency over a dark
+        # wallpaper only greys a light theme out. A dark theme leaves both to
+        # kitty.conf.
+        if [[ ${C[mode]:-dark} == light ]]; then
+            echo "# black"
+            echo "color0  #${C[subtext]}"
+            echo "color8  #${C[overlay]}"
+            echo "# white"
+            echo "color7  #${C[surface1]}"
+            echo "color15 #${C[surface0]}"
+            echo
+            echo "text_composition_strategy 1.7 30"
+            echo "background_opacity 1.0"
+        else
+            echo "# black"
+            echo "color0  #${C[surface1]}"
+            echo "color8  #${C[overlay]}"
+            echo "# white"
+            echo "color7  #${C[subtext]}"
+            echo "color15 #${C[text]}"
+        fi
         echo "# red"
         echo "color1  #${C[red]}"
         echo "color9  #${C[red]}"
@@ -209,9 +232,6 @@ render_kitty() {
         echo "# cyan"
         echo "color6  #${C[teal]}"
         echo "color14 #${C[teal]}"
-        echo "# white"
-        echo "color7  #${C[subtext]}"
-        echo "color15 #${C[text]}"
     } | emit "$CFG/kitty/colors.conf"
 }
 

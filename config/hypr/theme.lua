@@ -38,7 +38,8 @@ hl.config({
         rounding_power = 2.0,
 
         active_opacity   = 1.0,
-        inactive_opacity = 0.96,
+        -- Opaque under a light theme: see rules.lua's transparency section.
+        inactive_opacity = c.mode == "light" and 1.0 or 0.96,
 
         shadow = {
             enabled      = true,

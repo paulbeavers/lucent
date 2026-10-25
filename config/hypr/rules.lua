@@ -98,9 +98,13 @@ hl.window_rule({
 })
 
 -- ── transparency ────────────────────────────────────────────────────────────
--- Terminals and the file manager look good slightly see-through; keep it narrow.
-hl.window_rule({ name = "opacity-kitty",  match = { class = "^(kitty)$" },  opacity = "0.94 0.88" })
-hl.window_rule({ name = "opacity-thunar", match = { class = "^(thunar)$" }, opacity = "0.97 0.92" })
+-- Terminals and the file manager look good slightly see-through on a dark
+-- theme; keep it narrow. A light window over a dark wallpaper only turns grey,
+-- so under a light theme they are opaque, as macOS's are.
+local has_colors, colors = pcall(require, "colors")
+local light = has_colors and colors.mode == "light"
+hl.window_rule({ name = "opacity-kitty",  match = { class = "^(kitty)$" },  opacity = light and "1.0 1.0" or "0.94 0.88" })
+hl.window_rule({ name = "opacity-thunar", match = { class = "^(thunar)$" }, opacity = light and "1.0 1.0" or "0.97 0.92" })
 
 -- Never make video or images translucent — it ruins them.
 hl.window_rule({ name = "opacity-media", match = { class = "^(mpv|imv)$" }, opacity = "1.0 1.0" })
