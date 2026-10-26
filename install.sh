@@ -2048,6 +2048,19 @@ hl.config({ cursor = { no_hardware_cursors = 1 } })
 
 EOF
                     fi
+                    # UTM only: Parallels draws rounded corners correctly.
+                    case "$(systemd-detect-virt 2>/dev/null || true)" in
+                        qemu|apple)
+                            cat >> "$gpu_tmp" <<'EOF'
+# UTM cuts rounded window corners off and leaves the gap black, on active and
+# inactive windows alike. Square corners were the only fix in a test of each
+# effect: shadow, blur and a squircle rounding_power all left it. Rounded boxes
+# that clients draw themselves, waybar's and mako's, are unaffected.
+hl.config({ decoration = { rounding = 0 } })
+
+EOF
+                            ;;
+                    esac
                     ;;
                 apple)
                     cat >> "$gpu_tmp" <<'EOF'

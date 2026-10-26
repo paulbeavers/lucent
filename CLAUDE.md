@@ -326,7 +326,11 @@ testing, not derived; the legacy path sets cursors through
 `apple`. The last two are UTM on a Mac (QEMU under Hypervisor.framework, and
 Apple's Virtualization framework), added on 2026-10-26 by analogy and not yet
 confirmed there. QEMU on a Linux host says `kvm` and hides its own pointer: a
-virtio-vga-gl VM with a USB tablet showed one pointer without the fix. `hl.env` in the config is early enough for `AQ_` variables: the log
+virtio-vga-gl VM with a USB tablet showed one pointer without the fix. On
+2026-10-26 the user confirmed one pointer in UTM (`qemu`). UTM also cut rounded
+window corners off and left them black; of shadow, blur, `rounding_power` and
+`rounding`, only `rounding = 0` fixed it, so `gpu.lua` sets that for `qemu`
+and `apple`, and loads after `theme.lua` so it wins. `hl.env` in the config is early enough for `AQ_` variables: the log
 shows the config read well before aquamarine opens the GPU. But it only takes
 effect **at login**, never on reload.
 
