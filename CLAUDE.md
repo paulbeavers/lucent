@@ -322,8 +322,11 @@ What works is `AQ_NO_ATOMIC=1`, aquamarine's legacy DRM path, plus
 Hyprland's software cursor, which changes shape properly. That was found by
 testing, not derived; the legacy path sets cursors through
 `DRM_IOCTL_MODE_CURSOR2`, which carries a hotspot, and is the likely reason.
-`gpu.lua` sets both on Parallels only — QEMU and friends hide the host pointer
-themselves. `hl.env` in the config is early enough for `AQ_` variables: the log
+`gpu.lua` sets both when `systemd-detect-virt` says `parallels`, `qemu` or
+`apple`. The last two are UTM on a Mac (QEMU under Hypervisor.framework, and
+Apple's Virtualization framework), added on 2026-10-26 by analogy and not yet
+confirmed there. QEMU on a Linux host says `kvm` and hides its own pointer: a
+virtio-vga-gl VM with a USB tablet showed one pointer without the fix. `hl.env` in the config is early enough for `AQ_` variables: the log
 shows the config read well before aquamarine opens the GPU. But it only takes
 effect **at login**, never on reload.
 

@@ -2017,21 +2017,32 @@ env = LIBVA_DRIVER_NAME,
 env = WLR_RENDERER_ALLOW_SOFTWARE,1
 
 EOF
-                    if [[ "$(systemd-detect-virt 2>/dev/null || true)" == parallels ]]; then
+                    # UTM on a Mac reports qemu (QEMU under Hypervisor.framework,
+                    # which has no KVM signature) or apple (Apple's
+                    # Virtualization framework), and draws the Mac's pointer
+                    # over the guest as Parallels does. QEMU on a Linux host
+                    # reports kvm and hides its own pointer, so it is left out.
+                    # The UTM cases are the Parallels fix applied by analogy,
+                    # not yet confirmed in UTM.
+                    case "$(systemd-detect-virt 2>/dev/null || true)" in
+                        parallels|qemu|apple) mac_host_pointer=1 ;;
+                        *)                    mac_host_pointer=0 ;;
+                    esac
+                    if [[ $mac_host_pointer -eq 1 ]]; then
                         cat >> "$gpu_tmp" <<'EOF'
-# Parallels shows the Mac's pointer over the guest unless the guest hands it a
-# cursor the way mutter does, and aquamarine's atomic path cannot: virtio-gpu
-# only exposes a cursor plane to an atomic client that sets the hotspot cap,
-# which aquamarine (0.15.1, and master as of 2026-10) never sets. On its legacy
-# path the Mac's pointer stays hidden behind Hyprland's own, which changes shape
-# for resizing and text. That was found by testing, not derived. AQ_NO_ATOMIC is
-# read before the GPU is opened, so it takes effect at login, not on reload.
+# Parallels and UTM show the Mac's pointer over the guest unless the guest
+# hands it a cursor the way mutter does, and aquamarine's atomic path cannot:
+# virtio-gpu only exposes a cursor plane to an atomic client that sets the
+# hotspot cap, which aquamarine (0.15.1, and master as of 2026-10) never sets.
+# On its legacy path the Mac's pointer stays hidden behind Hyprland's own,
+# which changes shape for resizing and text. That was found by testing on
+# Parallels, not derived. AQ_NO_ATOMIC is read before the GPU is opened, so it
+# takes effect at login, not on reload.
 #
 # Software cursor, not the hardware plane: rendered on the GPU the plane's
 # buffer came out blank, and with use_cpu_buffer it flickered. The size is the
 # default 24, which the display scale enlarges like everything else.
-# Other hypervisors hide the host pointer themselves, so this stays
-# Parallels-only.
+# QEMU on a Linux host hides its own pointer, so this is for VMs on a Mac.
 env = AQ_NO_ATOMIC,1
 hl.config({ cursor = { no_hardware_cursors = 1 } })
 
