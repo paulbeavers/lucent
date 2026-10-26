@@ -77,7 +77,7 @@ def is_light(palette: str) -> bool:
 class Theme:
     """The stylesheet, kept in step with the desktop's theme.
 
-    SUPER+SHIFT+T rewrites colors.css and signals waybar, kitty and mako to
+    SUPER+SHIFT+T rewrites colors.css and signals waybar and mako to
     pick it up. An app that only read the palette at startup would sit there in
     the old colours until it was restarted, which is exactly the kind of small
     wrongness that makes something feel bolted on. So we watch the file.

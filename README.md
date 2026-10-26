@@ -254,7 +254,7 @@ because the Mac keeps Command for itself — see [Keys](#keys).
 | Bar | `waybar` |
 | Launcher | `wofi` |
 | Notifications | `mako` |
-| Terminal | `kitty`, or `foot` where kitty cannot run |
+| Terminal | `foot` |
 | Browser | `firefox` |
 | Editors | `neovim`, `vim` |
 | Files | `thunar` + `gvfs` + `udiskie` |

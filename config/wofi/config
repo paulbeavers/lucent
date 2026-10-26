@@ -14,7 +14,7 @@ allow_markup=true
 insensitive=true
 
 # Type to filter, Enter to run, Escape to dismiss.
-term=kitty
+term=foot
 matching=fuzzy
 no_actions=true
 hide_scroll=true

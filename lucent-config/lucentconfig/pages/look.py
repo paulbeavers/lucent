@@ -2,7 +2,7 @@
 
 Almost nothing here is implemented twice. theme.sh and wallpaper.sh already do
 this work, are already bound to the theme and wallpaper keys, and already know
-about every consumer of a palette — waybar, kitty, mako, wofi, hyprlock. The
+about every consumer of a palette — waybar, foot, mako, wofi, hyprlock. The
 page drives those scripts rather than reimplementing what they do, so there is
 one code path and it is the one that already worked.
 """

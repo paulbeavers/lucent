@@ -240,19 +240,23 @@ is a multiple of 1/120 *and* divides the resolution into whole pixels both
 ways. Hyprland accepts anything and then silently snaps, so a config can say
 1.5 while the session runs at 1.6. `scales.py` enumerates the legal ones.
 
-## Three traps that cost a day each
+## The terminal is foot, not kitty
 
-**kitty remembers being maximized, and asks for it again.** Every terminal on
-an installed system came up covering the screen with the tiled windows behind
-it — only kitty, only installs, never the live medium. It was not a window
-rule. kitty defaults `remember_window_size` to yes: it records the OS window's
-size *and maximize state* in `~/.cache/kitty/main.json` and asks the compositor
-for the same again on every new window. `SUPER+SHIFT+F` fixed the window on
-screen and the next one came back maximized, because the cache still said so.
-`kitty.conf` now sets `remember_window_size no`; under a tiling compositor the
-geometry is the tiler's decision. It never showed on the medium because the
-live user's home is a fresh overlay each boot, so the cache never survived to
-be read — which is the shape of every "installs but not live" bug here.
+kitty draws with OpenGL. Under UTM on a Mac it opened an empty window, which
+is worse than failing: `terminal.sh` used to fall back to foot when kitty
+*exited* at launch, and an empty window never exits. foot draws on the CPU, so
+it opens on any graphics stack, and since 2026-10-25 it is the only terminal.
+What that gave up: ligatures, kitty's image protocol (foot does sixel), and
+live theme changes — foot reads `colors.ini` at start, so a theme switch
+reaches new terminals only.
+
+**foot's colour section depends on its version.** 1.26 renamed `[colors]` to
+`[colors-dark]` and `[colors-light]`, and 1.28 removed the old name; Ubuntu
+26.04 ships 1.25 and Fedora 43 1.24. `theme.sh` asks `foot --version`. Check a
+rendered config with `foot --check-config -c FILE`, which exits non-zero on
+any unknown key or section.
+
+## Traps that cost a day each
 
 **The wallpaper is swaybg now, and that was the fix.** hyprpaper's apply is an
 IPC call that answers "ok" whether or not it has a surface to paint on, and

@@ -528,7 +528,7 @@ PKGS_HYPRLAND=(
 )
 PKGS_DESKTOP=(
     waybar wofi mako libnotify
-    kitty foot
+    foot
     thunar thunar-volman thunar-archive-plugin tumbler file-roller
     gvfs gvfs-mtp udiskie
     network-manager-applet
@@ -619,7 +619,7 @@ if [[ ${DISTRO:-} == fedora ]]; then
     # covers the display side; GTK theming is in settings.ini and dconf.
     PKGS_DESKTOP=(
         waybar wofi mako libnotify
-        kitty foot
+        foot
         Thunar thunar-volman thunar-archive-plugin tumbler file-roller
         gvfs gvfs-mtp udiskie
         network-manager-applet
@@ -711,7 +711,7 @@ elif [[ ${DISTRO:-} == ubuntu ]]; then
     # mako-notifier here, and libnotify's notify-send is in libnotify-bin.
     PKGS_DESKTOP=(
         waybar wofi mako-notifier libnotify-bin
-        kitty foot
+        foot
         thunar thunar-volman thunar-archive-plugin tumbler file-roller
         gvfs gvfs-backends gvfs-fuse udiskie
         network-manager-gnome
@@ -927,7 +927,7 @@ for p in "${WANTED[@]}"; do
 done
 
 # Which APT components are configured. universe carries most of the desktop —
-# waybar, wofi, kitty, thunar, swayosd — and is enabled by default on Ubuntu
+# waybar, wofi, foot, thunar, swayosd — and is enabled by default on Ubuntu
 # Desktop but not on every derivative or minimal image, so it is checked
 # rather than assumed.
 # steam is in multiverse and is a 32-bit package, so --gaming also needs the
@@ -2182,7 +2182,7 @@ KBLUA
 
     # ── colour theme ──────────────────────────────────────────────────────────
     # Several configs are rendered rather than copied: waybar and wofi @import a
-    # colors.css, hypr sources a colors.conf, kitty and mako include their own.
+    # colors.css, hypr requires a colors.lua, foot and mako include their own.
     # None of those exist until a theme is applied, so this has to run on every
     # install or waybar comes up unstyled.
     step "Colour theme"
