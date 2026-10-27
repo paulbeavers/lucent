@@ -125,10 +125,34 @@ that says which archive is underneath. Every codename *below* the floor is
 listed, so an unrecognised one can only be newer and proceeds with a warning
 rather than refusing a release that did not exist yet.
 
-**The greeter account is named differently on all three**, and `config.toml`
-naming one that does not exist is a login screen that never appears: `greeter`
-on Arch, `greetd` on Fedora, `_greetd` on Debian and Ubuntu (from the package's
-`sysusers.d`). Ubuntu also arbitrates through
+**The login manager is SDDM on Arch and greetd + tuigreet elsewhere.** Arch
+switched on 2026-10-26: tuigreet draws on the text console, and its box came
+out as stray characters, inconsistently and worst on slow machines. SDDM is
+set up as Omarchy sets it up — its Qt 6 greeter drawn by Hyprland, under a
+theme of our own (`sddm/lucent/`, laid out like `hyprlock.conf`). Three things
+about it are not visible from the code:
+
+- **The greeter's Hyprland gets a config of its own, `/etc/lucent/greeter.lua`,**
+  built by `write_greeter` from the desktop's generated `monitors.lua`,
+  `gpu.lua` and `keyboard.lua`. The greeter runs as `sddm` and cannot read a
+  home directory, so they are copied, and the config phase rebuilds the copy
+  every run. Without them the login screen would have the wrong scale, the
+  wrong keyboard layout and, under UTM or Parallels, two pointers.
+- **`metadata.desktop` must say `QtVersion=6`.** Without it SDDM starts its
+  Qt 5 greeter, which needs `qt5-declarative`, which nothing installs: no
+  login screen at all.
+- **An Arch machine with our greetd is migrated, not deferred to.** greetd
+  holding the alias would otherwise read as someone else's display manager.
+  The `Managed by` marker in `/etc/greetd/config.toml` identifies it; a re-run
+  disables greetd, removes `greetd` and `greetd-tuigreet`, and enables SDDM.
+
+Test the theme without logging out, against the installed copy:
+`sddm-greeter-qt6 --test-mode --theme /usr/share/sddm/themes/lucent`.
+
+**The greetd account is named differently on Fedora and Ubuntu**, and
+`config.toml` naming one that does not exist is a login screen that never
+appears: `greetd` on Fedora, `_greetd` on Debian and Ubuntu (from the
+package's `sysusers.d`). Ubuntu also arbitrates through
 `/etc/X11/default-display-manager` as well as the systemd alias — a display
 manager installed later reads that file to decide whether to take the alias
 back, so the unit alone does not keep greetd in charge.

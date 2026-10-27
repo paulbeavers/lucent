@@ -85,7 +85,7 @@ DO_AUR=0            # opt-in: nothing this script installs comes from the AUR
 DO_GAMING=0            # opt-in: Steam and the 32-bit stack are a large,
                        # opinionated addition, and one command to add later
 DO_BLUETOOTH=1
-DO_GREETD=auto          # auto | yes | no — "auto" defers to a display manager
+DO_DM=auto              # auto | yes | no — "auto" defers to a display manager
                         # that is already enabled, which on Fedora Workstation
                         # is GDM, rather than fighting it for the alias
 REDETECT_MONITORS=0
@@ -113,11 +113,12 @@ By default the script decides for itself what still needs doing:
                        multilib and the 32-bit drivers too; on Ubuntu,
                        multiverse and the i386 architecture). Off by default.
   --no-bluetooth       Skip bluez/blueman.
-  --greetd             Use greetd + tuigreet even if another display manager
-                       (GDM on Fedora Workstation and Ubuntu Desktop) is
-                       enabled; that one is disabled. By default an existing
-                       one is kept.
-  --no-greetd          Skip the login manager.
+  --login-manager      Install our login manager — SDDM on Arch, greetd +
+                       tuigreet on Fedora and Ubuntu — even if another display
+                       manager (GDM on Fedora Workstation and Ubuntu Desktop)
+                       is enabled; that one is disabled. By default an
+                       existing one is kept. --greetd is the old name.
+  --no-login-manager   Skip the login manager. --no-greetd is the old name.
   --for-user NAME      Run as root and configure the desktop for NAME instead
                        of the invoking user. For installers running this inside
                        a chroot, where sudo has nobody to ask for a password.
@@ -140,8 +141,8 @@ while [[ $# -gt 0 ]]; do
         --gaming)            DO_GAMING=1 ;;
         --no-gaming)         DO_GAMING=0 ;;   # kept: it used to be the default
         --no-bluetooth)      DO_BLUETOOTH=0 ;;
-        --greetd)            DO_GREETD=yes ;;
-        --no-greetd)         DO_GREETD=no ;;
+        --login-manager|--greetd)       DO_DM=yes ;;
+        --no-login-manager|--no-greetd) DO_DM=no ;;
         --for-user)          FOR_USER="${2:-}"; shift ;;
         -h|--help)           usage; exit 0 ;;
         *) echo "Unknown option: $1" >&2; usage; exit 1 ;;
@@ -446,14 +447,97 @@ fi
 # display-manager.service is an alias that only one unit can hold, and Fedora
 # Workstation ships with GDM holding it. GDM lists Hyprland's session files by
 # itself, so by default an existing display manager is left in charge and
-# greetd is not installed at all. --greetd replaces it.
+# ours is not installed at all. --login-manager replaces it.
+#
+# Ours is SDDM on Arch, with a theme of our own and Hyprland drawing it, and
+# greetd + tuigreet on Fedora and Ubuntu. tuigreet draws on the text console,
+# and on Arch its box came out as stray characters, worst on slow machines.
+DM_UNIT=greetd.service
+[[ $DISTRO == arch ]] && DM_UNIT=sddm.service
 OTHER_DM="$(readlink /etc/systemd/system/display-manager.service 2>/dev/null || true)"
 OTHER_DM="${OTHER_DM##*/}"
-[[ $OTHER_DM == greetd.service ]] && OTHER_DM=""
-case "$DO_GREETD" in
-    auto) if [[ -n $OTHER_DM ]]; then DO_GREETD=0; else DO_GREETD=1; fi ;;
-    yes)  DO_GREETD=1 ;;
-    no)   DO_GREETD=0 ;;
+[[ $OTHER_DM == "$DM_UNIT" ]] && OTHER_DM=""
+# An Arch machine set up before SDDM has our greetd. That is ours to replace,
+# not someone else's display manager to defer to.
+REPLACE_GREETD=0
+if [[ $DISTRO == arch && $OTHER_DM == greetd.service ]] \
+   && grep -qsE 'Managed by (lucent|hyprland-setup)' /etc/greetd/config.toml; then
+    REPLACE_GREETD=1
+    OTHER_DM=""
+fi
+
+# SDDM's theme and the Hyprland config its greeter runs under. The greeter
+# runs as the sddm user, which cannot read a home directory, so the desktop's
+# generated monitors.lua, gpu.lua and keyboard.lua are copied in rather than
+# required: the login screen then gets the same scale, the same VM cursor fix
+# and the same layout as the session behind it. Called by the system phase,
+# before those modules may exist, and again by the config phase once they do;
+# each writes only what changed.
+write_greeter() {
+    local theme_src="$SCRIPT_DIR/sddm/lucent" theme_dst=/usr/share/sddm/themes/lucent
+    local hypr="$CONFIG_DST/hypr" stage m
+
+    if [[ $DRY_RUN -eq 1 ]]; then
+        info "[dry-run] would install the SDDM theme and /etc/lucent/greeter.lua"
+        return 0
+    fi
+
+    stage="$(mktemp -d)"
+    cp "$theme_src"/* "$stage/"
+    # The wallpaper is the desktop's default, copied rather than kept twice in
+    # the repo. 16:9; the theme crops it to fill any other shape.
+    cp "$SCRIPT_DIR/wallpapers/$DEFAULT_WALLPAPER-3840x2160.png" "$stage/background.png"
+    if diff -rq "$stage" "$theme_dst" >/dev/null 2>&1; then
+        ok "SDDM theme already current"
+    else
+        run $SUDO rm -rf "$theme_dst"
+        run $SUDO install -d -m 755 "$theme_dst"
+        run $SUDO install -m 644 "$stage"/* "$theme_dst/"
+        ok "installed the SDDM theme"
+    fi
+    rm -rf "$stage"
+
+    stage="$(mktemp)"
+    {
+        echo "-- Managed by lucent/install.sh: the Hyprland that draws SDDM's greeter."
+        echo "-- Rebuilt on every run from the desktop's generated modules below;"
+        echo "-- edit those, not this."
+        echo
+        echo "hl.config({"
+        echo "    general = { gaps_in = 0, gaps_out = 0, border_size = 0 },"
+        echo "    decoration = { rounding = 0 },"
+        echo "    animations = { enabled = false },"
+        echo "    misc = {"
+        echo "        disable_hyprland_logo    = true,"
+        echo "        disable_splash_rendering = true,"
+        echo "        background_color         = \"rgb(1e1e2e)\","
+        echo "    },"
+        echo "    ecosystem = { no_update_news = true },"
+        echo "})"
+        echo "-- The desktop's pointer, as env.lua sets it, not Hyprland's fallback."
+        echo "hl.env(\"XCURSOR_THEME\", \"Adwaita\")"
+        echo "hl.env(\"XCURSOR_SIZE\", \"24\")"
+        echo "hl.env(\"HYPRCURSOR_THEME\", \"Adwaita\")"
+        echo "hl.env(\"HYPRCURSOR_SIZE\", \"24\")"
+        for m in monitors gpu keyboard; do
+            [[ -r $hypr/$m.lua ]] || continue
+            echo
+            echo "-- ── from ~/.config/hypr/$m.lua ──────────────────────────────────────"
+            cat "$hypr/$m.lua"
+        done
+    } > "$stage"
+    if cmp -s "$stage" /etc/lucent/greeter.lua; then
+        ok "greeter.lua already current"
+    else
+        run $SUDO install -Dm644 "$stage" /etc/lucent/greeter.lua
+        ok "wrote /etc/lucent/greeter.lua"
+    fi
+    rm -f "$stage"
+}
+case "$DO_DM" in
+    auto) if [[ -n $OTHER_DM ]]; then DO_DM=0; else DO_DM=1; fi ;;
+    yes)  DO_DM=1 ;;
+    no)   DO_DM=0 ;;
 esac
 
 # ── package sets ──────────────────────────────────────────────────────────────
@@ -555,7 +639,8 @@ PKGS_THEME=( papirus-icon-theme adwaita-icon-theme gtk3 gtk4 )
 # and a Picture-in-Picture window rule from rules.conf.
 PKGS_APPS=( firefox neovim vim )
 PKGS_SHELL=( fastfetch btop ripgrep fd bat eza fzf zoxide starship bash-completion lazygit )
-PKGS_GREETD=( greetd greetd-tuigreet )
+# sddm depends on xorg-server even when, as here, the greeter runs on Wayland.
+PKGS_LOGIN=( sddm )
 PKGS_BLUETOOTH=( bluez bluez-utils blueman )
 # The 32-bit graphics drivers come from PKGS_GPU32, which is vendor-aware.
 PKGS_GAMING=( steam gamemode lib32-gamemode mangohud "${PKGS_GPU32[@]}" )
@@ -646,7 +731,7 @@ if [[ ${DISTRO:-} == fedora ]]; then
     # and is reported as skipped elsewhere.
     PKGS_SHELL=( fastfetch btop ripgrep fd-find bat eza fzf zoxide bash-completion lazygit )
     # greetd-selinux: without its policy, SELinux stops greetd starting a session.
-    PKGS_GREETD=( greetd greetd-selinux tuigreet )
+    PKGS_LOGIN=( greetd greetd-selinux tuigreet )
     # bluetoothctl is part of bluez on Fedora.
     PKGS_BLUETOOTH=( bluez blueman )
     # On Fedora Asahi Remix, steam is the Asahi COPR's FEX-emulated build; on
@@ -753,7 +838,7 @@ elif [[ ${DISTRO:-} == ubuntu ]]; then
     # fd and bat are installed under their Debian names; their binaries are
     # fdfind and batcat, which nothing in config/ calls.
     PKGS_SHELL=( fastfetch btop ripgrep fd-find bat eza fzf zoxide starship bash-completion lazygit )
-    PKGS_GREETD=( greetd tuigreet )
+    PKGS_LOGIN=( greetd tuigreet )
     # bluetoothctl is part of bluez; libspa-0.2-bluetooth is what lets PipeWire
     # see a Bluetooth audio device at all, and is split out on Ubuntu.
     PKGS_BLUETOOTH=( bluez blueman libspa-0.2-bluetooth )
@@ -767,7 +852,7 @@ WANTED=(
     "${PKGS_DESKTOP[@]}" "${PKGS_FONTS[@]}" "${PKGS_THEME[@]}" "${PKGS_SHELL[@]}"
     "${PKGS_APPS[@]}"
 )
-[[ $DO_GREETD    -eq 1 ]] && WANTED+=( "${PKGS_GREETD[@]}" )
+[[ $DO_DM    -eq 1 ]] && WANTED+=( "${PKGS_LOGIN[@]}" )
 [[ $DO_BLUETOOTH -eq 1 ]] && WANTED+=( "${PKGS_BLUETOOTH[@]}" )
 [[ $DO_GAMING    -eq 1 ]] && WANTED+=( "${PKGS_GAMING[@]}" )
 # The wireless driver this card needs, if it needs one the kernel lacks. On
@@ -1015,13 +1100,18 @@ fi
 PENDING_UNITS=()
 unit_enabled NetworkManager.service || PENDING_UNITS+=(NetworkManager.service)
 [[ $DO_BLUETOOTH -eq 1 ]] && { unit_enabled bluetooth.service || PENDING_UNITS+=(bluetooth.service); }
-[[ $DO_GREETD    -eq 1 ]] && { unit_enabled greetd.service    || PENDING_UNITS+=(greetd.service); }
+[[ $DO_DM        -eq 1 ]] && { unit_enabled "$DM_UNIT"        || PENDING_UNITS+=("$DM_UNIT"); }
 
-GREETD_CONFIGURED=0
+DM_CONFIGURED=0
 # Both markers: machines installed before the rename to lucent carry the old one,
 # and reading it as foreign would keep the system phase from ever completing.
-if [[ $DO_GREETD -eq 0 ]] || grep -qsE 'Managed by (lucent|hyprland-setup)' /etc/greetd/config.toml; then
-    GREETD_CONFIGURED=1
+if [[ $DO_DM -eq 0 ]]; then
+    DM_CONFIGURED=1
+elif [[ $DISTRO == arch ]]; then
+    [[ $REPLACE_GREETD -eq 0 ]] && grep -qs 'Managed by lucent' /etc/sddm.conf.d/10-lucent.conf \
+        && DM_CONFIGURED=1
+elif grep -qsE 'Managed by (lucent|hyprland-setup)' /etc/greetd/config.toml; then
+    DM_CONFIGURED=1
 fi
 
 MULTILIB_READY=1
@@ -1039,18 +1129,19 @@ info "packages:  ${#MISSING_PKGS[@]} of ${#WANTED[@]} missing"
 [[ ${#UNAVAILABLE_PKGS[@]} -gt 0 ]] && info "unavailable here, skipped: ${UNAVAILABLE_PKGS[*]}"
 [[ $DISTRO != arch ]] && info "nerd fonts: $( ((NERD_FONTS_READY)) && echo installed || echo missing )"
 info "services:  ${#PENDING_UNITS[@]} pending"
-if [[ $DO_GREETD -eq 1 ]]; then
-    info "greetd:    $( ((GREETD_CONFIGURED)) && echo configured || echo "not configured" )"
+if [[ $DO_DM -eq 1 ]]; then
+    info "login:     ${DM_UNIT%.service} $( ((DM_CONFIGURED)) && echo configured || echo "not configured" )"
     [[ -n $OTHER_DM ]] && info "           replaces $OTHER_DM"
+    [[ $REPLACE_GREETD -eq 1 ]] && info "           replaces greetd + tuigreet"
 elif [[ -n $OTHER_DM ]]; then
-    info "login:     keeping $OTHER_DM (--greetd to replace it)"
+    info "login:     keeping $OTHER_DM (--login-manager to replace it)"
 fi
 [[ $DISTRO == arch && $DO_GAMING -eq 1 ]] && info "multilib:  $( ((MULTILIB_READY))    && echo enabled    || echo disabled )"
 [[ $DISTRO == ubuntu ]] && info "apt repos: $( ((APT_COMPONENTS_READY)) && echo configured || echo "need enabling" )"
 
 SYSTEM_COMPLETE=0
 if [[ ${#MISSING_PKGS[@]} -eq 0 && ${#PENDING_UNITS[@]} -eq 0 \
-      && $GREETD_CONFIGURED -eq 1 && $MULTILIB_READY -eq 1 \
+      && $DM_CONFIGURED -eq 1 && $MULTILIB_READY -eq 1 \
       && $APT_COMPONENTS_READY -eq 1 \
       && $NERD_FONTS_READY -eq 1 ]]; then
     SYSTEM_COMPLETE=1
@@ -1478,8 +1569,9 @@ MOZEOF
         ok "all system units already enabled"
     else
         for unit in "${PENDING_UNITS[@]}"; do
-            # greetd is configured below; enable it only once that has happened.
-            [[ $unit == greetd.service ]] && continue
+            # The login manager is configured below; enable it only once that
+            # has happened.
+            [[ $unit == "$DM_UNIT" ]] && continue
             run $SUDO systemctl enable "$unit"
             ok "enabled $unit"
         done
@@ -1507,7 +1599,58 @@ MOZEOF
     run xdg-user-dirs-update
     ok "XDG user directories present"
 
-    if [[ $DO_GREETD -eq 1 ]]; then
+    if [[ $DO_DM -eq 1 && $DISTRO == arch ]]; then
+        step "Configuring SDDM"
+        write_greeter
+        # start-hyprland is the wrapper the Hyprland session itself uses. The
+        # uwsm session is chosen by the theme, which is why none is named here.
+        if [[ $DRY_RUN -eq 1 ]]; then
+            info "[dry-run] would write /etc/sddm.conf.d/10-lucent.conf"
+        else
+            $SUDO install -d -m 755 /etc/sddm.conf.d
+            $SUDO tee /etc/sddm.conf.d/10-lucent.conf >/dev/null <<'EOF'
+# Managed by lucent/install.sh
+#
+# The greeter is drawn by Hyprland, under /etc/lucent/greeter.lua, with the
+# theme in /usr/share/sddm/themes/lucent.
+[General]
+DisplayServer=wayland
+
+[Wayland]
+CompositorCommand=start-hyprland -- --config /etc/lucent/greeter.lua
+
+[Theme]
+Current=lucent
+CursorTheme=Adwaita
+EOF
+            ok "wrote /etc/sddm.conf.d/10-lucent.conf"
+        fi
+
+        # Only reached with another display manager enabled under
+        # --login-manager. It holds the display-manager.service alias.
+        if [[ -n $OTHER_DM ]]; then
+            run $SUDO systemctl disable "$OTHER_DM"
+            ok "disabled $OTHER_DM"
+        fi
+
+        # The greetd + tuigreet this script used to set up. Removed, not just
+        # disabled: a machine installed today would not have it.
+        if [[ $REPLACE_GREETD -eq 1 ]]; then
+            run $SUDO systemctl disable greetd.service
+            old=()
+            for _p in greetd-tuigreet greetd; do
+                pacman -Qq "$_p" &>/dev/null && old+=("$_p")
+            done
+            [[ ${#old[@]} -gt 0 ]] && run $SUDO pacman -Rn --noconfirm "${old[@]}"
+            run $SUDO rm -rf /var/cache/tuigreet
+            ok "replaced greetd + tuigreet"
+        fi
+
+        unit_enabled sddm.service && ok "sddm.service already enabled" || {
+            run $SUDO systemctl enable sddm.service
+            ok "enabled sddm.service"
+        }
+    elif [[ $DO_DM -eq 1 ]]; then
         step "Configuring greetd + tuigreet"
         # Prefer the uwsm session: a proper systemd user session, which makes
         # portals and user units behave. Fall back to launching Hyprland directly.
@@ -2190,6 +2333,13 @@ KBLUA
         fi
     fi
 
+    # ── login screen ──────────────────────────────────────────────────────────
+    # After monitors.lua, gpu.lua and keyboard.lua, which it copies.
+    if [[ $DO_DM -eq 1 && $DISTRO == arch ]] && unit_enabled sddm.service; then
+        step "Login screen"
+        write_greeter
+    fi
+
     # ── retire the legacy hyprlang config ─────────────────────────────────────
     # Hyprland picks hyprland.lua over hyprland.conf, so a leftover .conf is
     # inert — but on a machine upgrading from the old layout it is the previous
@@ -2496,7 +2646,9 @@ else
 
   ${C_BLUE}Next:${C_RESET}
     1. Reboot:  ${C_DIM}sudo reboot${C_RESET}
-$( if [[ $DO_GREETD -eq 1 ]]; then
+$( if [[ $DO_DM -eq 1 && $DISTRO == arch ]]; then
+       echo "    2. Log in at the login screen — it launches Hyprland for you."
+   elif [[ $DO_DM -eq 1 ]]; then
        echo "    2. Log in at the tuigreet prompt — it launches Hyprland for you."
    elif [[ -n $OTHER_DM ]]; then
        echo "    2. At the ${OTHER_DM%.service} login screen, pick \"Hyprland (uwsm-managed)\" as the session."

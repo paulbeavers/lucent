@@ -54,8 +54,8 @@ What differs from Arch:
   0.55 or newer, and the script warns if it is not.
 - **Your login screen stays.** Fedora Workstation already has GDM, which lists
   Hyprland's sessions by itself, so greetd is not installed. Pick
-  **Hyprland (uwsm-managed)** from the session menu. `--greetd` replaces GDM
-  with greetd + tuigreet instead, as on Arch.
+  **Hyprland (uwsm-managed)** from the session menu. `--login-manager`
+  replaces GDM with greetd + tuigreet instead.
 - **Nerd Fonts are downloaded.** Fedora does not package JetBrainsMono Nerd
   Font or the Nerd Font symbols, so they come from the upstream release into
   `/usr/local/share/fonts/nerd-fonts`.
@@ -117,9 +117,9 @@ What differs from Arch:
   otherwise keep choosing it.
 - **Your login screen stays.** Ubuntu Desktop already has GDM, which lists
   Hyprland's sessions by itself, so greetd is not installed. Pick
-  **Hyprland (uwsm-managed)** from the session menu. `--greetd` replaces it
-  with greetd + tuigreet, as on Arch. Ubuntu's greetd runs as `_greetd`, not
-  Arch's `greeter`, and the script also sets
+  **Hyprland (uwsm-managed)** from the session menu. `--login-manager`
+  replaces it with greetd + tuigreet. Ubuntu's greetd runs as `_greetd`, not
+  Fedora's `greetd`, and the script also sets
   `/etc/X11/default-display-manager` — Debian and Ubuntu arbitrate through
   that file as well as the systemd alias, and a display manager installed
   later reads it to decide whether to take the alias back.
@@ -191,8 +191,8 @@ Use `--dry-run` to see what would change without writing anything.
 | `--aur` | Arch only. Also build `paru`, an AUR helper (off by default) |
 | `--gaming` | Also install Steam, gamemode, mangohud; on Arch, multilib and 32-bit drivers too; on Ubuntu, multiverse and i386 |
 | `--no-bluetooth` | Skip `bluez` / `blueman` |
-| `--greetd` | Use greetd even if another display manager (GDM) is enabled, disabling it |
-| `--no-greetd` | No login manager — start Hyprland from a TTY |
+| `--login-manager` | Install our login manager (SDDM on Arch, greetd on Fedora and Ubuntu) even if another one (GDM) is enabled, disabling it. `--greetd` is the old name |
+| `--no-login-manager` | No login manager — start Hyprland from a TTY. `--no-greetd` is the old name |
 
 ## Graphics drivers
 
@@ -250,7 +250,7 @@ because the Mac keeps Command for itself — see [Keys](#keys).
 | Role | Package |
 | --- | --- |
 | Compositor | `hyprland` (launched through `uwsm`) |
-| Login | `greetd` + `tuigreet` |
+| Login | `sddm`, with a lucent theme and Hyprland drawing it (greetd + tuigreet on Fedora and Ubuntu) |
 | Bar | `waybar` |
 | Launcher | `wofi` |
 | Notifications | `mako` |
