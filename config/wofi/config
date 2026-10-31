@@ -1,4 +1,4 @@
-# wofi — application launcher (SUPER+D)
+# wofi — application launcher (SUPER+SHIFT+D)
 # One key=value per line. Full list: man 5 wofi
 show=drun
 width=620

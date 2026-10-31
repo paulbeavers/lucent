@@ -252,7 +252,7 @@ because the Mac keeps Command for itself — see [Keys](#keys).
 | Compositor | `hyprland` (launched through `uwsm`) |
 | Login | `sddm`, with a lucent theme and Hyprland drawing it (greetd + tuigreet on Fedora and Ubuntu) |
 | Bar | `waybar` |
-| Dock | `lucent-dock`, lucent's own (GTK 4); `SUPER + SHIFT + D` hides it |
+| Dock | `lucent-dock`, lucent's own (GTK 4); `SUPER + D` hides it |
 | Launcher | `wofi` |
 | Notifications | `mako` |
 | Terminal | `foot` |
@@ -359,7 +359,8 @@ keymap keeps one shape.
 | Key | Action |
 | --- | --- |
 | `SUPER + Return` | Terminal |
-| `SUPER + D` | App launcher |
+| `SUPER + D` | Show / hide the dock |
+| `SUPER + SHIFT + D` | App launcher |
 | `SUPER + E` | File manager |
 | `SUPER + B` | Browser (firefox) |
 | `SUPER + N` | Editor (nvim in the terminal) |
@@ -379,7 +380,6 @@ keymap keeps one shape.
 | `SUPER + X` | Clipboard history |
 | `SUPER + SHIFT + S` | Screenshot region → annotate |
 | `SUPER + I` | Settings (lucent-config) |
-| `SUPER + SHIFT + D` | Show / hide the dock |
 | `SUPER + Escape` | Lock |
 | `SUPER + SHIFT + E` | Power menu |
 | `SUPER + SHIFT + M` | Exit Hyprland |
@@ -404,8 +404,8 @@ keymap keeps one shape.
   app launcher. Click opens the app or focuses it, and clicking again cycles
   its windows; middle-click opens a new window; right-click lists its
   windows and offers New window, Pin / Unpin and Close. It takes an exclusive
-  zone, so windows tile above it, and it follows the theme. `SUPER + SHIFT +
-  D` hides it and the choice is remembered: hidden, it is stopped, which gives
+  zone, so windows tile above it, and it follows the theme. `SUPER + D`
+  hides it and the choice is remembered: hidden, it is stopped, which gives
   the space back, and `~/.config/lucent/dock-hidden` keeps it hidden at the
   next login. The pins are `~/.config/lucent/dock-pinned`, one desktop file
   ID per line. lucent's own because the packaged docks draw blurred icons on

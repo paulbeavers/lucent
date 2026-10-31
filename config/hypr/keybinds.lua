@@ -80,7 +80,10 @@ end
 
 -- ── launching ───────────────────────────────────────────────────────────────
 bind(mod .. " + Return", hl.dsp.exec_cmd(p.terminal), "Terminal")
-bind(mod .. " + D",      hl.dsp.exec_cmd(p.menu), "App launcher")
+-- SUPER + D is the dock, as on a Mac desktop where the dock is a key away;
+-- the full app list is one modifier on.
+bind(mod .. " + D",         hl.dsp.exec_cmd("~/.config/hypr/scripts/dock.sh"), "Show/hide the dock")
+bind(mod .. " + SHIFT + D", hl.dsp.exec_cmd(p.menu), "App launcher")
 bind(mod .. " + E",      hl.dsp.exec_cmd(p.file_manager), "File manager")
 bind(mod .. " + B",      hl.dsp.exec_cmd(p.browser), "Browser")
 bind(mod .. " + N",      hl.dsp.exec_cmd(p.editor), "Editor")
@@ -248,7 +251,6 @@ bind(mod .. " + slash",     hl.dsp.exec_cmd("~/.config/hypr/scripts/keybinds.sh"
 bind(mod .. " + W",         hl.dsp.exec_cmd("~/.config/hypr/scripts/wallpaper.sh"), "Wallpaper picker")
 bind(mod .. " + SHIFT + T", hl.dsp.exec_cmd("~/.config/hypr/scripts/theme.sh"), "Colour theme picker")
 bind(mod .. " + SHIFT + R", hl.dsp.exec_cmd("killall -SIGUSR2 waybar"), "Reload waybar")
-bind(mod .. " + SHIFT + D", hl.dsp.exec_cmd("~/.config/hypr/scripts/dock.sh"), "Show/hide the dock")
 
 -- ── media and hardware keys ─────────────────────────────────────────────────
 -- locked = still works on the lock screen. repeating = fires while held.

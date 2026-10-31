@@ -8,7 +8,7 @@ that is open. Dots under an icon count its windows; the focused app is lit.
     middle click   a new window
     right click    its windows, New window, Pin / Unpin, Close
 
-Started by hypr/scripts/dock.sh, which SUPER+SHIFT+D runs to hide and show it.
+Started by hypr/scripts/dock.sh, which SUPER+D runs to hide and show it.
 
 Why lucent has its own: the docks in Arch's repositories (nwg-dock-hyprland,
 cairo-dock) load icons as bitmaps at the logical size, so on a fractionally

@@ -2678,7 +2678,7 @@ $( if [[ $DO_DM -eq 1 && $DISTRO == arch ]]; then
     3. Press ${C_YELLOW}SUPER + slash${C_RESET} for the keybind cheatsheet.
 
   ${C_BLUE}Essential keys:${C_RESET}
-    SUPER + Return        terminal        SUPER + D    launcher
+    SUPER + Return        terminal        SUPER + Shift + D  launcher
     SUPER + E             file manager    SUPER + Q    close window
     SUPER + 1..9          workspace       SUPER + C/V  copy / paste
     SUPER + Shift + S     screenshot      SUPER + X    clipboard history

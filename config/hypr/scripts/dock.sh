@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# The dock — lucent-dock, ~/.config/lucent-dock/dock.py. SUPER + SHIFT + D.
+# The dock — lucent-dock, ~/.config/lucent-dock/dock.py. SUPER + D.
 #
 #     dock.sh             toggle: hide it if it is showing, show it if not
 #     dock.sh --start     start it, unless it has been hidden (login)
@@ -40,7 +40,7 @@ case "${1-}" in
         if running; then
             stop
             mkdir -p "${HIDDEN%/*}" && : > "$HIDDEN"
-            note "Dock hidden" "SUPER + SHIFT + D brings it back."
+            note "Dock hidden" "SUPER + D brings it back."
         else
             rm -f "$HIDDEN"
             start

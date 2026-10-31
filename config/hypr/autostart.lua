@@ -37,7 +37,7 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("~/.config/hypr/scripts/waybar.sh")
     hl.exec_cmd("mako")
 
-    -- The dock, unless SUPER + SHIFT + D hid it last time. dock.sh has why
+    -- The dock, unless SUPER + D hid it last time. dock.sh has why
     -- hidden means stopped.
     hl.exec_cmd("~/.config/hypr/scripts/dock.sh --start")
 
