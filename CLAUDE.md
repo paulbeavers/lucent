@@ -150,9 +150,10 @@ restarts the bar first — and waybar recreates its surface on every reload (the
 The edge is `~/.config/lucent/dock-position`. A panel at the top is
 `panel-top.jsonc`, which includes `panel.jsonc` and changes only `position` —
 includes nest, verified on waybar 0.15. Waybar has no command-line switch for
-the position, so a file per edge is the only way to keep one module list. A
-panel is never vertical: `position()` in `dock.py` and `waybar.sh` both treat
-left and right as bottom in panel mode, so the two cannot disagree.
+the position, so a file per edge is the only way to keep one module list.
+Bottom and top only: left and right were tried and taken out (2026-10-31) —
+the panel's status items do not fit a column, so they only worked in dock
+style, and an option that did nothing in panel style read as broken.
 
 ## install.sh
 

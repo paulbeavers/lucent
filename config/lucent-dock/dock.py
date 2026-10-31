@@ -77,7 +77,7 @@ MAX_DOTS = 3
 CONFIG = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
 PINNED = CONFIG / "lucent" / "dock-pinned"
 MODE = CONFIG / "lucent" / "dock-mode"      # "dock" (the default) or "panel"
-POSITION = CONFIG / "lucent" / "dock-position"   # bottom (default), top, left, right
+POSITION = CONFIG / "lucent" / "dock-position"   # bottom (default) or top
 PANEL_HEIGHT = 58                           # waybar/panel.jsonc's height
 DEFAULT_PINNED = ["firefox.desktop", "thunar.desktop", "foot.desktop"]
 STYLE = Path(__file__).resolve().parent / "style.css"
@@ -209,17 +209,12 @@ def panel_mode():
 
 
 def position():
-    """The screen edge. A panel is bottom or top only: its status modules are
-    text, and a vertical strip has no room for them."""
+    """The screen edge: bottom or top."""
     try:
         value = POSITION.read_text().strip()
     except OSError:
         value = "bottom"
-    if value not in ("bottom", "top", "left", "right"):
-        value = "bottom"
-    if panel_mode() and value in ("left", "right"):
-        value = "bottom"
-    return value
+    return value if value in ("bottom", "top") else "bottom"
 
 
 def load_pinned():
@@ -283,11 +278,8 @@ class Dock(Gtk.Application):
         LayerShell.set_namespace(self.win, "lucent-dock")
         LayerShell.set_layer(self.win, LayerShell.Layer.TOP)
         self.position = position()
-        self.vertical = self.position in ("left", "right")
-        edge = {"bottom": LayerShell.Edge.BOTTOM, "top": LayerShell.Edge.TOP,
-                "left": LayerShell.Edge.LEFT, "right": LayerShell.Edge.RIGHT}[self.position]
+        edge = {"bottom": LayerShell.Edge.BOTTOM, "top": LayerShell.Edge.TOP}[self.position]
         self.win.add_css_class(self.position)
-        self.win.add_css_class("vertical" if self.vertical else "horizontal")
         LayerShell.set_anchor(self.win, edge, True)
         if panel_mode():
             # Inside the panel: waybar draws the strip and reserves the space,
@@ -305,13 +297,9 @@ class Dock(Gtk.Application):
         # while open without the dock ever holding it otherwise.
         LayerShell.set_keyboard_mode(self.win, LayerShell.KeyboardMode.ON_DEMAND)
 
-        self.box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL if self.vertical
-                           else Gtk.Orientation.HORIZONTAL, spacing=2)
+        self.box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
         self.box.add_css_class("dock-box")
-        if self.vertical:
-            self.box.set_halign(Gtk.Align.CENTER)
-        else:
-            self.box.set_valign(Gtk.Align.CENTER)
+        self.box.set_valign(Gtk.Align.CENTER)
         self.win.set_child(self.box)
 
         self._install_actions()
@@ -415,8 +403,7 @@ class Dock(Gtk.Application):
         for key in keys:
             self.box.append(self._button(self.apps[key]))
 
-        sep = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL if self.vertical
-                            else Gtk.Orientation.VERTICAL)
+        sep = Gtk.Separator(orientation=Gtk.Orientation.VERTICAL)
         sep.add_css_class("dock-sep")
         self.box.append(sep)
 
@@ -436,23 +423,18 @@ class Dock(Gtk.Application):
 
     def _icon_column(self, gicon, count):
         # The dots sit between the icon and the screen edge, as on a Mac: under
-        # it at the bottom, over it at the top, beside it on the left or right.
-        column = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL if self.vertical
-                         else Gtk.Orientation.VERTICAL, spacing=2)
+        # it at the bottom, over it at the top.
+        column = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
         image = Gtk.Image.new_from_gicon(gicon)
         image.set_pixel_size(ICON_SIZE)
-        dots = Gtk.Box(orientation=Gtk.Orientation.VERTICAL if self.vertical
-                       else Gtk.Orientation.HORIZONTAL, spacing=3)
-        if self.vertical:
-            dots.set_valign(Gtk.Align.CENTER)
-        else:
-            dots.set_halign(Gtk.Align.CENTER)
+        dots = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=3)
+        dots.set_halign(Gtk.Align.CENTER)
         dots.add_css_class("dots")
         for _ in range(min(count, MAX_DOTS)):
             dot = Gtk.Box()
             dot.add_css_class("dot")
             dots.append(dot)
-        if self.position in ("top", "left"):
+        if self.position == "top":
             column.append(dots)
             column.append(image)
         else:
@@ -518,9 +500,8 @@ class Dock(Gtk.Application):
         popover.set_parent(button)
         popover.set_has_arrow(False)
         # Away from the screen edge the dock is on.
-        popover.set_position({"bottom": Gtk.PositionType.TOP, "top": Gtk.PositionType.BOTTOM,
-                              "left": Gtk.PositionType.RIGHT,
-                              "right": Gtk.PositionType.LEFT}[self.position])
+        popover.set_position(Gtk.PositionType.BOTTOM if self.position == "top"
+                             else Gtk.PositionType.TOP)
 
         def closed(p):
             self.menu_open = False

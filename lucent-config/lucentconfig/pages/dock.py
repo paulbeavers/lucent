@@ -1,4 +1,4 @@
-"""Dock — whether it shows at login, dock or panel, and which screen edge.
+"""Dock — whether it shows at login, dock or panel, and bottom or top.
 
 Both settings already have a home outside this app: dock.sh hides and shows
 the dock (SUPER+D) and switches its mode, and records each in a marker file
@@ -20,8 +20,6 @@ MODES = [
 POSITIONS = [
     ("bottom", "Bottom"),
     ("top", "Top"),
-    ("left", "Left"),
-    ("right", "Right"),
 ]
 
 
@@ -107,9 +105,8 @@ def build(window):
         "Position",
         dropdown([name for _, name in POSITIONS], edges.index(_position()),
                  on_change=on_position),
-        "Which edge of the screen. A panel goes along the bottom or the top: "
-        "its status items do not fit a narrow column, so with Left or Right "
-        "it stays at the bottom.",
+        "The bottom or the top of the screen, for the dock and the panel "
+        "alike.",
     ))
 
     page.note(

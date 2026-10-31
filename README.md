@@ -417,11 +417,8 @@ keymap keeps one shape.
   which includes `config.jsonc`) with the dock drawn into it, so every module
   is the same one the top bar has. `dock.sh --mode panel` or `--mode dock`
   switches from a terminal.
-- **Any edge.** The same page puts the dock at the bottom, the top, or the
-  left or right edge, where it becomes a column with the dots beside each
-  icon. A panel goes at the bottom or the top only — its status items do not
-  fit a narrow column — so Left and Right leave it at the bottom.
-  `dock.sh --position top` and so on from a terminal;
+- **Bottom or top.** The same page puts the dock, or the panel, at the
+  bottom or the top of the screen. `dock.sh --position top` from a terminal;
   `~/.config/lucent/dock-position` records it.
 - **Float everything.** `SUPER + SHIFT + V` floats every open window and
   every one that opens after, for a stacking desktop; pressed again, it

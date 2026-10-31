@@ -10,10 +10,10 @@
 #                         goes away. Applied at once and remembered in
 #                         ~/.config/lucent/dock-mode; lucent-config's Dock
 #                         page calls this.
-#     dock.sh --position bottom|top|left|right
-#                         which screen edge. A panel goes to the bottom or the
-#                         top; left and right put it at the bottom. Applied at
-#                         once and remembered in ~/.config/lucent/dock-position.
+#     dock.sh --position bottom|top
+#                         which screen edge, for the dock and the panel alike.
+#                         Applied at once and remembered in
+#                         ~/.config/lucent/dock-position.
 #
 # On by default. Hiding it is remembered: ~/.config/lucent/dock-hidden exists
 # while it is hidden, so the next login starts without it, and removing that
@@ -63,8 +63,8 @@ set_mode() {
 }
 
 set_position() {
-    case "$1" in bottom|top|left|right) ;;
-        *) echo "dock.sh: position is bottom, top, left or right" >&2; exit 2 ;; esac
+    case "$1" in bottom|top) ;;
+        *) echo "dock.sh: position is bottom or top" >&2; exit 2 ;; esac
     mkdir -p "${POSITION%/*}"
     printf '%s\n' "$1" > "$POSITION"
     restart_all
@@ -99,6 +99,6 @@ case "${1-}" in
             start
         fi ;;
     *)
-        echo "usage: dock.sh [--start | --mode dock|panel | --position bottom|top|left|right]" >&2
+        echo "usage: dock.sh [--start | --mode dock|panel | --position bottom|top]" >&2
         exit 2 ;;
 esac
