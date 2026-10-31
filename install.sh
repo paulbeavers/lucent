@@ -631,6 +631,8 @@ PKGS_DESKTOP=(
     # PKGS_THEME; this is the Python binding, and the only thing the settings
     # app adds to the image.
     python-gobject
+    # lucent-dock: a GTK 4 layer-shell surface, also through PyGObject.
+    gtk4-layer-shell
 )
 PKGS_FONTS=(
     ttf-jetbrains-mono ttf-jetbrains-mono-nerd
@@ -719,6 +721,7 @@ if [[ ${DISTRO:-} == fedora ]]; then
         imv mpv
         ImageMagick jq
         python3-gobject
+        gtk4-layer-shell
         dconf
     )
     # JetBrainsMono Nerd Font and the Nerd Font symbols are not packaged; the
@@ -814,6 +817,7 @@ elif [[ ${DISTRO:-} == ubuntu ]]; then
         # lucent-config is GTK4 through PyGObject: the binding, the cairo
         # integration and GTK4's own typelib, which is a separate package here.
         python3-gi python3-gi-cairo gir1.2-gtk-4.0
+        libgtk4-layer-shell0 gir1.2-gtk4layershell-1.0
         dconf-cli
     )
     # The Nerd Fonts are not packaged, so the system phase fetches them from

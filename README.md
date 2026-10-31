@@ -252,6 +252,7 @@ because the Mac keeps Command for itself — see [Keys](#keys).
 | Compositor | `hyprland` (launched through `uwsm`) |
 | Login | `sddm`, with a lucent theme and Hyprland drawing it (greetd + tuigreet on Fedora and Ubuntu) |
 | Bar | `waybar` |
+| Dock | `lucent-dock`, lucent's own (GTK 4); `SUPER + SHIFT + D` hides it |
 | Launcher | `wofi` |
 | Notifications | `mako` |
 | Terminal | `foot` |
@@ -280,10 +281,11 @@ config/hypr/
   keybinds.lua     every shortcut
   rules.lua        window / layer / workspace rules
   autostart.lua    what launches at login
+  floatall.lua     the float-every-window mode (SUPER+SHIFT+V)
   programs.lua     which terminal, browser, editor and launcher to use
   themes/          the palettes SUPER+SHIFT+T switches between
   scripts/         theme, wallpaper, power menu, cheatsheet, clipboard,
-                   layout toggle, keyboard backlight
+                   layout toggle, keyboard backlight, dock
 
   hyprlock.conf    lock screen        (hyprlock's own format)
   hypridle.conf    idle timeouts      (hypridle's own format)
@@ -364,6 +366,7 @@ keymap keeps one shape.
 | `SUPER + Q` | Close window |
 | `SUPER + F` | Fullscreen |
 | `SUPER + CTRL + V` | Toggle floating |
+| `SUPER + SHIFT + V` | Float every window, new ones too (toggle) |
 | `SUPER + CTRL + C` | Centre window |
 | `SUPER + C` / `SUPER + V` | Copy / paste (Mac-style) |
 | `SUPER + 1..0` | Switch workspace |
@@ -376,6 +379,7 @@ keymap keeps one shape.
 | `SUPER + X` | Clipboard history |
 | `SUPER + SHIFT + S` | Screenshot region → annotate |
 | `SUPER + I` | Settings (lucent-config) |
+| `SUPER + SHIFT + D` | Show / hide the dock |
 | `SUPER + Escape` | Lock |
 | `SUPER + SHIFT + E` | Power menu |
 | `SUPER + SHIFT + M` | Exit Hyprland |
@@ -395,6 +399,24 @@ keymap keeps one shape.
   both into `~/Pictures/wallpapers` and picks by the panel's aspect — the wide
   render is laid out for the extra width rather than stretched. The
   `DEFAULT_WALLPAPER` at the top of `install.sh` names the design, not a file.
+- **A dock, on by default.** `lucent-dock` (`config/lucent-dock/`) along the
+  bottom: one icon per app, pinned apps first, dots for open windows, and the
+  app launcher. Click opens the app or focuses it, and clicking again cycles
+  its windows; middle-click opens a new window; right-click lists its
+  windows and offers New window, Pin / Unpin and Close. It takes an exclusive
+  zone, so windows tile above it, and it follows the theme. `SUPER + SHIFT +
+  D` hides it and the choice is remembered: hidden, it is stopped, which gives
+  the space back, and `~/.config/lucent/dock-hidden` keeps it hidden at the
+  next login. The pins are `~/.config/lucent/dock-pinned`, one desktop file
+  ID per line. lucent's own because the packaged docks draw blurred icons on
+  a scaled panel.
+- **Float everything.** `SUPER + SHIFT + V` floats every open window and
+  every one that opens after, for a stacking desktop; pressed again, it
+  tiles them. Windows a rule floats (dialogs, pavucontrol) stay floating.
+  Hyprland draws no title bars, so a floating window moves with
+  `SUPER + left-drag` and resizes with `SUPER + right-drag` or by its border.
+  `floatall.lua` explains the tag it uses to tell them apart; the mode
+  survives a reload and a login through `~/.config/lucent/float-all`.
 - **Two tiling layouts.** `theme.lua` sets `general:layout` (dwindle by
   default) and `SUPER + T` flips the running session between dwindle and
   Hyprland's built-in scrolling layout — a PaperWM-style tape of columns.

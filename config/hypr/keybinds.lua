@@ -14,6 +14,7 @@
 --------------------------------------------------------------------------------
 
 local p = require("programs")
+local floatall = require("floatall")
 
 -- SUPER is the primary modifier and ALT the secondary. lucent-config points
 -- the primary at ALT when you pick Alt/Option in Input → Primary modifier,
@@ -102,6 +103,10 @@ bind(mod .. " + SHIFT + P", hl.dsp.window.pin(), "Pin across workspaces")
 bind(mod .. " + CTRL + V", hl.dsp.window.float({ action = "toggle" }), "Toggle floating")
 bind(mod .. " + CTRL + C", hl.dsp.window.center(), "Centre window")
 
+-- Every window, as a mode: floatall.lua. One modifier on from the single
+-- window's toggle above, and SUPER + SHIFT + V is free in both layouts.
+bind(mod .. " + SHIFT + V", function() floatall.toggle(mod) end, "Float all windows (toggle)")
+
 -- Exit Hyprland. Deliberately awkward so you cannot hit it by accident.
 bind(mod .. " + SHIFT + M", hl.dsp.exit(), "Exit Hyprland")
 
@@ -150,8 +155,9 @@ for key, d in pairs(step) do
 end
 
 -- Drag anywhere in the window rather than having to grab a border.
-bind(mod .. " + mouse:272", hl.dsp.window.drag(),   "Drag window",   { mouse = true })
-bind(mod .. " + mouse:273", hl.dsp.window.resize(), "Resize window", { mouse = true })
+-- Hyprland draws no title bars, so this is how a floating window moves.
+bind(mod .. " + mouse:272", hl.dsp.window.drag(),   "Move window (left-drag)",   { mouse = true })
+bind(mod .. " + mouse:273", hl.dsp.window.resize(), "Resize window (right-drag)", { mouse = true })
 
 -- ── layout ──────────────────────────────────────────────────────────────────
 -- Toggle dwindle <-> scrolling. Runtime only: theme.lua still decides which
@@ -242,6 +248,7 @@ bind(mod .. " + slash",     hl.dsp.exec_cmd("~/.config/hypr/scripts/keybinds.sh"
 bind(mod .. " + W",         hl.dsp.exec_cmd("~/.config/hypr/scripts/wallpaper.sh"), "Wallpaper picker")
 bind(mod .. " + SHIFT + T", hl.dsp.exec_cmd("~/.config/hypr/scripts/theme.sh"), "Colour theme picker")
 bind(mod .. " + SHIFT + R", hl.dsp.exec_cmd("killall -SIGUSR2 waybar"), "Reload waybar")
+bind(mod .. " + SHIFT + D", hl.dsp.exec_cmd("~/.config/hypr/scripts/dock.sh"), "Show/hide the dock")
 
 -- ── media and hardware keys ─────────────────────────────────────────────────
 -- locked = still works on the lock screen. repeating = fires while held.

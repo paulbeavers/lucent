@@ -138,6 +138,7 @@ hl.window_rule({
 -- ── layer rules ─────────────────────────────────────────────────────────────
 -- Layers are the shell surfaces: the bar, the launcher, notifications.
 hl.layer_rule({ name = "blur-waybar",  match = { namespace = "^(waybar)$" },        blur = true, ignore_alpha = 0.2 })
+hl.layer_rule({ name = "blur-dock",    match = { namespace = "^(lucent-dock)$" },   blur = true, ignore_alpha = 0.2 })
 hl.layer_rule({ name = "blur-wofi",    match = { namespace = "^(wofi)$" },          blur = true, ignore_alpha = 0.3 })
 hl.layer_rule({ name = "blur-notifs",  match = { namespace = "^(notifications)$" }, blur = true, ignore_alpha = 0.3 })
 hl.layer_rule({ name = "no-anim-pick", match = { namespace = "^(hyprpicker)$" },    no_anim = true })

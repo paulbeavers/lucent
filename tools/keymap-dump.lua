@@ -88,6 +88,7 @@ hl = {
     env = function() end,
     config = function() end,
     monitor = function() end,
+    on = function() end,           -- floatall.lua subscribes to window.open
     define_submap = function(name, fn)
         local previous = submap
         submap = name

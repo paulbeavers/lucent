@@ -92,6 +92,46 @@ which needs no running compositor, or `hyprctl configerrors` in a session.
 `on_created_empty` that 0.57 deprecated; only `hyprctl deprecated-config`, in
 a running session, lists them. Run it after every Hyprland upgrade.
 
+**Anything that talks to the IPC socket has to speak Lua.** A Lua-configured
+Hyprland evaluates everything after `dispatch` as Lua, so a program that sends
+`dispatch focuswindow address:…` gets a syntax error back and its clicks do
+nothing — waybar's workspaces module is the example (see
+`waybar/config.jsonc`). Check a new shell component for this before adopting
+it. lucent-dock sends `hl.dsp` dispatches itself.
+
+**The dock is lucent's own, because every packaged one is blurry on a scaled
+panel.** nwg-dock-hyprland and cairo-dock both load icons as bitmaps at the
+logical size, so at 1.33 the surface stretches them; judged side by side on
+the hardware, as every scaling question must be. A second waybar was sharp
+but is a taskbar — a button per window, no grouping, no pin menu — and that
+was rejected as confusing. `config/lucent-dock/dock.py` is GTK 4 through
+PyGObject on gtk4-layer-shell, so it draws at the real scale. Things that are
+not visible from its code:
+
+- gtk4-layer-shell must load before libwayland-client, which a Python program
+  can only arrange with LD_PRELOAD; the script re-executes itself with it set,
+  then removes it from its environment and from the launch context, or every
+  app it starts inherits the preload.
+- It names its process `lucent-dock` with prctl, and `dock.sh` uses
+  `pgrep -x lucent-dock`. A `pgrep -f` on the script path also matches any
+  shell whose command line mentions it — it killed the test shell once.
+- It is a `Gtk.Application` with a fixed ID, so a second start exits.
+- It reads `j/clients` again on window events from `.socket2.sock`, never on a
+  timer, and not while a menu is open: rebuilding the buttons would destroy
+  the popover under the pointer.
+- Its colours are waybar's `colors.css`. theme.sh replaces that file by
+  rename, so the dock watches the directory rather than the file, whose
+  monitor would stay on the old inode.
+
+**State that must survive a reload lives on the window or on disk, never in a
+Lua table.** `floatall.lua` marks the windows it floated with the tag
+`floatall`, so turning the mode off tiles those and leaves the ones a rule
+floated alone; a list in the module would be emptied by the first reload.
+Whether the mode is on is a file, `~/.config/lucent/float-all`, read on every
+`window.open`. The dock's hidden state is `~/.config/lucent/dock-hidden` for
+the same reason, and its pins are `~/.config/lucent/dock-pinned`. Hidden
+means stopped, which gives back its exclusive zone.
+
 ## install.sh
 
 **Three distros, one desktop.** `DISTRO` (arch | fedora | ubuntu, from

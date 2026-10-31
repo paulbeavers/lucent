@@ -37,6 +37,10 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("~/.config/hypr/scripts/waybar.sh")
     hl.exec_cmd("mako")
 
+    -- The dock, unless SUPER + SHIFT + D hid it last time. dock.sh has why
+    -- hidden means stopped.
+    hl.exec_cmd("~/.config/hypr/scripts/dock.sh --start")
+
     -- The wallpaper. There is no daemon to start first: --restore reads the
     -- recorded choice and runs swaybg with it, and swaybg takes the image as
     -- an argument, so there is nothing to wait for and no ordering to get
