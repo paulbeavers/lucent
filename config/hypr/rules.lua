@@ -149,8 +149,13 @@ for i = 1, 5 do
 end
 
 -- The scratchpad gets a bit of breathing room.
-hl.workspace_rule({
-    workspace        = "special:magic",
-    on_created_empty = p.terminal,
-    gaps_out         = 60,
-})
+hl.workspace_rule({ workspace = "special:magic", gaps_out = 60 })
+
+-- ...and a terminal when it opens empty. This was the rule's on_created_empty,
+-- which 0.57 deprecates in favour of this event; the workspace rule on the
+-- exec puts the terminal there even if focus has moved on before it maps.
+hl.on("workspace.created", function(ws)
+    if ws.name == "special:magic" and ws.is_empty then
+        hl.exec_cmd(p.terminal, { workspace = ws.name })
+    end
+end)

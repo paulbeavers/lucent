@@ -88,6 +88,9 @@ like the setting simply refused to stick.
 
 Check a change with `Hyprland --verify-config -c config/hypr/hyprland.lua`,
 which needs no running compositor, or `hyprctl configerrors` in a session.
+**Neither reports deprecations.** `--verify-config` said "config ok" to the
+`on_created_empty` that 0.57 deprecated; only `hyprctl deprecated-config`, in
+a running session, lists them. Run it after every Hyprland upgrade.
 
 ## install.sh
 
