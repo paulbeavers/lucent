@@ -1,4 +1,4 @@
-"""Dock — whether it shows at login, and whether it is a dock or a panel.
+"""Dock — whether it shows at login, dock or panel, and which screen edge.
 
 Both settings already have a home outside this app: dock.sh hides and shows
 the dock (SUPER+D) and switches its mode, and records each in a marker file
@@ -15,6 +15,22 @@ MODES = [
     ("dock", "Dock"),
     ("panel", "Panel"),
 ]
+
+
+POSITIONS = [
+    ("bottom", "Bottom"),
+    ("top", "Top"),
+    ("left", "Left"),
+    ("right", "Right"),
+]
+
+
+def _position():
+    try:
+        value = paths.DOCK_POSITION.read_text().strip()
+    except OSError:
+        return "bottom"
+    return value if value in dict(POSITIONS) else "bottom"
 
 
 def _mode():
@@ -75,9 +91,31 @@ def build(window):
         "time and the rest of the top bar's items, and the top bar goes away.",
     ))
 
+    edges = [slug for slug, _ in POSITIONS]
+
+    def on_position(index):
+        if not 0 <= index < len(POSITIONS):
+            return
+        chosen = edges[index]
+        if chosen == _position():
+            window.unstage("dock:position")
+        else:
+            window.stage("dock:position", lambda: _set_position(chosen),
+                         f"dock position → {dict(POSITIONS)[chosen].lower()}")
+
+    card.add(Row(
+        "Position",
+        dropdown([name for _, name in POSITIONS], edges.index(_position()),
+                 on_change=on_position),
+        "Which edge of the screen. A panel goes along the bottom or the top: "
+        "its status items do not fit a narrow column, so with Left or Right "
+        "it stays at the bottom.",
+    ))
+
     page.note(
-        "Applying takes effect at once: the bar and the dock restart. Both "
-        "settings are files in ~/.config/lucent — dock-hidden and dock-mode."
+        "Applying takes effect at once: the bar and the dock restart. The "
+        "settings are files in ~/.config/lucent — dock-hidden, dock-mode and "
+        "dock-position."
     )
     return page
 
@@ -94,8 +132,16 @@ def _set_login(show):
 
 
 def _set_mode(mode):
+    _dock_sh("--mode", mode)
+
+
+def _set_position(edge):
+    _dock_sh("--position", edge)
+
+
+def _dock_sh(*args):
     try:
-        result = subprocess.run([str(paths.DOCK_SH), "--mode", mode],
+        result = subprocess.run([str(paths.DOCK_SH), *args],
                                 capture_output=True, text=True, timeout=20)
     except (OSError, subprocess.TimeoutExpired) as exc:
         raise RuntimeError(f"dock.sh did not run: {exc}") from exc

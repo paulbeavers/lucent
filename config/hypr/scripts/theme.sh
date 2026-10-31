@@ -296,13 +296,53 @@ patch_waybar_json() {
     ' "$conf" > "$tmp" && chmod 644 "$tmp" && mv "$tmp" "$conf" || rm -f "$tmp"
 }
 
+# foot reads colors.ini once, at start, and has no reload. But a terminal
+# takes new colours from escape sequences in its own output, so each open
+# window is recoloured by writing them to its pty: OSC 4 for the sixteen
+# palette entries, 10 and 11 for foreground and background (foot accepts the
+# alpha as a [percent] prefix), 12 for the cursor, 17 and 19 for the
+# selection. The sequences are built from the colors.ini just written, so
+# there is one palette, not two. The URL colour has no sequence and stays as
+# it was until the window is reopened, and a program that resets the palette
+# (OSC 104) gets the colours foot started with.
+recolor_foot() {
+    local ini="$CFG/foot/colors.ini" seq pid child pts
+    [[ -r $ini ]] || return 0
+    seq="$(awk -F= '
+        /^\[/ || /^#/ || NF < 2 { next }
+        { k = $1; v = $2; gsub(/[ \t]/, "", k); sub(/^[ \t]+/, "", v) }
+        k ~ /^regular[0-7]$/ { printf "\033]4;%d;#%s\033\\", substr(k, 8), v }
+        k ~ /^bright[0-7]$/  { printf "\033]4;%d;#%s\033\\", substr(k, 7) + 8, v }
+        k == "foreground"    { printf "\033]10;#%s\033\\", v }
+        k == "background"    { bg = v }
+        k == "alpha"         { alpha = int(v * 100 + 0.5) }
+        k == "cursor"        { split(v, c, " "); if (c[2] != "") printf "\033]12;#%s\033\\", c[2] }
+        k == "selection-background" { printf "\033]17;#%s\033\\", v }
+        k == "selection-foreground" { printf "\033]19;#%s\033\\", v }
+        END {
+            if (bg != "") {
+                if (alpha != "") printf "\033]11;[%d]#%s\033\\", alpha, bg
+                else printf "\033]11;#%s\033\\", bg
+            }
+        }' "$ini")"
+    [[ -n $seq ]] || return 0
+    # A foot window's pty is the one its child, the shell, has open. Every
+    # terminal of a foot --server shows up as a child of the server.
+    for pid in $(pgrep -u "$UID" -x foot); do
+        for child in $(pgrep -P "$pid"); do
+            pts="$(readlink "/proc/$child/fd/0" 2>/dev/null)" || continue
+            [[ $pts == /dev/pts/* && -w $pts ]] || continue
+            timeout 1 bash -c 'printf "%s" "$1" > "$2"' _ "$seq" "$pts" 2>/dev/null || true
+        done
+    done
+}
+
 reload_apps() {
     [[ $RELOAD -eq 1 ]] || return 0
     hyprctl reload >/dev/null 2>&1 || true
     pkill -SIGUSR2 -x waybar 2>/dev/null || true
     makoctl reload >/dev/null 2>&1 || true
-    # foot reads its colours once, at start; open terminals keep the old
-    # theme and new ones get the new.
+    recolor_foot
 }
 
 apply() {

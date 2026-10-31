@@ -144,8 +144,15 @@ height. The tray, network, audio and the rest were not rewritten in GTK 4: a
 status-notifier host alone is a project. Two things hold the composition
 together: the dock has to map after the panel to draw on top of it, so
 `dock.sh` waits for waybar before starting it in panel mode and `--mode`
-restarts the bar first; and `PANEL_HEIGHT` in `dock.py` must equal the
+restarts the bar first — and waybar recreates its surface on every reload (theme.sh sends SIGUSR2), so the dock watches for `openlayer>>panel` and maps itself again, or a theme change leaves it faint and unclickable under the panel; and `PANEL_HEIGHT` in `dock.py` must equal the
 `height` in `panel.jsonc`.
+
+The edge is `~/.config/lucent/dock-position`. A panel at the top is
+`panel-top.jsonc`, which includes `panel.jsonc` and changes only `position` —
+includes nest, verified on waybar 0.15. Waybar has no command-line switch for
+the position, so a file per edge is the only way to keep one module list. A
+panel is never vertical: `position()` in `dock.py` and `waybar.sh` both treat
+left and right as bottom in panel mode, so the two cannot disagree.
 
 ## install.sh
 

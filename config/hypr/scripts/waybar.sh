@@ -26,11 +26,14 @@
 #
 # Which bar: the top bar, or — in the dock's panel mode — the panel along the
 # bottom, which holds the same modules and the dock. ~/.config/lucent/dock-mode
-# says which (dock.sh --mode writes it). Arguments, when given, win: they are
+# says which (dock.sh --mode writes it), and dock-position puts the panel at
+# the top instead (panel-top.jsonc). Arguments, when given, win: they are
 # someone asking for a particular config.
 trap '' RTMIN+1
 CFG="${XDG_CONFIG_HOME:-$HOME/.config}"
 if [[ $# -eq 0 && "$(cat "$CFG/lucent/dock-mode" 2>/dev/null)" == panel ]]; then
-    set -- -c "$CFG/waybar/panel.jsonc" -s "$CFG/waybar/panel.css"
+    panel=panel.jsonc
+    [[ "$(cat "$CFG/lucent/dock-position" 2>/dev/null)" == top ]] && panel=panel-top.jsonc
+    set -- -c "$CFG/waybar/$panel" -s "$CFG/waybar/panel.css"
 fi
 exec waybar "$@"

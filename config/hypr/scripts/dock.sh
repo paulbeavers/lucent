@@ -10,6 +10,10 @@
 #                         goes away. Applied at once and remembered in
 #                         ~/.config/lucent/dock-mode; lucent-config's Dock
 #                         page calls this.
+#     dock.sh --position bottom|top|left|right
+#                         which screen edge. A panel goes to the bottom or the
+#                         top; left and right put it at the bottom. Applied at
+#                         once and remembered in ~/.config/lucent/dock-position.
 #
 # On by default. Hiding it is remembered: ~/.config/lucent/dock-hidden exists
 # while it is hidden, so the next login starts without it, and removing that
@@ -23,6 +27,7 @@ CFG="${XDG_CONFIG_HOME:-$HOME/.config}"
 HIDDEN="$CFG/lucent/dock-hidden"
 DOCK="$CFG/lucent-dock/dock.py"
 MODE="$CFG/lucent/dock-mode"
+POSITION="$CFG/lucent/dock-position"
 
 note() { command -v notify-send >/dev/null && notify-send -a Dock -t 1500 "$@" || true; }
 
@@ -54,6 +59,18 @@ set_mode() {
     case "$1" in dock|panel) ;; *) echo "dock.sh: mode is dock or panel" >&2; exit 2 ;; esac
     mkdir -p "${MODE%/*}"
     printf '%s\n' "$1" > "$MODE"
+    restart_all
+}
+
+set_position() {
+    case "$1" in bottom|top|left|right) ;;
+        *) echo "dock.sh: position is bottom, top, left or right" >&2; exit 2 ;; esac
+    mkdir -p "${POSITION%/*}"
+    printf '%s\n' "$1" > "$POSITION"
+    restart_all
+}
+
+restart_all() {
     pkill -x waybar 2>/dev/null || true
     for _ in 1 2 3 4 5 6 7 8 9 10; do pgrep -x waybar >/dev/null || break; sleep 0.1; done
     setsid -f "$CFG/hypr/scripts/waybar.sh" >/dev/null 2>&1
@@ -68,6 +85,8 @@ set_mode() {
 case "${1-}" in
     --mode)
         set_mode "${2-}" ;;
+    --position)
+        set_position "${2-}" ;;
     --start)
         [[ -e $HIDDEN ]] || start ;;
     "")
@@ -80,5 +99,6 @@ case "${1-}" in
             start
         fi ;;
     *)
-        echo "usage: dock.sh [--start | --mode dock|panel]" >&2; exit 2 ;;
+        echo "usage: dock.sh [--start | --mode dock|panel | --position bottom|top|left|right]" >&2
+        exit 2 ;;
 esac

@@ -77,6 +77,7 @@ MAX_DOTS = 3
 CONFIG = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
 PINNED = CONFIG / "lucent" / "dock-pinned"
 MODE = CONFIG / "lucent" / "dock-mode"      # "dock" (the default) or "panel"
+POSITION = CONFIG / "lucent" / "dock-position"   # bottom (default), top, left, right
 PANEL_HEIGHT = 58                           # waybar/panel.jsonc's height
 DEFAULT_PINNED = ["firefox.desktop", "thunar.desktop", "foot.desktop"]
 STYLE = Path(__file__).resolve().parent / "style.css"
@@ -143,15 +144,21 @@ def active_address():
         return None
 
 
-def watch_events(on_event):
-    """Read the event socket on a thread; call on_event on the main loop."""
+def watch_events(on_event, on_panel):
+    """Read the event socket on a thread; call on_event on the main loop.
+
+    on_panel is called when the panel's layer surface is created again, which
+    waybar does on every reload (a theme change sends it SIGUSR2)."""
     def run():
         try:
             with socket.socket(socket.AF_UNIX, socket.SOCK_STREAM) as s:
                 s.connect(_socket_path(".socket2.sock"))
                 for line in s.makefile("r", errors="replace"):
-                    if line.split(">>", 1)[0] in EVENTS:
+                    name, _, data = line.rstrip("\n").partition(">>")
+                    if name in EVENTS:
                         GLib.idle_add(on_event)
+                    elif name == "openlayer" and data == "panel":
+                        GLib.idle_add(on_panel)
         except OSError:
             pass
         # The compositor has gone; so should the dock.
@@ -199,6 +206,20 @@ def panel_mode():
         return MODE.read_text().strip() == "panel"
     except OSError:
         return False
+
+
+def position():
+    """The screen edge. A panel is bottom or top only: its status modules are
+    text, and a vertical strip has no room for them."""
+    try:
+        value = POSITION.read_text().strip()
+    except OSError:
+        value = "bottom"
+    if value not in ("bottom", "top", "left", "right"):
+        value = "bottom"
+    if panel_mode() and value in ("left", "right"):
+        value = "bottom"
+    return value
 
 
 def load_pinned():
@@ -261,7 +282,13 @@ class Dock(Gtk.Application):
         LayerShell.init_for_window(self.win)
         LayerShell.set_namespace(self.win, "lucent-dock")
         LayerShell.set_layer(self.win, LayerShell.Layer.TOP)
-        LayerShell.set_anchor(self.win, LayerShell.Edge.BOTTOM, True)
+        self.position = position()
+        self.vertical = self.position in ("left", "right")
+        edge = {"bottom": LayerShell.Edge.BOTTOM, "top": LayerShell.Edge.TOP,
+                "left": LayerShell.Edge.LEFT, "right": LayerShell.Edge.RIGHT}[self.position]
+        self.win.add_css_class(self.position)
+        self.win.add_css_class("vertical" if self.vertical else "horizontal")
+        LayerShell.set_anchor(self.win, edge, True)
         if panel_mode():
             # Inside the panel: waybar draws the strip and reserves the space,
             # so the dock takes none and ignores waybar's (-1), or the
@@ -269,24 +296,28 @@ class Dock(Gtk.Application):
             # own slab is dropped by the .panel class in style.css.
             self.win.add_css_class("panel")
             LayerShell.set_exclusive_zone(self.win, -1)
-            LayerShell.set_margin(self.win, LayerShell.Edge.BOTTOM, 0)
+            LayerShell.set_margin(self.win, edge, 0)
             self.win.set_size_request(-1, PANEL_HEIGHT)
         else:
-            LayerShell.set_margin(self.win, LayerShell.Edge.BOTTOM, 6)
+            LayerShell.set_margin(self.win, edge, 6)
             LayerShell.auto_exclusive_zone_enable(self.win)
         # The menus are popovers; on-demand lets them take the keyboard
         # while open without the dock ever holding it otherwise.
         LayerShell.set_keyboard_mode(self.win, LayerShell.KeyboardMode.ON_DEMAND)
 
-        self.box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
+        self.box = Gtk.Box(orientation=Gtk.Orientation.VERTICAL if self.vertical
+                           else Gtk.Orientation.HORIZONTAL, spacing=2)
         self.box.add_css_class("dock-box")
-        self.box.set_valign(Gtk.Align.CENTER)
+        if self.vertical:
+            self.box.set_halign(Gtk.Align.CENTER)
+        else:
+            self.box.set_valign(Gtk.Align.CENTER)
         self.win.set_child(self.box)
 
         self._install_actions()
         self._load_style()
         self._watch_colors()
-        watch_events(self.schedule_refresh)
+        watch_events(self.schedule_refresh, self.raise_over_panel)
         self.refresh()
         self.win.present()
 
@@ -327,6 +358,16 @@ class Dock(Gtk.Application):
         self.monitor.connect("changed", changed)
 
     # model
+
+    def raise_over_panel(self):
+        # Surfaces on one layer stack in the order they map, so a panel that
+        # waybar has just recreated covers the dock: the icons show faintly
+        # through its background and every click lands on the panel. Mapping
+        # the dock again puts it back on top.
+        if panel_mode() and self.win.get_visible():
+            self.win.set_visible(False)
+            self.win.set_visible(True)
+        return False
 
     def schedule_refresh(self):
         # Events arrive in bursts (a window opening is four or five); one
@@ -374,7 +415,8 @@ class Dock(Gtk.Application):
         for key in keys:
             self.box.append(self._button(self.apps[key]))
 
-        sep = Gtk.Separator(orientation=Gtk.Orientation.VERTICAL)
+        sep = Gtk.Separator(orientation=Gtk.Orientation.HORIZONTAL if self.vertical
+                            else Gtk.Orientation.VERTICAL)
         sep.add_css_class("dock-sep")
         self.box.append(sep)
 
@@ -393,18 +435,29 @@ class Dock(Gtk.Application):
         self.win.set_default_size(1, 1)
 
     def _icon_column(self, gicon, count):
-        column = Gtk.Box(orientation=Gtk.Orientation.VERTICAL, spacing=2)
+        # The dots sit between the icon and the screen edge, as on a Mac: under
+        # it at the bottom, over it at the top, beside it on the left or right.
+        column = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL if self.vertical
+                         else Gtk.Orientation.VERTICAL, spacing=2)
         image = Gtk.Image.new_from_gicon(gicon)
         image.set_pixel_size(ICON_SIZE)
-        column.append(image)
-        dots = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=3)
-        dots.set_halign(Gtk.Align.CENTER)
+        dots = Gtk.Box(orientation=Gtk.Orientation.VERTICAL if self.vertical
+                       else Gtk.Orientation.HORIZONTAL, spacing=3)
+        if self.vertical:
+            dots.set_valign(Gtk.Align.CENTER)
+        else:
+            dots.set_halign(Gtk.Align.CENTER)
         dots.add_css_class("dots")
         for _ in range(min(count, MAX_DOTS)):
             dot = Gtk.Box()
             dot.add_css_class("dot")
             dots.append(dot)
-        column.append(dots)
+        if self.position in ("top", "left"):
+            column.append(dots)
+            column.append(image)
+        else:
+            column.append(image)
+            column.append(dots)
         return column
 
     def _button(self, app):
@@ -464,7 +517,10 @@ class Dock(Gtk.Application):
         popover = Gtk.PopoverMenu.new_from_model(menu)
         popover.set_parent(button)
         popover.set_has_arrow(False)
-        popover.set_position(Gtk.PositionType.TOP)
+        # Away from the screen edge the dock is on.
+        popover.set_position({"bottom": Gtk.PositionType.TOP, "top": Gtk.PositionType.BOTTOM,
+                              "left": Gtk.PositionType.RIGHT,
+                              "right": Gtk.PositionType.LEFT}[self.position])
 
         def closed(p):
             self.menu_open = False
