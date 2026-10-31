@@ -640,7 +640,11 @@ PKGS_FONTS=(
     otf-font-awesome
     noto-fonts noto-fonts-emoji noto-fonts-cjk
 )
-PKGS_THEME=( papirus-icon-theme adwaita-icon-theme gtk3 gtk4 )
+# gnome-themes-extra is what makes the name Adwaita-dark exist for GTK 3.
+# theme.sh sets gtk-theme to it for a dark theme; without the package GTK 3
+# falls back to light Adwaita, and only apps started with GTK_THEME (from
+# Hyprland, at login) went dark. Thunar, started by D-Bus, never did.
+PKGS_THEME=( papirus-icon-theme adwaita-icon-theme gnome-themes-extra gtk3 gtk4 )
 
 # End-user applications. Firefox already gets MOZ_ENABLE_WAYLAND=1 from env.conf
 # and a Picture-in-Picture window rule from rules.conf.
@@ -732,7 +736,7 @@ if [[ ${DISTRO:-} == fedora ]]; then
         google-noto-sans-fonts google-noto-serif-fonts google-noto-sans-mono-fonts
         google-noto-color-emoji-fonts google-noto-sans-cjk-fonts
     )
-    PKGS_THEME=( papirus-icon-theme adwaita-icon-theme gtk3 gtk4 )
+    PKGS_THEME=( papirus-icon-theme adwaita-icon-theme gnome-themes-extra gtk3 gtk4 )
     PKGS_APPS=( firefox neovim vim-enhanced )
     # starship is not packaged for Fedora, and nothing here depends on it.
     # Nor is lazygit: it installs only where the atim/lazygit COPR is enabled,
