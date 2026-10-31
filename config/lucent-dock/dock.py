@@ -76,6 +76,8 @@ ICON_SIZE = 40
 MAX_DOTS = 3
 CONFIG = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
 PINNED = CONFIG / "lucent" / "dock-pinned"
+MODE = CONFIG / "lucent" / "dock-mode"      # "dock" (the default) or "panel"
+PANEL_HEIGHT = 58                           # waybar/panel.jsonc's height
 DEFAULT_PINNED = ["firefox.desktop", "thunar.desktop", "foot.desktop"]
 STYLE = Path(__file__).resolve().parent / "style.css"
 COLORS = CONFIG / "waybar" / "colors.css"
@@ -192,6 +194,13 @@ def app_by_id(desktop_id):
         return None
 
 
+def panel_mode():
+    try:
+        return MODE.read_text().strip() == "panel"
+    except OSError:
+        return False
+
+
 def load_pinned():
     try:
         lines = PINNED.read_text().split()
@@ -253,14 +262,25 @@ class Dock(Gtk.Application):
         LayerShell.set_namespace(self.win, "lucent-dock")
         LayerShell.set_layer(self.win, LayerShell.Layer.TOP)
         LayerShell.set_anchor(self.win, LayerShell.Edge.BOTTOM, True)
-        LayerShell.set_margin(self.win, LayerShell.Edge.BOTTOM, 6)
-        LayerShell.auto_exclusive_zone_enable(self.win)
+        if panel_mode():
+            # Inside the panel: waybar draws the strip and reserves the space,
+            # so the dock takes none and ignores waybar's (-1), or the
+            # compositor would stack it above the panel instead of in it. Its
+            # own slab is dropped by the .panel class in style.css.
+            self.win.add_css_class("panel")
+            LayerShell.set_exclusive_zone(self.win, -1)
+            LayerShell.set_margin(self.win, LayerShell.Edge.BOTTOM, 0)
+            self.win.set_size_request(-1, PANEL_HEIGHT)
+        else:
+            LayerShell.set_margin(self.win, LayerShell.Edge.BOTTOM, 6)
+            LayerShell.auto_exclusive_zone_enable(self.win)
         # The menus are popovers; on-demand lets them take the keyboard
         # while open without the dock ever holding it otherwise.
         LayerShell.set_keyboard_mode(self.win, LayerShell.KeyboardMode.ON_DEMAND)
 
         self.box = Gtk.Box(orientation=Gtk.Orientation.HORIZONTAL, spacing=2)
         self.box.add_css_class("dock-box")
+        self.box.set_valign(Gtk.Align.CENTER)
         self.win.set_child(self.box)
 
         self._install_actions()

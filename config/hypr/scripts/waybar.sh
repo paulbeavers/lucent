@@ -23,5 +23,14 @@
 #
 # The bare `waybar` name is also why autostart matches with `pkill -x`: without
 # it the substring would match this wrapper too, in the moment before it execs.
+#
+# Which bar: the top bar, or — in the dock's panel mode — the panel along the
+# bottom, which holds the same modules and the dock. ~/.config/lucent/dock-mode
+# says which (dock.sh --mode writes it). Arguments, when given, win: they are
+# someone asking for a particular config.
 trap '' RTMIN+1
+CFG="${XDG_CONFIG_HOME:-$HOME/.config}"
+if [[ $# -eq 0 && "$(cat "$CFG/lucent/dock-mode" 2>/dev/null)" == panel ]]; then
+    set -- -c "$CFG/waybar/panel.jsonc" -s "$CFG/waybar/panel.css"
+fi
 exec waybar "$@"

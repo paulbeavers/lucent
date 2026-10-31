@@ -1,0 +1,40 @@
+// Waybar — the panel: the dock's panel mode, one strip across the bottom.
+//
+// Not a second copy of the bar. Everything comes from config.jsonc through
+// the include, and only the shape is set here; a key in this file wins over the
+// same key there. So a module changed in config.jsonc changes in both, and
+// theme.sh's calendar colours, written into config.jsonc, reach this one too.
+//
+// Workspaces on the left, the status modules and the date and time on the
+// right, and the middle left empty for lucent-dock, which in panel mode draws
+// its icons there on the overlay layer with no slab of its own. The window
+// title is not here: the dock already shows what is open.
+//
+// waybar.sh starts this instead of config.jsonc while ~/.config/lucent/dock-mode
+// says panel; lucent-config's Dock page, or `dock.sh --mode panel`, sets it.
+//
+// Reload after editing:  killall -SIGUSR2 waybar   (bound to SUPER+SHIFT+R)
+{
+  "include": ["~/.config/waybar/config.jsonc"],
+
+  "name": "panel",
+  "position": "bottom",
+  // The dock's height in panel mode, so its icons sit inside the strip.
+  "height": 58,
+  "margin-top": 0,
+  "margin-left": 0,
+  "margin-right": 0,
+
+  "modules-left":   ["group/workspaces", "hyprland/submap"],
+  "modules-center": [],
+  "modules-right":  ["tray", "privacy", "idle_inhibitor", "pulseaudio", "bluetooth",
+                     "network", "cpu", "memory", "temperature", "battery",
+                     "clock", "custom/power"],
+
+  // Date as well as time: the panel has the room, and it is the only clock.
+  // The include merges objects key by key, so this replaces only the format;
+  // the calendar and its theme colours still come from config.jsonc.
+  "clock": {
+    "format": "{:%a %d %b  %H:%M}"
+  }
+}

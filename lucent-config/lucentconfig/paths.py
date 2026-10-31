@@ -46,3 +46,10 @@ OLD_STATE = CONFIG / "starch" / "settings.json"
 SCRIPTS = HYPR / "scripts"
 THEME_SH = SCRIPTS / "theme.sh"
 WALLPAPER_SH = SCRIPTS / "wallpaper.sh"
+
+# The dock. Plain marker files rather than entries in settings.json: dock.sh
+# and waybar.sh read them at login, and they are the record, so the page reads
+# them back rather than keeping a copy.
+DOCK_SH = SCRIPTS / "dock.sh"
+DOCK_HIDDEN = CONFIG / "lucent" / "dock-hidden"
+DOCK_MODE = CONFIG / "lucent" / "dock-mode"

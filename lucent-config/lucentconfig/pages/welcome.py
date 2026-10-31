@@ -27,6 +27,9 @@ TOUR = [
     ("\U000f03d8", "Look",
      "Theme, wallpaper, cursor and font size. The theme applies everywhere at "
      "once, including this window."),
+    ("\U000f10a9", "Dock",
+     "Whether the dock shows at login, and whether it floats or is a panel "
+     "across the bottom that takes the top bar's place."),
 ]
 
 

@@ -23,6 +23,7 @@ from .pages import display as display_page  # noqa: E402
 from .pages import idle as idle_page  # noqa: E402
 from .pages import input as input_page  # noqa: E402
 from .pages import look as look_page  # noqa: E402
+from .pages import dock as dock_page  # noqa: E402
 from .pages import about as about_page  # noqa: E402
 
 APP_ID = "dev.lucent.config"
@@ -34,6 +35,7 @@ SECTIONS = [
     ("\U000f04b2", "Idle", idle_page),
     ("\U000f030c", "Input", input_page),
     ("\U000f03d8", "Look", look_page),
+    ("\U000f10a9", "Dock", dock_page),
     ("\U000f02fc", "About", about_page),
 ]
 

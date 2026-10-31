@@ -132,6 +132,21 @@ Whether the mode is on is a file, `~/.config/lucent/float-all`, read on every
 the same reason, and its pins are `~/.config/lucent/dock-pinned`. Hidden
 means stopped, which gives back its exclusive zone.
 
+**Panel mode is waybar and the dock, composed.** `~/.config/lucent/dock-mode`
+set to `panel` makes `waybar.sh` start `waybar/panel.jsonc` instead of the top
+bar: a full-width strip along the bottom that `include`s `config.jsonc` and
+changes only the shape and the module lists. Waybar's include merges objects
+key by key with the including file winning, so overriding `clock.format`
+keeps the calendar theme.sh colours. The middle of the strip is empty, and
+the dock draws its icons there with no slab, an exclusive zone of -1 (it must
+ignore waybar's zone, or Hyprland stacks it above the panel) and the panel's
+height. The tray, network, audio and the rest were not rewritten in GTK 4: a
+status-notifier host alone is a project. Two things hold the composition
+together: the dock has to map after the panel to draw on top of it, so
+`dock.sh` waits for waybar before starting it in panel mode and `--mode`
+restarts the bar first; and `PANEL_HEIGHT` in `dock.py` must equal the
+`height` in `panel.jsonc`.
+
 ## install.sh
 
 **Three distros, one desktop.** `DISTRO` (arch | fedora | ubuntu, from
@@ -306,6 +321,9 @@ GNOME's design language and resists being overridden.
 - Its own record of choices, `~/.config/lucent/settings.json`, holds only
   what cannot be read back from the system — today just "show at login". It
   is created the first time that switch is touched, so its absence is normal.
+- The Dock page keeps no state of its own. "Show at login" is the
+  `dock-hidden` marker SUPER+D writes, and the style is `dock-mode`, applied
+  through `dock.sh --mode`; the page reads both back.
 
 Display scale is the setting worth understanding: a scale is legal only if it
 is a multiple of 1/120 *and* divides the resolution into whole pixels both

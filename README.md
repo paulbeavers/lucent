@@ -410,6 +410,13 @@ keymap keeps one shape.
   next login. The pins are `~/.config/lucent/dock-pinned`, one desktop file
   ID per line. lucent's own because the packaged docks draw blurred icons on
   a scaled panel.
+- **Dock or panel.** lucent-config's Dock page picks whether the dock shows
+  at login and its style. *Panel* is one strip across the bottom: workspaces
+  on the left, the dock in the middle, the tray, status and date and time on
+  the right, and the top bar goes away. It is waybar (`waybar/panel.jsonc`,
+  which includes `config.jsonc`) with the dock drawn into it, so every module
+  is the same one the top bar has. `dock.sh --mode panel` or `--mode dock`
+  switches from a terminal.
 - **Float everything.** `SUPER + SHIFT + V` floats every open window and
   every one that opens after, for a stacking desktop; pressed again, it
   tiles them. Windows a rule floats (dialogs, pavucontrol) stay floating.

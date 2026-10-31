@@ -1,0 +1,44 @@
+/* The panel — waybar/panel.jsonc, the dock's panel mode.
+ *
+ * style.css with the islands joined into one strip: everything there applies,
+ * and only the shape is changed here. lucent-dock draws its icons in the
+ * middle on top of this background, with none of its own.
+ */
+
+@import url("style.css");
+
+window#waybar {
+  background: alpha(@base, 0.92);
+  border-top: 1px solid alpha(@surface1, 0.9);
+}
+
+.modules-left,
+.modules-center,
+.modules-right {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  margin: 0;
+  padding: 0 8px;
+}
+
+/* The strip is taller than the top bar, so the pills get more room. */
+#workspaces label {
+  margin: 12px 2px;
+}
+
+#submap,
+#clock,
+#pulseaudio,
+#bluetooth,
+#network,
+#cpu,
+#memory,
+#temperature,
+#battery,
+#tray,
+#privacy,
+#idle_inhibitor,
+#custom-power {
+  margin: 12px 2px;
+}

@@ -95,3 +95,12 @@ popover.menu separator {
   background: @surface1;
   margin: 3px 4px;
 }
+
+/* Panel mode: the dock sits in the middle of waybar's panel, which draws the
+ * strip, so the dock draws none. */
+window.dock.panel .dock-box {
+  background: transparent;
+  border: none;
+  border-radius: 0;
+  padding: 0 4px;
+}
