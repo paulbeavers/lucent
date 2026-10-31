@@ -2514,12 +2514,11 @@ KBLUA
     if [[ -n $FOR_USER ]]; then
         info "no session bus in a chroot; the dconf defaults cover it"
     elif [[ $DRY_RUN -eq 0 ]] && command -v gsettings >/dev/null; then
-        # gtk-theme, icon-theme and color-scheme are theme.sh's: they follow
-        # the colour theme's mode, and setting them here as well would turn
-        # a light theme dark again on every re-run.
-        gsettings set org.gnome.desktop.interface font-name    'Noto Sans 11' 2>/dev/null || true
+        # gtk-theme, icon-theme, color-scheme and the fonts are theme.sh's:
+        # they follow the colour theme, which may name its own font, and
+        # setting them here as well would undo it on every re-run.
         gsettings set org.gnome.desktop.interface cursor-theme 'Adwaita'      2>/dev/null || true
-        ok "applied GTK font and cursor"
+        ok "applied GTK cursor"
     fi
 
     # Under --for-user everything above was written as root. Hand it back, or

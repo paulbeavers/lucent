@@ -17,6 +17,8 @@ WAYBAR = CONFIG / "waybar"
 # The palette theme.sh renders for waybar. We import the same file rather than
 # rendering a third copy, so SUPER+SHIFT+T restyles this app too.
 COLORS_CSS = WAYBAR / "colors.css"
+# The theme's font family, which theme.sh renders beside the palette.
+FONT_CSS = WAYBAR / "font.css"
 
 # Hand-written, and left alone.
 INPUT_LUA = HYPR / "input.lua"

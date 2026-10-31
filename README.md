@@ -399,6 +399,10 @@ keymap keeps one shape.
   both into `~/Pictures/wallpapers` and picks by the panel's aspect — the wide
   render is laid out for the extra width rather than stretched. The
   `DEFAULT_WALLPAPER` at the top of `install.sh` names the design, not a file.
+  There is a light lattice too, `starch-lattice-light`, for light themes:
+  while the wallpaper is either lattice, switching between a dark and a
+  light theme swaps it for its twin. A wallpaper you picked yourself is
+  left alone.
 - **A dock, on by default.** `lucent-dock` (`config/lucent-dock/`) along the
   bottom: one icon per app, pinned apps first, dots for open windows, and the
   app launcher. Click opens the app or focuses it, and clicking again cycles
@@ -420,6 +424,15 @@ keymap keeps one shape.
 - **Bottom or top.** The same page puts the dock, or the panel, at the
   bottom or the top of the screen. `dock.sh --position top` from a terminal;
   `~/.config/lucent/dock-position` records it.
+- **Themes.** `SUPER + SHIFT + T`, or the Look page in lucent-config,
+  switches between the palettes in `hypr/themes/`, and everything follows at
+  once: the bar, the dock, notifications, the launcher, the lock screen, GTK
+  apps and open terminals. A theme is colour roles, and may also name a
+  `font`, a `mono` font and `icons`. *Adwaita Light* uses all three for
+  GNOME's default look — libadwaita's light colours and blue accent, Adwaita
+  Sans and Adwaita Mono, Adwaita icons. Open terminals change colour but keep
+  their font until reopened. A first install starts in Catppuccin Mocha Blue
+  High Contrast (`DEFAULT_THEME` in `install.sh`).
 - **Float everything.** `SUPER + SHIFT + V` floats every open window and
   every one that opens after, for a stacking desktop; pressed again, it
   tiles them. Windows a rule floats (dialogs, pavucontrol) stay floating.

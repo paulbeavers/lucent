@@ -11,6 +11,11 @@
 #
 #     ./make-wallpaper.sh lattice 3840 2160 starch-lattice-3840x2160.png
 #     ./make-wallpaper.sh lattice 5120 2160 starch-lattice-5120x2160.png
+#     ./make-wallpaper.sh lattice-light 3840 2160 starch-lattice-light-3840x2160.png
+#     ./make-wallpaper.sh lattice-light 5120 2160 starch-lattice-light-5120x2160.png
+#
+# The light renders are for light themes; theme.sh swaps between the two when
+# the theme's mode changes and the wallpaper is one of them.
 #
 # mark.sh is vendored next to this script rather than read out of ~/starch:
 # lucent installs on its own, with no ISO builder present. It is a copy
@@ -62,10 +67,20 @@ range)
 0.95 0.32 0.18 74c7ec 0.08
 PEAKS
     ;;
-lattice)
-    magick -size ${W}x${H} gradient:'#191929-#0b0b13' "$WORK/c.png"
+lattice|lattice-light)
+    # The light one is for light themes: the same pattern, fog grey to white
+    # instead of night, and the marks a muted blue a touch stronger, because
+    # a dark mark on a light ground needs less opacity to read than the
+    # reverse but faded to nothing at the dark one's 0.07.
+    if [[ $DESIGN == lattice-light ]]; then
+        magick -size ${W}x${H} gradient:'#d1d6de-#bcc3ce' "$WORK/c.png"
+        mark_hex=3d6fa8; mark_op=0.12
+    else
+        magick -size ${W}x${H} gradient:'#191929-#0b0b13' "$WORK/c.png"
+        mark_hex=74c7ec; mark_op=0.07
+    fi
     t=$(awk -v H="$H" 'BEGIN{printf "%d", H*0.07}')
-    peak "$t" 74c7ec 0.07 "$WORK/tm.png"
+    peak "$t" "$mark_hex" "$mark_op" "$WORK/tm.png"
     tw=$(awk -v t="$t" 'BEGIN{printf "%d", t*2.3}')
     th=$(awk -v t="$t" 'BEGIN{printf "%d", t*1.35}')
     magick -size ${tw}x${th} xc:none "$WORK/tm.png" -geometry +0+0 -composite \

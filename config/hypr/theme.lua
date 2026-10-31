@@ -41,9 +41,12 @@ hl.config({
         -- Opaque under a light theme: see rules.lua's transparency section.
         inactive_opacity = c.mode == "light" and 1.0 or 0.96,
 
+        -- Lighter on a light theme. Black at two thirds is all but invisible
+        -- against a dark scheme and a heavy smudge against a light one, so a
+        -- light theme gets a fainter, tighter shadow, nearer GNOME's.
         shadow = {
             enabled      = true,
-            range        = 20,
+            range        = c.mode == "light" and 14 or 20,
             render_power = 3,
             -- Not from the palette. This was c.crust, which is the darkest
             -- colour in a dark theme and the lightest-but-one in a light
@@ -52,8 +55,8 @@ hl.config({
             -- not take the scheme's colour. Black at the same alpha is
             -- indistinguishable from crust on the dark themes, where crust is
             -- already all but black.
-            color        = "rgba(000000aa)",
-            offset       = { 0, 4 },
+            color        = c.mode == "light" and "rgba(00000030)" or "rgba(000000aa)",
+            offset       = { 0, c.mode == "light" and 2 or 4 },
         },
 
         blur = {
@@ -111,7 +114,7 @@ hl.config({
         },
         groupbar = {
             enabled     = true,
-            font_family = "JetBrainsMono Nerd Font",
+            font_family = c.font or "JetBrainsMono Nerd Font",
             font_size   = 11,
             height      = 16,
             gradients   = true,

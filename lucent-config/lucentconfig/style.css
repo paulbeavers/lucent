@@ -6,6 +6,9 @@
  * only ever names roles — @base, @mauve, @overlay — and switching theme with
  * SUPER+SHIFT+T restyles this app along with the bar.
  *
+ * The font family here is the fallback: theme.py appends waybar/font.css
+ * after this file, so a theme that names a font (Adwaita Light) sets it.
+ *
  * Deliberately no libadwaita. Its stylesheet encodes GNOME's design language
  * and resists being overridden; without it every pixel here is ours.
  */
@@ -34,8 +37,13 @@ window.background {
  * border it draws on every other window and rounds the corners to match, so
  * focus is as obvious here as anywhere else; drawing a second frame inside
  * that one only ever looked like a mistake. */
+/* The theme's text colour for anything without one of its own. Otherwise a
+ * label inherits GTK's, which follows GTK_THEME — set at login — so after a
+ * switch from a dark theme to a light one it stayed white on a light page:
+ * the Welcome page's row icons vanished. */
 .sc-shell {
   background-color: @base;
+  color: @text;
 }
 
 .sc-content-pane {

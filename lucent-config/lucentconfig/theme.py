@@ -49,8 +49,24 @@ def palette_css() -> str:
     return text if "@define-color" in text else FALLBACK
 
 
+def font_css() -> str:
+    """The theme's font family: waybar/font.css, which theme.sh renders.
+
+    It goes after style.css, so its `* { font-family }` wins over the one
+    there, which stays as what this app uses when the file is missing. A
+    theme that names no font gets JetBrainsMono Nerd Font in it, the same
+    as style.css, so only a theme such as Adwaita Light changes anything.
+    """
+    try:
+        text = paths.FONT_CSS.read_text()
+    except OSError:
+        return ""
+    return text if "font-family" in text else ""
+
+
 def _css() -> str:
-    return palette_css() + "\n" + (Path(__file__).parent / "style.css").read_text()
+    return (palette_css() + "\n" + (Path(__file__).parent / "style.css").read_text()
+            + "\n" + font_css())
 
 
 def is_light(palette: str) -> bool:
@@ -108,7 +124,9 @@ class Theme:
 
     def _on_change(self, _monitor, file, other, event):
         names = {f.get_basename() for f in (file, other) if f is not None}
-        if paths.COLORS_CSS.name not in names:
+        # theme.sh writes the palette and then the font; either one changing
+        # is a reason to read both again.
+        if not names & {paths.COLORS_CSS.name, paths.FONT_CSS.name}:
             return
         if event in (
             Gio.FileMonitorEvent.CHANGES_DONE_HINT,
@@ -120,11 +138,8 @@ class Theme:
 
     def reload(self):
         try:
-            palette = palette_css()
-            self.light = is_light(palette)
-            self.provider.load_from_string(
-                palette + "\n" + (Path(__file__).parent / "style.css").read_text()
-            )
+            self.light = is_light(palette_css())
+            self.provider.load_from_string(_css())
         except Exception:
             return  # a half-written palette is transient; the next event wins
         if self.on_change:

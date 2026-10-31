@@ -8,9 +8,10 @@
  */
 
 @import url("colors.css");
+/* The font family, also theme.sh's: a theme can name its own. */
+@import url("font.css");
 
 * {
-  font-family: "JetBrainsMono Nerd Font", "Font Awesome 6 Free", sans-serif;
   font-size: 13px;
   font-weight: 600;
   /* Waybar draws a 1px box around every widget without this. */

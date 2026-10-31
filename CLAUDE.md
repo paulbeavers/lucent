@@ -119,6 +119,11 @@ not visible from its code:
 - It reads `j/clients` again on window events from `.socket2.sock`, never on a
   timer, and not while a menu is open: rebuilding the buttons would destroy
   the popover under the pointer.
+- It sets `GTK_THEME` afresh, from `colors.lua`'s mode, on every launch.
+  env.lua puts it in Hyprland's environment and a reload updates what
+  Hyprland starts next, but the dock keeps the environment it started with:
+  after a switch from a dark theme to a light one, apps it opened (and apps
+  opened from the launcher it opened) came up dark until the next login.
 - Its colours are waybar's `colors.css`. theme.sh replaces that file by
   rename, so the dock watches the directory rather than the file, whose
   monitor would stay on the old inode.
@@ -344,9 +349,22 @@ kitty draws with OpenGL. Under UTM on a Mac it opened an empty window, which
 is worse than failing: `terminal.sh` used to fall back to foot when kitty
 *exited* at launch, and an empty window never exits. foot draws on the CPU, so
 it opens on any graphics stack, and since 2026-10-25 it is the only terminal.
-What that gave up: ligatures, kitty's image protocol (foot does sixel), and
-live theme changes — foot reads `colors.ini` at start, so a theme switch
-reaches new terminals only.
+What that gave up: ligatures and kitty's image protocol (foot does sixel).
+foot reads `colors.ini` only at start, but theme.sh recolours open windows by
+writing OSC 4/10/11/12/17/19 to each one's pty. The font cannot follow that
+way, so a theme's `mono` reaches new terminals only.
+
+**A theme can carry fonts and icons** (`font`, `mono`, `icons`; Adwaita Light
+uses them). Each target gets the family where it can be overridden: waybar
+from `font.css`, kept out of `colors.css` because the dock imports that,
+and lucent-config appends `font.css` after its own stylesheet so its
+monospace look stays the default; foot and mako from their included files, which come after
+their own `font=`; wofi inside its theme markers, its hand-written `*` rule
+no longer naming a family; hyprlock and `colors.lua` by substitution. GTK's
+font family is theme.sh's too, with the size left alone because it is the
+Look page's — which is why install.sh no longer sets `font-name` on a
+re-run: it would undo a theme's font. A theme without a key gets lucent's
+default back, so switching away restores everything.
 
 **foot's colour section depends on its version.** 1.26 renamed `[colors]` to
 `[colors-dark]` and `[colors-light]`, and 1.28 removed the old name; Ubuntu

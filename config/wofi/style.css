@@ -29,10 +29,10 @@
 @define-color lavender  #b4befe;
 @define-color mauve     #cba6f7;
 @define-color pink      #f5c2e7;
+* { font-family: "JetBrainsMono Nerd Font", sans-serif; }
 /* theme colours end */
 
 * {
-  font-family: "JetBrainsMono Nerd Font", sans-serif;
   font-size: 14px;
 }
 

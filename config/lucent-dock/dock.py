@@ -51,6 +51,7 @@ os.environ.pop("LD_PRELOAD", None)
 
 import ctypes  # noqa: E402
 import json  # noqa: E402
+import re  # noqa: E402
 import socket  # noqa: E402
 import subprocess  # noqa: E402
 import threading  # noqa: E402
@@ -82,6 +83,7 @@ PANEL_HEIGHT = 58                           # waybar/panel.jsonc's height
 DEFAULT_PINNED = ["firefox.desktop", "thunar.desktop", "foot.desktop"]
 STYLE = Path(__file__).resolve().parent / "style.css"
 COLORS = CONFIG / "waybar" / "colors.css"
+COLORS_LUA = CONFIG / "hypr" / "colors.lua"   # carries the theme's mode
 LAUNCHER = ["wofi", "--show", "drun"]
 
 # Events after which the windows are worth reading again.
@@ -164,6 +166,26 @@ def watch_events(on_event, on_panel):
         # The compositor has gone; so should the dock.
         GLib.idle_add(Gio.Application.get_default().quit)
     threading.Thread(target=run, daemon=True).start()
+
+
+def gtk_theme():
+    """GTK_THEME for the theme in effect now, as env.lua sets it.
+
+    env.lua sets it in Hyprland's environment, and a reload updates what
+    Hyprland starts next; but the dock keeps the environment it started
+    with, so after a switch from a dark theme to a light one everything it
+    opened — and everything opened from the launcher it opened — came up
+    dark until the next login. So it is worked out again on every launch.
+    """
+    try:
+        found = re.search(r'\bmode\s*=\s*"(\w+)"', COLORS_LUA.read_text())
+    except OSError:
+        found = None
+    return "Adwaita" if found and found.group(1) == "light" else "Adwaita:dark"
+
+
+def launch_env():
+    return dict(os.environ, GTK_THEME=gtk_theme())
 
 
 # ── apps ──────────────────────────────────────────────────────────────────────
@@ -413,7 +435,8 @@ class Dock(Gtk.Application):
         grid.set_tooltip_text("All apps")
         grid.set_child(self._icon_column(
             Gio.ThemedIcon.new_from_names(["view-app-grid-symbolic", "view-grid-symbolic"]), 0))
-        grid.connect("clicked", lambda _b: subprocess.Popen(LAUNCHER, start_new_session=True))
+        grid.connect("clicked", lambda _b: subprocess.Popen(
+            LAUNCHER, start_new_session=True, env=launch_env()))
         self.box.append(grid)
 
         # A GTK window grows to fit new children but keeps that size when they
@@ -540,6 +563,7 @@ class Dock(Gtk.Application):
             return
         context = Gdk.Display.get_default().get_app_launch_context()
         context.unsetenv("LD_PRELOAD")
+        context.setenv("GTK_THEME", gtk_theme())
         try:
             info.launch([], context)
         except GLib.Error as e:
