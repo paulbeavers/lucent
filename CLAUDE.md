@@ -144,10 +144,15 @@ about it are not visible from the code:
 - **`metadata.desktop` must say `QtVersion=6`.** Without it SDDM starts its
   Qt 5 greeter, which needs `qt5-declarative`, which nothing installs: no
   login screen at all.
-- **An Arch machine with our greetd is migrated, not deferred to.** greetd
-  holding the alias would otherwise read as someone else's display manager.
-  The `Managed by` marker in `/etc/greetd/config.toml` identifies it; a re-run
-  disables greetd, removes `greetd` and `greetd-tuigreet`, and enables SDDM.
+- **An Arch machine with our greetd keeps it unless `--login-manager` is
+  given.** A plain re-run is a config refresh and must not swap a working
+  login screen; it first did, on a desktop that was not a starch install, and
+  failed half way with neither greeter enabled. With the flag, the `Managed
+  by` marker in `/etc/greetd/config.toml` marks greetd as ours: it is
+  disabled, SDDM is enabled, and only then is every `greetd*` package removed
+  together — `greetd` and `greetd-agreety` depend on each other, so removing
+  `greetd` and `greetd-tuigreet` alone is refused by pacman. Enabling before
+  removing means a failed removal still leaves a login screen.
 
 Test the theme without logging out, against the installed copy:
 `sddm-greeter-qt6 --test-mode --theme /usr/share/sddm/themes/lucent`.

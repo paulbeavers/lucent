@@ -457,10 +457,14 @@ DM_UNIT=greetd.service
 OTHER_DM="$(readlink /etc/systemd/system/display-manager.service 2>/dev/null || true)"
 OTHER_DM="${OTHER_DM##*/}"
 [[ $OTHER_DM == "$DM_UNIT" ]] && OTHER_DM=""
-# An Arch machine set up before SDDM has our greetd. That is ours to replace,
-# not someone else's display manager to defer to.
+# An Arch machine set up before SDDM has our greetd. It is kept like any other
+# display manager unless --login-manager asks for SDDM: a working login screen
+# is not something a config refresh should swap out from under anyone, and a
+# machine installed some other way than starch decides its own greeter. With
+# the flag, greetd is removed outright rather than only disabled, because it
+# is ours and a fresh install would not have it.
 REPLACE_GREETD=0
-if [[ $DISTRO == arch && $OTHER_DM == greetd.service ]] \
+if [[ $DISTRO == arch && $DO_DM == yes && $OTHER_DM == greetd.service ]] \
    && grep -qsE 'Managed by (lucent|hyprland-setup)' /etc/greetd/config.toml; then
     REPLACE_GREETD=1
     OTHER_DM=""
@@ -1636,21 +1640,32 @@ EOF
 
         # The greetd + tuigreet this script used to set up. Removed, not just
         # disabled: a machine installed today would not have it.
+        #
+        # greetd is disabled first and sddm enabled straight after, before
+        # anything is removed: display-manager.service is one alias, so sddm
+        # cannot be enabled while greetd holds it, and if the removal then
+        # fails the machine still has a login screen. The other order left a
+        # desktop with neither, when pacman refused the removal.
         if [[ $REPLACE_GREETD -eq 1 ]]; then
             run $SUDO systemctl disable greetd.service
-            old=()
-            for _p in greetd-tuigreet greetd; do
-                pacman -Qq "$_p" &>/dev/null && old+=("$_p")
-            done
-            [[ ${#old[@]} -gt 0 ]] && run $SUDO pacman -Rn --noconfirm "${old[@]}"
-            run $SUDO rm -rf /var/cache/tuigreet
-            ok "replaced greetd + tuigreet"
         fi
 
         unit_enabled sddm.service && ok "sddm.service already enabled" || {
             run $SUDO systemctl enable sddm.service
             ok "enabled sddm.service"
         }
+
+        # Every greetd package at once. Arch builds greetd and greetd-agreety
+        # from one source and each depends on the other, so naming only greetd
+        # and tuigreet fails with "removing greetd breaks dependency 'greetd'
+        # required by greetd-agreety". Any other greeter for greetd goes too:
+        # it cannot outlive greetd.
+        if [[ $REPLACE_GREETD -eq 1 ]]; then
+            mapfile -t old < <(pacman -Qq | grep -E '^greetd(-|$)')
+            [[ ${#old[@]} -gt 0 ]] && run $SUDO pacman -Rn --noconfirm "${old[@]}"
+            run $SUDO rm -rf /var/cache/tuigreet
+            ok "replaced greetd + tuigreet"
+        fi
     elif [[ $DO_DM -eq 1 ]]; then
         step "Configuring greetd + tuigreet"
         # Prefer the uwsm session: a proper systemd user session, which makes
