@@ -36,8 +36,11 @@ def build(window):
     card = page.section("At login")
     login_now = _shown_at_login()
 
+    # Compared with the file as it is now, not as it was when the page was
+    # built: after an Apply the page stays open, and comparing with the old
+    # value made changing it back look like no change at all.
     def on_login(value):
-        if bool(value) == login_now:
+        if bool(value) == _shown_at_login():
             window.unstage("dock:login")
         else:
             window.stage("dock:login", lambda: _set_login(value),
@@ -58,7 +61,7 @@ def build(window):
         if not 0 <= index < len(MODES):
             return
         chosen = slugs[index]
-        if chosen == mode_now:
+        if chosen == _mode():
             window.unstage("dock:mode")
         else:
             window.stage("dock:mode", lambda: _set_mode(chosen),
