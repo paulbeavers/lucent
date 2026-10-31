@@ -40,7 +40,8 @@ start() {
     [[ -f $DOCK ]] || return 0
     # At login the bar and the dock are started together. In panel mode the
     # dock must map after the panel to sit on top of it, so wait for waybar.
-    if [[ "$(cat "$MODE" 2>/dev/null)" == panel ]]; then
+    # Panel is the default: anything but an explicit "dock".
+    if [[ "$(cat "$MODE" 2>/dev/null)" != dock ]]; then
         for _ in $(seq 30); do pgrep -x waybar >/dev/null && break; sleep 0.1; done
         sleep 0.5
     fi

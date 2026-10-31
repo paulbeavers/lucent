@@ -35,8 +35,8 @@ def _mode():
     try:
         value = paths.DOCK_MODE.read_text().strip()
     except OSError:
-        return "dock"
-    return value if value in dict(MODES) else "dock"
+        return "panel"   # the default, as dock.sh and waybar.sh read it
+    return "dock" if value == "dock" else "panel"
 
 
 def _shown_at_login():
@@ -84,9 +84,10 @@ def build(window):
     card.add(Row(
         "Style",
         dropdown([name for _, name in MODES], slugs.index(mode_now), on_change=on_mode),
-        "Dock floats at the bottom, centred, under the bar at the top. Panel is "
-        "one strip across the bottom with the dock, the workspaces, the date and "
-        "time and the rest of the top bar's items, and the top bar goes away.",
+        "Panel, the default, is one strip across the bottom with the dock, the "
+        "workspaces, the date and time and the rest of the top bar's items, and "
+        "the top bar goes away. Dock floats at the bottom, centred, under the "
+        "bar at the top.",
     ))
 
     edges = [slug for slug, _ in POSITIONS]

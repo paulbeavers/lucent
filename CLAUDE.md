@@ -137,9 +137,10 @@ Whether the mode is on is a file, `~/.config/lucent/float-all`, read on every
 the same reason, and its pins are `~/.config/lucent/dock-pinned`. Hidden
 means stopped, which gives back its exclusive zone.
 
-**Panel mode is waybar and the dock, composed.** `~/.config/lucent/dock-mode`
-set to `panel` makes `waybar.sh` start `waybar/panel.jsonc` instead of the top
-bar: a full-width strip along the bottom that `include`s `config.jsonc` and
+**Panel mode is waybar and the dock, composed, and it is the default.**
+`~/.config/lucent/dock-mode` set to anything but `dock`, or missing, makes
+`waybar.sh` start `waybar/panel.jsonc` instead of the top bar — `waybar.sh`,
+`dock.sh`, `dock.py` and the Dock page all test `!= dock` for that reason: a full-width strip along the bottom that `include`s `config.jsonc` and
 changes only the shape and the module lists. Waybar's include merges objects
 key by key with the including file winning, so overriding `clock.format`
 keeps the calendar theme.sh colours. The middle of the strip is empty, and

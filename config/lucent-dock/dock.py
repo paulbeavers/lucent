@@ -77,7 +77,7 @@ ICON_SIZE = 40
 MAX_DOTS = 3
 CONFIG = Path(os.environ.get("XDG_CONFIG_HOME") or Path.home() / ".config")
 PINNED = CONFIG / "lucent" / "dock-pinned"
-MODE = CONFIG / "lucent" / "dock-mode"      # "dock" (the default) or "panel"
+MODE = CONFIG / "lucent" / "dock-mode"      # "panel" (the default) or "dock"
 POSITION = CONFIG / "lucent" / "dock-position"   # bottom (default) or top
 PANEL_HEIGHT = 58                           # waybar/panel.jsonc's height
 DEFAULT_PINNED = ["firefox.desktop", "thunar.desktop", "foot.desktop"]
@@ -224,10 +224,12 @@ def app_by_id(desktop_id):
 
 
 def panel_mode():
+    # The panel is the default, so only an explicit "dock" turns it off —
+    # the same test waybar.sh and dock.sh make.
     try:
-        return MODE.read_text().strip() == "panel"
+        return MODE.read_text().strip() != "dock"
     except OSError:
-        return False
+        return True
 
 
 def position():
