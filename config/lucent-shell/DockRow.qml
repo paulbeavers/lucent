@@ -29,7 +29,9 @@ Row {
             readonly property var app: modelData
 
             width: dock.iconSize + 10
-            height: dock.iconSize + 14
+            // The icon and its dots are 46px; 48 leaves the highlight 5px
+            // clear of the 58px panel's edges.
+            height: dock.iconSize + 8
             anchors.verticalCenter: parent.verticalCenter
             radius: 10
             color: app.active ? Theme.alpha("surface1", 0.9)
@@ -97,7 +99,7 @@ Row {
     // Qt would not recolour to the theme.
     Rectangle {
         width: dock.iconSize + 10
-        height: dock.iconSize + 10
+        height: dock.iconSize + 8
         anchors.verticalCenter: parent.verticalCenter
         radius: 10
         color: launcherMouse.containsMouse ? Theme.alpha("surface1", 0.7) : "transparent"
