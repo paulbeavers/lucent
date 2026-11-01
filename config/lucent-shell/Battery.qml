@@ -11,9 +11,9 @@ Pill {
     readonly property bool warning: cap <= 25
     readonly property var icons: ["\u{f007a}", "\u{f007d}", "\u{f007f}", "\u{f0081}", "\u{f0079}"]
 
-    text: !Sys.hasBattery ? ""
-        : (charging ? "\u{f0084}" : plugged ? "" : icons[Math.min(4, Math.floor(cap / 20))])
-          + "  " + cap + "%"
+    icon: !Sys.hasBattery ? ""
+        : charging ? "\u{f0084}" : plugged ? "\uf1e6" : icons[Math.min(4, Math.floor(cap / 20))]
+    text: Sys.hasBattery ? cap + "%" : ""
     fg: critical && !charging ? Theme.c("crust")
       : critical ? Theme.c("red") : warning ? Theme.c("peach") : Theme.c("green")
     bg: critical && !charging ? Theme.c("red") : "transparent"

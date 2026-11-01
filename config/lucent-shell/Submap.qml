@@ -3,7 +3,9 @@
 import QtQuick
 
 Pill {
-    text: Hypr.submap !== "" && Hypr.submap !== "reset" ? "  " + Hypr.submap : ""
+    readonly property bool on: Hypr.submap !== "" && Hypr.submap !== "reset"
+    icon: on ? "\uf11c" : ""
+    text: on ? Hypr.submap : ""
     bg: Theme.c("peach")
     fg: Theme.c("crust")
 }

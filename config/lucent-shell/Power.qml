@@ -8,6 +8,6 @@ Pill {
     hoverBg: Theme.c("red")
     hoverFg: Theme.c("crust")
     padX: 12
-    fontSize: 14
+    fontSize: 16
     onClicked: Apps.run([Theme.config + "/hypr/scripts/powermenu.sh"])
 }

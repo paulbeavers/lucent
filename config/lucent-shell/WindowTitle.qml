@@ -15,9 +15,9 @@ Pill {
     function rewrite(t) {
         const rules = [
             [/^(.*) — Mozilla Firefox$/, "\u{f0239}  $1"],
-            [/^(.*) - Chromium$/, "  $1"],
+            [/^(.*) - Chromium$/, "\uf268  $1"],
             [/^(.*) - Visual Studio Code$/, "\u{f0a1e}  $1"],
-            [/^~(.*)$/, "  ~$1"]
+            [/^~(.*)$/, "\uf120  ~$1"]
         ];
         for (const [re, to] of rules)
             if (re.test(t))

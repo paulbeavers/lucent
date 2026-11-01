@@ -9,7 +9,8 @@ Pill {
     readonly property bool on: adapter !== null && adapter.enabled
     readonly property var connected: on ? adapter.devices.values.filter(d => d.connected) : []
 
-    text: !on ? "" : connected.length > 0 ? "\u{f00b1} " + connected.length : "\u{f00af}"
+    icon: !on ? "" : connected.length > 0 ? "\u{f00b1}" : "\u{f00af}"
+    text: on && connected.length > 0 ? String(connected.length) : ""
     fg: Theme.c("blue")
     tip: !on ? "" : connected.length > 0 ? connected.map(d => d.name).join("\n") : adapter.name
     onClicked: Apps.run(["blueman-manager"])

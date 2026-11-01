@@ -18,10 +18,10 @@ Pill {
         objects: audio.sink ? [audio.sink] : []
     }
 
-    text: !ready ? ""
-        : muted ? "\u{f075f}  muted"
-        : (bluetooth ? "\u{f00b0}" : volume < 34 ? "\u{f057f}" : volume < 67 ? "\u{f0580}" : "\u{f057e}")
-          + "  " + volume + "%"
+    icon: !ready ? ""
+        : muted ? "\u{f075f}"
+        : bluetooth ? "\u{f00b0}" : volume < 34 ? "\u{f057f}" : volume < 67 ? "\u{f0580}" : "\u{f057e}"
+    text: !ready ? "" : muted ? "muted" : volume + "%"
     fg: muted ? Theme.c("red") : Theme.c("sapphire")
     tip: ready ? (sink.description || sink.name) + " — " + volume + "%" : ""
 

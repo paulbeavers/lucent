@@ -7,10 +7,13 @@ Pill {
     readonly property bool linked: Sys.netState.startsWith("connecting")
     readonly property bool down: Sys.netType === "" && !linked
 
-    text: down ? "\u{f05aa}"
-        : linked ? "\u{f0200} no IP"
-        : Sys.netType === "wifi" ? "  " + Sys.netSignal + "%"
+    icon: down ? "\u{f05aa}"
+        : Sys.netType === "wifi" ? "\uf1eb"
         : "\u{f0200}"
+    text: down ? ""
+        : linked ? "no IP"
+        : Sys.netType === "wifi" ? Sys.netSignal + "%"
+        : ""
     fg: down ? Theme.c("red") : Theme.c("green")
     tip: down ? "Disconnected"
         : (Sys.netType === "wifi" ? Sys.netSsid : Sys.netDevice) + "\n"
