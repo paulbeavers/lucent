@@ -55,6 +55,10 @@ hl.on("hyprland.start", function()
     -- never answered at all. Three rounds of timeout tuning did not fix it;
     -- removing the daemon did.
     hl.exec_cmd("~/.config/hypr/scripts/wallpaper.sh --restore")
+
+    -- The theme into any Firefox profile made since the last theme switch.
+    -- Firefox reads userChrome.css only at start; see theme.sh's render_firefox.
+    hl.exec_cmd("~/.config/hypr/scripts/theme.sh --firefox")
     hl.exec_cmd("hypridle")
     hl.exec_cmd("swayosd-server")
 

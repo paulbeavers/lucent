@@ -467,6 +467,30 @@ default back, so switching away restores everything.
   Set `GTK_THEME=Adwaita:dark` as the session does. Stop everything by PID
   afterwards; the private bus leaves gvfsd, tumblerd and xfconfd behind.
 
+**Firefox follows the palette through `userChrome.css`, not GTK.** With
+"System theme" Firefox takes its toolbar from GTK's header bar
+(`-moz-headerbar`), but it came out stock grey whatever gtk.css said. So
+theme.sh's `render_firefox` writes `chrome/lucent.css` into every profile in
+`profiles.ini` — under `~/.config/mozilla/firefox`, where Firefox keeps new
+profiles now, and `~/.mozilla/firefox` — imports it from `userChrome.css`
+and adds `toolkit.legacyUserProfileCustomizations.stylesheets` to `user.js`,
+each only if missing. It sets Firefox's own colour variables, and those get
+renamed: in 158 the toolbar text is `--toolbar-text-color`, not the older
+`--toolbar-color`. List the current ones from `browser-colors.css` and the
+rest of `browser/omni.ja` (`unzip -p ... '*.css' | grep -o -- '--toolbar-[a-z-]*'`)
+before adding one. Firefox reads userChrome only at start; autostart runs
+`theme.sh --firefox` so a profile made since the last switch is themed by
+the next login.
+
+Check it headless through Marionette, which can run script in the browser
+window itself (a screenshot of `browser.xhtml` in a tab does not get
+userChrome): `firefox --headless --marionette -remote-allow-system-access
+--profile DIR`, then over its TCP protocol `WebDriver:NewSession`,
+`Marionette:SetContext {"value":"chrome"}` and `WebDriver:ExecuteScript`
+with `getComputedStyle(document.getElementById("nav-bar")).backgroundColor`.
+Use a scratch profile and a non-default `marionette.port`, and stop it by
+matching that profile path, never by name.
+
 **foot's colour section depends on its version.** 1.26 renamed `[colors]` to
 `[colors-dark]` and `[colors-light]`, and 1.28 removed the old name; Ubuntu
 26.04 ships 1.25 and Fedora 43 1.24. `theme.sh` asks `foot --version`. Check a
