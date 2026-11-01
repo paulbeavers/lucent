@@ -25,18 +25,20 @@ POSITIONS = [
 
 
 ENGINES = [
-    ("gtk", "GTK"),
+    ("waybar", "Waybar and GTK"),
     ("quickshell", "Quickshell (experimental)"),
 ]
 
 
 def _engine():
-    # What dock.sh will start: Quickshell only when chosen *and* installed.
+    # What bar.sh will start: Quickshell only when chosen *and* installed.
     try:
-        value = paths.DOCK_ENGINE.read_text().strip()
-    except OSError:
-        return "gtk"
-    return "quickshell" if value == "quickshell" and shutil.which("qs") else "gtk"
+        result = subprocess.run([str(paths.BAR_SH), "--engine"],
+                                capture_output=True, text=True, timeout=5)
+    except (OSError, subprocess.TimeoutExpired):
+        return "waybar"
+    value = result.stdout.strip()
+    return value if value in dict(ENGINES) else "waybar"
 
 
 def _position():
@@ -127,8 +129,8 @@ def build(window):
     ))
 
     # Offered only where quickshell is installed — Arch and Fedora 44 package
-    # it, Fedora 43 and Ubuntu 26.04 do not — since dock.sh falls back to the
-    # GTK dock without it.
+    # it, Fedora 43 and Ubuntu 26.04 do not — since bar.sh falls back to
+    # waybar and the GTK dock without it.
     if shutil.which("qs"):
         engines = [slug for slug, _ in ENGINES]
 
@@ -139,22 +141,22 @@ def build(window):
             if chosen == _engine():
                 window.unstage("dock:engine")
             else:
-                window.stage("dock:engine", lambda: _dock_sh("--engine", chosen),
-                             f"dock drawn by {dict(ENGINES)[chosen].split()[0]}")
+                window.stage("dock:engine", lambda: _bar_sh("--engine", chosen),
+                             f"bar and dock drawn by {dict(ENGINES)[chosen].split()[0]}")
 
         card.add(Row(
-            "Drawn by",
+            "Bar and dock",
             dropdown([name for _, name in ENGINES], engines.index(_engine()),
                      on_change=on_engine),
-            "The same dock, drawn by a different program. GTK is the one lucent "
-            "has always used; Quickshell is a QML version being tried out. "
-            "Pins, style and position are shared.",
+            "The program that draws the bar and the dock. Waybar with the GTK "
+            "dock is what lucent has always used; Quickshell draws both in one, "
+            "and is being tried out. Pins, style and position are shared.",
         ))
 
     page.note(
         "Applying takes effect at once: the bar and the dock restart. The "
         "settings are files in ~/.config/lucent — dock-hidden, dock-mode, "
-        "dock-position and dock-engine."
+        "dock-position and shell-engine."
     )
     return page
 
@@ -176,6 +178,16 @@ def _set_mode(mode):
 
 def _set_position(edge):
     _dock_sh("--position", edge)
+
+
+def _bar_sh(*args):
+    try:
+        result = subprocess.run([str(paths.BAR_SH), *args],
+                                capture_output=True, text=True, timeout=20)
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        raise RuntimeError(f"bar.sh did not run: {exc}") from exc
+    if result.returncode != 0:
+        raise RuntimeError(result.stderr.strip() or "bar.sh failed")
 
 
 def _dock_sh(*args):

@@ -437,7 +437,9 @@ match_wallpaper() {
 reload_apps() {
     [[ $RELOAD -eq 1 ]] || return 0
     hyprctl reload >/dev/null 2>&1 || true
-    pkill -SIGUSR2 -x waybar 2>/dev/null || true
+    # waybar rereads its style; the Quickshell shell watches the palette
+    # itself and restarts only for a new icon theme.
+    "$CFG/hypr/scripts/bar.sh" --theme 2>/dev/null || true
     makoctl reload >/dev/null 2>&1 || true
     recolor_foot
 }

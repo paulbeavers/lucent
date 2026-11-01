@@ -128,36 +128,63 @@ not visible from its code:
   rename, so the dock watches the directory rather than the file, whose
   monitor would stay on the old inode.
 
-**The dock has a second, experimental engine: Quickshell**
-(`config/lucent-dock/quickshell/shell.qml`), chosen with `dock.sh --engine
-gtk|quickshell`, recorded in `~/.config/lucent/dock-engine`, and offered on the
-Dock page only where `qs` is installed. GTK stays the default. It is the first
-step towards replacing waybar too; the point of starting with the dock is that
-it is already lucent's own, so nothing standard is given up. It reads the
-same pin, mode and position files and the same `colors.css`, so switching
-engines changes nothing else. Not visible from its code:
+**The bar and the dock have a second, experimental engine: Quickshell**
+(`config/lucent-shell/`), one program drawing both. `bar.sh --engine
+waybar|quickshell` switches, at once, recorded in
+`~/.config/lucent/shell-engine`; the Dock page offers it as "Bar and dock"
+where `qs` is installed. Waybar with the GTK dock stays the default, and is
+what `bar.sh` starts wherever `qs` is missing (Fedora 43, Ubuntu 26.04).
+`autostart.lua` starts `bar.sh`, not `waybar.sh`; SUPER+SHIFT+R is `bar.sh
+--reload`; theme.sh calls `bar.sh --theme`. The shell reads the same files
+as the other engine — dock-mode, dock-position, dock-pinned, dock-hidden,
+`waybar/colors.css` and `font.css` — so switching changes nothing else.
+Not visible from its code:
 
-- **Its process is `qs`, whatever it runs**, so `dock.sh` cannot use `pgrep
-  -x` for it. It finds it by its layer surface (namespace `lucent-dock`,
-  which both engines set) and stops it with `qs kill -p`. `qs -n` refuses a
-  second instance, as the GTK dock's application ID does.
+- **Panel style is one window.** With waybar it is two programs composed,
+  which is everything the panel paragraph below has to work around: the
+  dock mapping after waybar, mapping again on every waybar reload,
+  `PANEL_HEIGHT` matching. None of that applies to the shell; `PanelBar.qml`
+  holds the workspaces, `DockRow` and the status modules in one surface.
+- **Its process is `qs`, whatever it runs**, so nothing can use `pgrep -x`
+  for it. `bar.sh` finds it by its bar's layer namespace, `lucent-bar` (the
+  floating dock is `lucent-dock`, as the GTK one is), and stops it with `qs
+  kill -p`. `qs -n` refuses a second instance.
+- **Hiding the dock is IPC, not a stop.** `dock.sh` writes `dock-hidden` as
+  before and then `qs -p ~/.config/lucent-shell ipc call dock hide|show`; at
+  start `bar.sh` passes the file's state as `LUCENT_DOCK_HIDDEN`, because a
+  file's absence cannot be watched.
 - **Qt does not read GTK's icon theme.** env.lua sets
-  `QT_QPA_PLATFORMTHEME=qt5ct`, which a Qt 6 program cannot load, so without
-  help it would find no theme. `dock.sh` passes `QS_ICON_THEME` from
-  gsettings; a theme switch reaches the dock on its next start, not live.
-  Icon loading could not be checked headless at all (even hicolor fails under
-  the offscreen platform), so judge it in a session.
-- **It dispatches through `hyprctl`, not quickshell's `Hyprland.dispatch`.**
-  0.3 knows about Lua configs; 0.2.1, Fedora 44's, does not.
-- **Its API floor is 0.2.1.** Fedora 44's type files lint the same as Arch's
-  0.3.2 for everything it uses. Lint it against a package's own types,
-  extracted to a scratch directory, before trusting a new version:
-  `qmllint -I <pkg>/usr/lib/qt6/qml shell.qml`. The remaining warnings
-  (PanelWindow not creatable, `anchor.*` and `margins.*` not found) are gaps
-  in quickshell's qmltypes, not errors.
-- **Not yet judged on hardware.** The reason lucent has its own dock is
-  sharpness at 1.33; Qt Quick asks for the icon at size × scale, which should
-  be sharp, but that has to be seen on a retina MacBook beside the GTK dock.
+  `QT_QPA_PLATFORMTHEME=qt5ct`, which a Qt 6 program cannot load. `bar.sh`
+  passes `QS_ICON_THEME` from gsettings at start; `bar.sh --theme` restarts
+  the shell only when a theme brought a different icon theme. Colours and
+  the font are watched and change live.
+- **It dispatches through `hyprctl`, in Lua**, not quickshell's
+  `Hyprland.dispatch`: 0.3 knows about Lua configs, 0.2.1 (Fedora 44's)
+  does not. The workspace row is the module waybar could not do for that
+  reason, and here it is one Repeater.
+- **Several waybar icons were blank.** The CPU, memory, temperature, Wi-Fi,
+  plugged-in, submap, Chromium and terminal glyphs in `config.jsonc` are
+  plain spaces — private-use characters lost along the way. The shell has
+  its own, each checked with `fc-list ":charset=XXXX"` against JetBrainsMono
+  Nerd Font. Write them as `\uXXXX` escapes in QML, never as literals.
+- **The calendar is a rich-text tooltip** in the palette's colours, so
+  theme.sh's `patch_waybar_json` does not apply to it. Week numbers come
+  from each row's fourth day: ISO's rule for a Monday-first week, and right
+  for a Sunday-first locale too.
+- **Its API floor is 0.2.1.** Lint against a package's own types, extracted
+  to a scratch directory: `qmllint -I <pkg>/usr/lib/qt6/qml FILE`. The
+  singletons (Theme, Settings, Hypr, Sys, Apps) show as missing members,
+  because quickshell registers them at runtime; that and PanelWindow's
+  `anchor.*`/`margins.*` are not errors.
+- **Test it headless** by copying the directory, turning each PanelWindow
+  into a FloatingWindow, wrapping its children in an Item and grabbing that
+  to a PNG (a window's own content item has no QML engine and cannot be
+  grabbed). A fake `hyprctl` on PATH that prints sample `-j clients` drives
+  the workspaces and the dock. Icons never load headless, even hicolor ones,
+  so judge them in a session. **Stub `pkill` and `pgrep` too** when running
+  bar.sh or dock.sh that way: the real ones reach the desktop you are on.
+- **Not yet judged on hardware.** Sharpness at 1.33 is the reason lucent has
+  its own dock; that has to be seen on a retina MacBook beside the GTK one.
 
 **State that must survive a reload lives on the window or on disk, never in a
 Lua table.** `floatall.lua` marks the windows it floated with the tag

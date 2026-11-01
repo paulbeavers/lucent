@@ -633,8 +633,9 @@ PKGS_DESKTOP=(
     python-gobject
     # lucent-dock: a GTK 4 layer-shell surface, also through PyGObject.
     gtk4-layer-shell
-    # The dock's experimental second engine (dock.sh --engine quickshell).
-    # dock.sh falls back to the GTK dock wherever qs is missing.
+    # The bar and dock's experimental second engine, config/lucent-shell
+    # (bar.sh --engine quickshell). bar.sh falls back to waybar and the GTK
+    # dock wherever qs is missing.
     quickshell
 )
 PKGS_FONTS=(

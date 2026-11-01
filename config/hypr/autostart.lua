@@ -31,10 +31,12 @@ hl.on("hyprland.start", function()
     hl.exec_cmd("systemctl --user start hyprpolkitagent")
     hl.exec_cmd("/usr/bin/gnome-keyring-daemon --start --components=secrets")
 
-    -- Shell components. waybar goes through its own launcher, which starts it
-    -- with SIGRTMIN+1 ignored: the refresh signal below is fatal to a waybar
-    -- that has not installed its handler yet. scripts/waybar.sh has the story.
-    hl.exec_cmd("~/.config/hypr/scripts/waybar.sh")
+    -- Shell components. bar.sh starts whichever bar is chosen: waybar, through
+    -- its own launcher (scripts/waybar.sh), which starts it with SIGRTMIN+1
+    -- ignored because the refresh signal below is fatal to a waybar that has
+    -- not installed its handler yet; or the Quickshell shell, which draws the
+    -- bar and the dock together.
+    hl.exec_cmd("~/.config/hypr/scripts/bar.sh")
     hl.exec_cmd("mako")
 
     -- The dock, unless SUPER + D hid it last time. dock.sh has why

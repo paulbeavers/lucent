@@ -250,7 +250,7 @@ bind(mod .. " + I", hl.dsp.exec_cmd("lucent-config"), "Settings")
 bind(mod .. " + slash",     hl.dsp.exec_cmd("~/.config/hypr/scripts/keybinds.sh"), "This cheatsheet")
 bind(mod .. " + W",         hl.dsp.exec_cmd("~/.config/hypr/scripts/wallpaper.sh"), "Wallpaper picker")
 bind(mod .. " + SHIFT + T", hl.dsp.exec_cmd("~/.config/hypr/scripts/theme.sh"), "Colour theme picker")
-bind(mod .. " + SHIFT + R", hl.dsp.exec_cmd("killall -SIGUSR2 waybar"), "Reload waybar")
+bind(mod .. " + SHIFT + R", hl.dsp.exec_cmd("~/.config/hypr/scripts/bar.sh --reload"), "Reload the bar")
 
 -- ── media and hardware keys ─────────────────────────────────────────────────
 -- locked = still works on the lock screen. repeating = fires while held.
