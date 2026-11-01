@@ -633,6 +633,9 @@ PKGS_DESKTOP=(
     python-gobject
     # lucent-dock: a GTK 4 layer-shell surface, also through PyGObject.
     gtk4-layer-shell
+    # The dock's experimental second engine (dock.sh --engine quickshell).
+    # dock.sh falls back to the GTK dock wherever qs is missing.
+    quickshell
 )
 PKGS_FONTS=(
     ttf-jetbrains-mono ttf-jetbrains-mono-nerd
@@ -726,6 +729,9 @@ if [[ ${DISTRO:-} == fedora ]]; then
         ImageMagick jq
         python3-gobject
         gtk4-layer-shell
+        # Fedora 44 has 0.2.1, whose API covers everything shell.qml uses;
+        # 43 has none, and --skip-unavailable passes over it there.
+        quickshell
         dconf
     )
     # JetBrainsMono Nerd Font and the Nerd Font symbols are not packaged; the
@@ -822,6 +828,8 @@ elif [[ ${DISTRO:-} == ubuntu ]]; then
         # integration and GTK4's own typelib, which is a separate package here.
         python3-gi python3-gi-cairo gir1.2-gtk-4.0
         libgtk4-layer-shell0 gir1.2-gtk4layershell-1.0
+        # Not in 26.04's archive; the availability filter drops it until it is.
+        quickshell
         dconf-cli
     )
     # The Nerd Fonts are not packaged, so the system phase fetches them from

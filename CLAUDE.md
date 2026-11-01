@@ -128,6 +128,37 @@ not visible from its code:
   rename, so the dock watches the directory rather than the file, whose
   monitor would stay on the old inode.
 
+**The dock has a second, experimental engine: Quickshell**
+(`config/lucent-dock/quickshell/shell.qml`), chosen with `dock.sh --engine
+gtk|quickshell`, recorded in `~/.config/lucent/dock-engine`, and offered on the
+Dock page only where `qs` is installed. GTK stays the default. It is the first
+step towards replacing waybar too; the point of starting with the dock is that
+it is already lucent's own, so nothing standard is given up. It reads the
+same pin, mode and position files and the same `colors.css`, so switching
+engines changes nothing else. Not visible from its code:
+
+- **Its process is `qs`, whatever it runs**, so `dock.sh` cannot use `pgrep
+  -x` for it. It finds it by its layer surface (namespace `lucent-dock`,
+  which both engines set) and stops it with `qs kill -p`. `qs -n` refuses a
+  second instance, as the GTK dock's application ID does.
+- **Qt does not read GTK's icon theme.** env.lua sets
+  `QT_QPA_PLATFORMTHEME=qt5ct`, which a Qt 6 program cannot load, so without
+  help it would find no theme. `dock.sh` passes `QS_ICON_THEME` from
+  gsettings; a theme switch reaches the dock on its next start, not live.
+  Icon loading could not be checked headless at all (even hicolor fails under
+  the offscreen platform), so judge it in a session.
+- **It dispatches through `hyprctl`, not quickshell's `Hyprland.dispatch`.**
+  0.3 knows about Lua configs; 0.2.1, Fedora 44's, does not.
+- **Its API floor is 0.2.1.** Fedora 44's type files lint the same as Arch's
+  0.3.2 for everything it uses. Lint it against a package's own types,
+  extracted to a scratch directory, before trusting a new version:
+  `qmllint -I <pkg>/usr/lib/qt6/qml shell.qml`. The remaining warnings
+  (PanelWindow not creatable, `anchor.*` and `margins.*` not found) are gaps
+  in quickshell's qmltypes, not errors.
+- **Not yet judged on hardware.** The reason lucent has its own dock is
+  sharpness at 1.33; Qt Quick asks for the icon at size × scale, which should
+  be sharp, but that has to be seen on a retina MacBook beside the GTK dock.
+
 **State that must survive a reload lives on the window or on disk, never in a
 Lua table.** `floatall.lua` marks the windows it floated with the tag
 `floatall`, so turning the mode off tiles those and leaves the ones a rule

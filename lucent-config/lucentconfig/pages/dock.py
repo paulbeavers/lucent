@@ -6,6 +6,7 @@ that the login reads. The page reads those files back and drives that script,
 so the key and the page can never disagree about what the dock will do.
 """
 
+import shutil
 import subprocess
 
 from .. import paths, readback
@@ -21,6 +22,21 @@ POSITIONS = [
     ("bottom", "Bottom"),
     ("top", "Top"),
 ]
+
+
+ENGINES = [
+    ("gtk", "GTK"),
+    ("quickshell", "Quickshell (experimental)"),
+]
+
+
+def _engine():
+    # What dock.sh will start: Quickshell only when chosen *and* installed.
+    try:
+        value = paths.DOCK_ENGINE.read_text().strip()
+    except OSError:
+        return "gtk"
+    return "quickshell" if value == "quickshell" and shutil.which("qs") else "gtk"
 
 
 def _position():
@@ -110,10 +126,35 @@ def build(window):
         "alike.",
     ))
 
+    # Offered only where quickshell is installed — Arch and Fedora 44 package
+    # it, Fedora 43 and Ubuntu 26.04 do not — since dock.sh falls back to the
+    # GTK dock without it.
+    if shutil.which("qs"):
+        engines = [slug for slug, _ in ENGINES]
+
+        def on_engine(index):
+            if not 0 <= index < len(ENGINES):
+                return
+            chosen = engines[index]
+            if chosen == _engine():
+                window.unstage("dock:engine")
+            else:
+                window.stage("dock:engine", lambda: _dock_sh("--engine", chosen),
+                             f"dock drawn by {dict(ENGINES)[chosen].split()[0]}")
+
+        card.add(Row(
+            "Drawn by",
+            dropdown([name for _, name in ENGINES], engines.index(_engine()),
+                     on_change=on_engine),
+            "The same dock, drawn by a different program. GTK is the one lucent "
+            "has always used; Quickshell is a QML version being tried out. "
+            "Pins, style and position are shared.",
+        ))
+
     page.note(
         "Applying takes effect at once: the bar and the dock restart. The "
-        "settings are files in ~/.config/lucent — dock-hidden, dock-mode and "
-        "dock-position."
+        "settings are files in ~/.config/lucent — dock-hidden, dock-mode, "
+        "dock-position and dock-engine."
     )
     return page
 
