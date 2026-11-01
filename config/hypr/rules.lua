@@ -118,7 +118,8 @@ hl.window_rule({
 })
 
 -- ── helper terminals ────────────────────────────────────────────────────────
--- The bar's cpu/memory/network modules open btop and nmtui with this class.
+-- The bar's cpu and memory modules (and waybar's network module, in the
+-- fallback) open btop and nmtui with this class.
 hl.window_rule({
     name  = "floating-term",
     match = { class = "^(floating-term)$" },

@@ -1,8 +1,8 @@
 pragma Singleton
 
-// CPU, memory, temperature, battery and network, polled once for every bar on
-// every screen. The figures come from scripts/stats.sh (every 3s: /proc and
-// /sys reads) and scripts/net.sh (every 5s: nmcli), so this file only parses.
+// CPU, memory, temperature and battery, polled once for every bar on every
+// screen. The figures come from scripts/stats.sh, every 3s: /proc and /sys
+// reads, so this file only parses.
 
 import QtQuick
 import Quickshell
@@ -22,17 +22,7 @@ Singleton {
     property string batteryStatus: ""   // Charging, Discharging, Full, Not charging
     property bool onMains: false
 
-    property string netType: ""         // wifi, ethernet, or "" when disconnected
-    property string netState: "disconnected"
-    property string netDevice: ""
-    property string netSsid: ""
-    property int netSignal: 0
-    property string netIp: ""
-    property real netDownBits: 0        // per second
-    property real netUpBits: 0
-
     property var lastCpu: null
-    property var lastNet: null
 
     function parseStats(text) {
         let temp = false, bat = false, mains = false;
@@ -67,56 +57,11 @@ Singleton {
         sys.onMains = mains;
     }
 
-    function parseNet(text) {
-        const kv = {};
-        for (const line of text.split("\n")) {
-            const i = line.indexOf("=");
-            if (i > 0)
-                kv[line.slice(0, i)] = line.slice(i + 1);
-        }
-        sys.netState = kv.state || "disconnected";
-        sys.netType = sys.netState.startsWith("connect") ? (kv.type || "") : "";
-        sys.netDevice = kv.dev || "";
-        sys.netSsid = kv.ssid || "";
-        sys.netSignal = Number(kv.signal || 0);
-        sys.netIp = kv.ip || "";
-        const now = Date.now();
-        const rx = Number(kv.rx || 0), tx = Number(kv.tx || 0);
-        if (lastNet && lastNet.dev === sys.netDevice && now > lastNet.time) {
-            const s = (now - lastNet.time) / 1000;
-            sys.netDownBits = Math.max(0, (rx - lastNet.rx) * 8 / s);
-            sys.netUpBits = Math.max(0, (tx - lastNet.tx) * 8 / s);
-        } else {
-            sys.netDownBits = 0;
-            sys.netUpBits = 0;
-        }
-        lastNet = { dev: sys.netDevice, rx: rx, tx: tx, time: now };
-    }
-
-    // 1.2Mb/s, as waybar's {bandwidthDownBits} printed it.
-    function bits(n) {
-        const units = ["b/s", "kb/s", "Mb/s", "Gb/s"];
-        let i = 0;
-        while (n >= 1000 && i < units.length - 1) {
-            n /= 1000;
-            i++;
-        }
-        return (i === 0 ? Math.round(n) : n.toFixed(1)) + units[i];
-    }
-
     Process {
         id: statsProc
         command: ["sh", Quickshell.shellPath("scripts/stats.sh")]
         stdout: StdioCollector {
             onStreamFinished: sys.parseStats(text)
-        }
-    }
-
-    Process {
-        id: netProc
-        command: ["sh", Quickshell.shellPath("scripts/net.sh")]
-        stdout: StdioCollector {
-            onStreamFinished: sys.parseNet(text)
         }
     }
 
@@ -126,13 +71,5 @@ Singleton {
         repeat: true
         triggeredOnStart: true
         onTriggered: if (!statsProc.running) statsProc.running = true
-    }
-
-    Timer {
-        interval: 5000
-        running: true
-        repeat: true
-        triggeredOnStart: true
-        onTriggered: if (!netProc.running) netProc.running = true
     }
 }
