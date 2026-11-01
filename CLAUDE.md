@@ -185,8 +185,10 @@ bar draws it). Not visible from its code:
   so judge them in a session. **Stub `pkill` and `pgrep` too** when running
   bar.sh or dock.sh that way: the real ones reach the desktop you are on.
 - **The panel's right-hand modules are tighter than waybar's** (padding 6
-  rather than 10, margin 1 rather than 2), so they do not reach in towards
-  the dock in the middle. The top bar's islands keep waybar's spacing.
+  rather than 10, margin 1 rather than 2), and each glyph sits 4px from its
+  figure rather than two spaces. The top bar's islands keep waybar's
+  padding. In the panel the dock follows the workspaces rather than sitting
+  in the middle, so it moves right as workspaces 6-10 appear.
 - **Not yet judged on a retina MacBook.** Sharpness at 1.33 is the reason
   lucent has its own dock; that has to be seen on the hardware.
 
@@ -430,6 +432,22 @@ font family is theme.sh's too, with the size left alone because it is the
 Look page's — which is why install.sh no longer sets `font-name` on a
 re-run: it would undo a theme's font. A theme without a key gets lucent's
 default back, so switching away restores everything.
+
+**Thunar follows the palette through `gtk-3.0/lucent.css`,** which theme.sh
+renders and `gtk.css` `@import`s (one line, added at the top if missing, so
+a hand-written `gtk.css` survives). Two things that are not obvious:
+Adwaita's GTK 3 widget rules use literal colours, so redefining its named
+colours (`@theme_bg_color`) changes almost nothing, and the file is explicit
+rules instead; and they are scoped to `window.thunar` except for menus,
+popovers and tooltips, which are windows of their own and so reach every
+GTK 3 app. GTK 3 rereads it only when the GTK theme name changes: a dark to
+light switch recolours open windows, dark to dark reaches new ones. Its
+divider between sidebar and files is about 8px wide and shows its foot below
+the sidebar, hence the 1px-line background. Test it headless with GTK's
+Broadway backend (`broadwayd :7`, `GDK_BACKEND=broadway`, Thunar under
+`dbus-run-session`) and headless Firefox's `--screenshot` of a page that
+iframes it and holds its load event open a few seconds; a screenshot at
+plain load is blank.
 
 **foot's colour section depends on its version.** 1.26 renamed `[colors]` to
 `[colors-dark]` and `[colors-light]`, and 1.28 removed the old name; Ubuntu

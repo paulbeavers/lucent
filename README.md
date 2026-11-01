@@ -420,7 +420,7 @@ keymap keeps one shape.
   a scaled panel.
 - **Panel or dock.** lucent-config's Dock page picks whether the dock shows
   at login and its style. *Panel*, the default, is one strip across the
-  bottom: workspaces on the left, the dock in the middle, the tray, status
+  bottom: workspaces on the left with the dock right after them, the tray, status
   and date and time on the right, and the top bar goes away. Every module is
   the same one the top bar has. `dock.sh --mode panel` or `--mode dock`
   switches from a terminal.
