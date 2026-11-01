@@ -433,21 +433,39 @@ Look page's — which is why install.sh no longer sets `font-name` on a
 re-run: it would undo a theme's font. A theme without a key gets lucent's
 default back, so switching away restores everything.
 
-**Thunar follows the palette through `gtk-3.0/lucent.css`,** which theme.sh
-renders and `gtk.css` `@import`s (one line, added at the top if missing, so
-a hand-written `gtk.css` survives). Two things that are not obvious:
-Adwaita's GTK 3 widget rules use literal colours, so redefining its named
-colours (`@theme_bg_color`) changes almost nothing, and the file is explicit
-rules instead; and they are scoped to `window.thunar` except for menus,
-popovers and tooltips, which are windows of their own and so reach every
-GTK 3 app. GTK 3 rereads it only when the GTK theme name changes: a dark to
-light switch recolours open windows, dark to dark reaches new ones. Its
-divider between sidebar and files is about 8px wide and shows its foot below
-the sidebar, hence the 1px-line background. Test it headless with GTK's
-Broadway backend (`broadwayd :7`, `GDK_BACKEND=broadway`, Thunar under
-`dbus-run-session`) and headless Firefox's `--screenshot` of a page that
-iframes it and holds its load event open a few seconds; a screenshot at
-plain load is blank.
+**GTK apps follow the palette through `gtk-3.0/lucent.css` and
+`gtk-4.0/lucent.css`,** which theme.sh renders and each toolkit's `gtk.css`
+`@import`s (one line, added at the top if missing, so a hand-written
+`gtk.css` survives). Not obvious from the code:
+
+- **GTK 3 needs explicit widget rules.** Adwaita's GTK 3 rules use literal
+  colours, so redefining its named colours (`@theme_bg_color`) changes almost
+  nothing. Every GTK 3 toplevel — window, dialog, message dialog, menu,
+  tooltip — carries the class `background`, so the rules hang off
+  `.background:not(#window):not(#waybar)`: wofi's window is `#window` and
+  waybar's `#waybar`, both already themed by their own stylesheets, which
+  these would otherwise override. Note that `:not(#id)` counts as an id for
+  specificity, so every rule carries the prefix or loses to the bare one.
+- **GTK 4: libadwaita only.** libadwaita (1.6+) takes its colours from CSS
+  variables (`--window-bg-color` and the rest), set in `:root`. GTK 4's own
+  theme uses literal colours too, and rules for plain GTK 4 apps
+  (pavucontrol) would also land on lucent-config and on libadwaita's
+  widgets, with no selector to tell them apart, so those stay stock.
+- **The import helper once never wrote the import on a fresh machine.**
+  `{ echo; [[ -f $conf ]] && cat "$conf"; } > tmp && mv` fails the whole
+  write when gtk.css does not exist yet, because the `&&` is the group's
+  last command. It is an `if` now. Test both a missing and an existing
+  gtk.css.
+- GTK rereads these only when the GTK theme name changes: dark to light
+  recolours open windows, dark to dark reaches new ones. A running
+  `thunar --daemon` keeps what it loaded; `thunar -q`.
+- **Test headless with GTK's Broadway backend:** `broadwayd :7` (GTK 4:
+  `gtk4-broadwayd :8`), the app with `GDK_BACKEND=broadway
+  BROADWAY_DISPLAY=:7` under `dbus-run-session`, and headless Firefox's
+  `--screenshot` of a page that iframes `http://127.0.0.1:8087/` and holds
+  its load event open a few seconds (a screenshot at plain load is blank).
+  Set `GTK_THEME=Adwaita:dark` as the session does. Stop everything by PID
+  afterwards; the private bus leaves gvfsd, tumblerd and xfconfd behind.
 
 **foot's colour section depends on its version.** 1.26 renamed `[colors]` to
 `[colors-dark]` and `[colors-light]`, and 1.28 removed the old name; Ubuntu
