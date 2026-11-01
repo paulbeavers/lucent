@@ -15,9 +15,9 @@
 #                         Applied at once and remembered in
 #                         ~/.config/lucent/dock-position.
 #
-# Which program draws it is bar.sh's (`bar.sh --engine`): the GTK dock,
-# lucent-dock/dock.py, beside waybar; or the Quickshell shell, which draws the
-# bar and the dock together. This script works with either.
+# The Quickshell shell draws it, with the bar, wherever quickshell is
+# installed; the GTK dock, lucent-dock/dock.py, beside waybar, where it is not.
+# `bar.sh --engine` says which. This script works with either.
 #
 # On by default. Hiding it is remembered: ~/.config/lucent/dock-hidden exists
 # while it is hidden, so the next login starts without it, and removing that

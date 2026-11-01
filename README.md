@@ -50,7 +50,7 @@ What differs from Arch:
   what gets used. Only when nothing does is the
   [`nett00n/hyprland`](https://copr.fedorainfracloud.org/coprs/nett00n/hyprland/)
   COPR enabled. It also supplies `uwsm`, `hyprpolkitagent`, `swayosd`,
-  `cliphist` and a current `waybar`. The config is Lua, so Hyprland has to be
+  `cliphist` and a current `waybar` (Fedora 43's bar; see below). The config is Lua, so Hyprland has to be
   0.55 or newer, and the script warns if it is not.
 - **Your login screen stays.** Fedora Workstation already has GDM, which lists
   Hyprland's sessions by itself, so greetd is not installed. Pick
@@ -251,8 +251,7 @@ because the Mac keeps Command for itself — see [Keys](#keys).
 | --- | --- |
 | Compositor | `hyprland` (launched through `uwsm`) |
 | Login | `sddm`, with a lucent theme and Hyprland drawing it (greetd + tuigreet on Fedora and Ubuntu) |
-| Bar | `waybar` |
-| Dock | `lucent-dock`, lucent's own (GTK 4); `SUPER + D` hides it |
+| Bar and dock | `lucent-shell`, lucent's own, drawn by `quickshell`; `SUPER + D` hides the dock |
 | Launcher | `wofi` |
 | Notifications | `mako` |
 | Terminal | `foot` |
@@ -403,8 +402,13 @@ keymap keeps one shape.
   while the wallpaper is either lattice, switching between a dark and a
   light theme swaps it for its twin. A wallpaper you picked yourself is
   left alone.
-- **A dock, on by default.** `lucent-dock` (`config/lucent-dock/`) along the
-  bottom: one icon per app, pinned apps first, dots for open windows, and the
+- **The bar and the dock are one program.** `config/lucent-shell/`, drawn by
+  Quickshell: the workspaces, the clock with a calendar, the tray and the
+  status modules, and the dock. Where Quickshell is not packaged — Fedora 43
+  and Ubuntu 26.04 — `install.sh` puts in waybar (`config/waybar/`) and a
+  GTK dock (`config/lucent-dock/`) instead, which look and behave the same;
+  `bar.sh` starts whichever is installed.
+- **A dock, on by default**, along the bottom: one icon per app, pinned apps first, dots for open windows, and the
   app launcher. Click opens the app or focuses it, and clicking again cycles
   its windows; middle-click opens a new window; right-click lists its
   windows and offers New window, Pin / Unpin and Close. It takes an exclusive
@@ -417,9 +421,8 @@ keymap keeps one shape.
 - **Panel or dock.** lucent-config's Dock page picks whether the dock shows
   at login and its style. *Panel*, the default, is one strip across the
   bottom: workspaces on the left, the dock in the middle, the tray, status
-  and date and time on the right, and the top bar goes away. It is waybar (`waybar/panel.jsonc`,
-  which includes `config.jsonc`) with the dock drawn into it, so every module
-  is the same one the top bar has. `dock.sh --mode panel` or `--mode dock`
+  and date and time on the right, and the top bar goes away. Every module is
+  the same one the top bar has. `dock.sh --mode panel` or `--mode dock`
   switches from a terminal.
 - **Bottom or top.** The same page puts the dock, or the panel, at the
   bottom or the top of the screen. `dock.sh --position top` from a terminal;
@@ -469,8 +472,9 @@ keymap keeps one shape.
   (`hyprctl dispatch 'hl.dsp.focus({ workspace = 3 })'`); `hyprctl repl` will
   show you what is available under `hl.dsp`. The catch is third-party programs
   that send the old strings and cannot be told otherwise. Waybar's
-  `hyprland/workspaces` is one, which is why the bar draws its workspace row
-  out of ten custom modules instead — see `waybar/config.jsonc`. Anything else
+  `hyprland/workspaces` is one, which is why the waybar fallback draws its
+  workspace row out of ten custom modules instead — see `waybar/config.jsonc`;
+  lucent-shell sends Lua itself. Anything else
   you add that "does nothing when clicked" is worth checking here first.
 - **Mac-style copy and paste.** `SUPER + C` and `SUPER + V` are bound to
   `clipboard.sh`, which looks at the focused window's class and forwards the

@@ -7,37 +7,25 @@
 #     bar.sh --reload         SUPER+SHIFT+R: waybar rereads its config; the
 #                             Quickshell shell restarts
 #     bar.sh --theme          theme.sh, after a switch (see below)
-#     bar.sh --engine         print the engine in effect: waybar or quickshell
-#     bar.sh --engine waybar|quickshell
-#                             switch, at once, and remember it in
-#                             ~/.config/lucent/shell-engine
+#     bar.sh --engine         print which one draws it: quickshell or waybar
 #
-# Two engines draw the same desktop from the same files (dock-mode,
-# dock-position, dock-pinned, dock-hidden, waybar/colors.css):
-#
-#   waybar     waybar (waybar.sh) and the GTK dock (lucent-dock/dock.py),
-#              two programs composed. The default.
-#   quickshell ~/.config/lucent-shell, one Quickshell program drawing the bar
-#              and the dock together. Used only where `qs` is installed (Arch,
-#              Fedora 44; not Fedora 43 or Ubuntu 26.04); waybar otherwise.
-#
-# ~/.config/lucent/dock-engine was the dock-only switch this replaced, on the
-# same day; "quickshell" there still counts.
+# The bar and the dock are ~/.config/lucent-shell, one Quickshell program
+# drawing both. Where quickshell is not packaged (Fedora 43, Ubuntu 26.04)
+# install.sh puts in waybar and the GTK dock instead (waybar.sh,
+# lucent-dock/dock.py), and this starts those. There is no setting: whichever
+# is installed is used, quickshell first. Both read the same files —
+# dock-mode, dock-position, dock-pinned, dock-hidden, waybar/colors.css.
 set -euo pipefail
 
 CFG="${XDG_CONFIG_HOME:-$HOME/.config}"
 SCRIPTS="$CFG/hypr/scripts"
-ENGINE_FILE="$CFG/lucent/shell-engine"
-OLD_ENGINE_FILE="$CFG/lucent/dock-engine"
 SHELL_DIR="$CFG/lucent-shell"
 OLD_QS_DOCK="$CFG/lucent-dock/quickshell"
 HIDDEN="$CFG/lucent/dock-hidden"
 ICONS_STAMP="${XDG_RUNTIME_DIR:-/tmp}/lucent-shell-icons"
 
 engine() {
-    local want
-    want=$(cat "$ENGINE_FILE" 2>/dev/null || cat "$OLD_ENGINE_FILE" 2>/dev/null || echo waybar)
-    if [[ $want == quickshell ]] && command -v qs >/dev/null && [[ -f $SHELL_DIR/shell.qml ]]; then
+    if command -v qs >/dev/null && [[ -f $SHELL_DIR/shell.qml ]]; then
         echo quickshell
     else
         echo waybar
@@ -102,35 +90,13 @@ restart() {
     fi
 }
 
-# Everything either engine might have up, so a switch starts clean: waybar,
-# the GTK dock, the shell, and the dock-only Quickshell config it replaced.
-stop_all() {
-    stop_waybar
-    pkill -x lucent-dock 2>/dev/null || true
-    stop_shell
-    if command -v qs >/dev/null && [[ -d $OLD_QS_DOCK ]]; then
-        qs kill -p "$OLD_QS_DOCK" >/dev/null 2>&1 || true
-    fi
-}
-
-set_engine() {
-    case "$1" in waybar|quickshell) ;;
-        *) echo "bar.sh: engine is waybar or quickshell" >&2; exit 2 ;; esac
-    if [[ $1 == quickshell ]] && ! command -v qs >/dev/null; then
-        echo "bar.sh: quickshell is not installed" >&2; exit 1
-    fi
-    mkdir -p "${ENGINE_FILE%/*}"
-    printf '%s\n' "$1" > "$ENGINE_FILE"
-    rm -f "$OLD_ENGINE_FILE"
-    stop_all
-    start
-    # The GTK dock, unless it is hidden; with Quickshell this does nothing,
-    # the shell having drawn the dock already.
-    "$SCRIPTS/dock.sh" --start
-}
-
 case "${1-}" in
     "")
+        # A machine that ran the dock-only Quickshell config of 2026-10-31
+        # may still have it up; the shell draws the dock now.
+        if command -v qs >/dev/null && [[ -d $OLD_QS_DOCK ]]; then
+            qs kill -p "$OLD_QS_DOCK" >/dev/null 2>&1 || true
+        fi
         start ;;
     --restart)
         restart ;;
@@ -149,8 +115,8 @@ case "${1-}" in
             pkill -SIGUSR2 -x waybar 2>/dev/null || true
         fi ;;
     --engine)
-        if [[ -n ${2-} ]]; then set_engine "$2"; else engine; fi ;;
+        engine ;;
     *)
-        echo "usage: bar.sh [--restart | --reload | --theme | --engine [waybar|quickshell]]" >&2
+        echo "usage: bar.sh [--restart | --reload | --theme | --engine]" >&2
         exit 2 ;;
 esac

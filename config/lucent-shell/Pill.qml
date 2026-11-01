@@ -14,7 +14,9 @@ Item {
     property color hoverFg: fg
     property string tip: ""
     property bool richTip: false
-    property int padX: 10
+    // Tighter in the panel, whose right-hand side otherwise reaches in
+    // towards the dock in the middle; waybar's 10 in the top bar's islands.
+    property int padX: Settings.panelMode ? 6 : 10
     property int fontSize: 13
     property int fontWeight: Font.DemiBold
     readonly property bool hovered: mouse.containsMouse
@@ -25,7 +27,7 @@ Item {
     signal scrolled(int step)
 
     visible: text !== ""
-    implicitWidth: box.width + 4
+    implicitWidth: box.width + (Settings.panelMode ? 2 : 4)
     implicitHeight: Settings.pillHeight
 
     Rectangle {

@@ -1,11 +1,10 @@
 //@ pragma UseQApplication
 // lucent-shell: the bar and the dock, drawn by Quickshell.
 //
-// Chosen with `bar.sh --engine quickshell` (lucent-config's Dock page, "Bar
-// and dock"), recorded in ~/.config/lucent/shell-engine. The other engine is
-// waybar plus the GTK dock (lucent-dock/dock.py), and the default. Both read
-// the same files — dock-mode, dock-position, dock-pinned, waybar/colors.css —
-// so switching changes nothing else.
+// Started by bar.sh wherever quickshell is installed. Where it is not packaged
+// (Fedora 43, Ubuntu 26.04) waybar and the GTK dock (lucent-dock/dock.py)
+// stand in, reading the same files — dock-mode, dock-position, dock-pinned,
+// waybar/colors.css.
 //
 // One window per screen in panel style; a top bar and a floating dock per
 // screen in dock style. Mode and position are read at start; dock.sh restarts

@@ -616,7 +616,7 @@ PKGS_HYPRLAND=(
     qt5-wayland qt6-wayland
 )
 PKGS_DESKTOP=(
-    waybar wofi mako libnotify
+    wofi mako libnotify
     foot
     thunar thunar-volman thunar-archive-plugin tumbler file-roller
     gvfs gvfs-mtp udiskie
@@ -631,11 +631,9 @@ PKGS_DESKTOP=(
     # PKGS_THEME; this is the Python binding, and the only thing the settings
     # app adds to the image.
     python-gobject
-    # lucent-dock: a GTK 4 layer-shell surface, also through PyGObject.
-    gtk4-layer-shell
-    # The bar and dock's experimental second engine, config/lucent-shell
-    # (bar.sh --engine quickshell). bar.sh falls back to waybar and the GTK
-    # dock wherever qs is missing.
+    # The bar and the dock: config/lucent-shell, started by bar.sh. Arch has
+    # no fallback list; waybar and the GTK dock are for distributions that do
+    # not package quickshell (BAR_FALLBACK below).
     quickshell
 )
 PKGS_FONTS=(
@@ -718,7 +716,7 @@ if [[ ${DISTRO:-} == fedora ]]; then
     # nwg-look and nwg-displays are not packaged for Fedora. lucent-config
     # covers the display side; GTK theming is in settings.ini and dconf.
     PKGS_DESKTOP=(
-        waybar wofi mako libnotify
+        wofi mako libnotify
         foot
         Thunar thunar-volman thunar-archive-plugin tumbler file-roller
         gvfs gvfs-mtp udiskie
@@ -729,12 +727,14 @@ if [[ ${DISTRO:-} == fedora ]]; then
         imv mpv
         ImageMagick jq
         python3-gobject
-        gtk4-layer-shell
-        # Fedora 44 has 0.2.1, whose API covers everything shell.qml uses;
-        # 43 has none, and --skip-unavailable passes over it there.
+        # Fedora 44 has 0.2.1, whose API covers everything lucent-shell uses;
+        # 43 has none, and gets BAR_FALLBACK instead.
         quickshell
         dconf
     )
+    # The bar and the dock where quickshell cannot be had: waybar and the GTK
+    # dock, which is a gtk4-layer-shell surface. Added to WANTED only then.
+    BAR_FALLBACK=( waybar gtk4-layer-shell )
     # JetBrainsMono Nerd Font and the Nerd Font symbols are not packaged; the
     # system phase fetches them from the Nerd Fonts release instead.
     PKGS_FONTS=(
@@ -814,7 +814,7 @@ elif [[ ${DISTRO:-} == ubuntu ]]; then
     # so this list maps onto the Arch one almost name for name. mako is
     # mako-notifier here, and libnotify's notify-send is in libnotify-bin.
     PKGS_DESKTOP=(
-        waybar wofi mako-notifier libnotify-bin
+        wofi mako-notifier libnotify-bin
         foot
         thunar thunar-volman thunar-archive-plugin tumbler file-roller
         gvfs gvfs-backends gvfs-fuse udiskie
@@ -828,11 +828,14 @@ elif [[ ${DISTRO:-} == ubuntu ]]; then
         # lucent-config is GTK4 through PyGObject: the binding, the cairo
         # integration and GTK4's own typelib, which is a separate package here.
         python3-gi python3-gi-cairo gir1.2-gtk-4.0
-        libgtk4-layer-shell0 gir1.2-gtk4layershell-1.0
-        # Not in 26.04's archive; the availability filter drops it until it is.
+        # Not in 26.04's archive; the availability filter drops it, and
+        # BAR_FALLBACK stands in, until it is.
         quickshell
         dconf-cli
     )
+    # waybar and the GTK dock, for as long as quickshell is not packaged here.
+    # Added to WANTED only then.
+    BAR_FALLBACK=( waybar libgtk4-layer-shell0 gir1.2-gtk4layershell-1.0 )
     # The Nerd Fonts are not packaged, so the system phase fetches them from
     # the upstream release exactly as it does on Fedora.
     PKGS_FONTS=(
@@ -1027,6 +1030,26 @@ for _i in "${!GPU_VENDORS[@]}"; do
     info "GPU:       ${GPU_VENDORS[$_i]}${GPU_NAMES[$_i]:+ — ${GPU_NAMES[$_i]}}"
 done
 [[ -n $BCM_DRIVER ]] && info "wireless:  $BCM_NAME — $BCM_DRIVER"
+
+# The bar and the dock are lucent-shell, which needs quickshell. Arch always
+# has it; on Fedora and Ubuntu, a release that does not package it (Fedora
+# 43, Ubuntu 26.04) gets waybar and the GTK dock instead, and bar.sh starts
+# whichever is installed. When the answer cannot be had — offline, or a
+# component not enabled yet — both are wanted: the unavailable one is passed
+# over, and a waybar installed beside quickshell is never started.
+quickshell_obtainable() {
+    pkg_installed quickshell && return 0
+    case "$DISTRO" in
+        arch)   return 0 ;;
+        fedora) dnf repoquery --quiet --available --qf '%{name}\n' quickshell 2>/dev/null \
+                    | grep -qx quickshell ;;
+        ubuntu) apt_candidate_exists quickshell ;;
+        *)      return 1 ;;
+    esac
+}
+if [[ $DISTRO != arch ]] && ! quickshell_obtainable; then
+    WANTED+=( ${BAR_FALLBACK[@]+"${BAR_FALLBACK[@]}"} )
+fi
 
 MISSING_PKGS=()
 for p in "${WANTED[@]}"; do
@@ -2388,10 +2411,11 @@ KBLUA
     fi
 
     # ── colour theme ──────────────────────────────────────────────────────────
-    # Several configs are rendered rather than copied: waybar and wofi @import a
-    # colors.css, hypr requires a colors.lua, foot and mako include their own.
-    # None of those exist until a theme is applied, so this has to run on every
-    # install or waybar comes up unstyled.
+    # Several configs are rendered rather than copied: the bar reads
+    # waybar/colors.css (the palette keeps that path whichever bar draws it),
+    # wofi @imports one, hypr requires a colors.lua, foot and mako include their
+    # own. None of those exist until a theme is applied, so this has to run on
+    # every install or the bar comes up in its built-in colours.
     step "Colour theme"
     theme_script="$CONFIG_DST/hypr/scripts/theme.sh"
     theme_dir="$CONFIG_DST/hypr/themes"
@@ -2409,7 +2433,7 @@ KBLUA
         warn "theme.sh is missing from $theme_script"
     elif "$theme_script" --no-reload --set "$theme"; then
         # --no-reload because nothing is running yet on a fresh install; the
-        # validation step below reloads Hyprland, and waybar starts clean.
+        # validation step below reloads Hyprland, and the bar starts clean.
         ok "applied the $theme colour theme"
         info "SUPER+SHIFT+T switches between $(find "$theme_dir" -name '*.theme' | wc -l) schemes"
     else
@@ -2589,7 +2613,8 @@ fi
 if [[ $DO_CONFIGS -eq 1 && $DRY_RUN -eq 0 ]]; then
     step "Validating configuration"
 
-    if command -v jq >/dev/null; then
+    # Only where waybar is the bar: the fallback, on a release without quickshell.
+    if command -v jq >/dev/null && command -v waybar >/dev/null; then
         if sed -e 's@^[[:space:]]*//.*@@' "$CONFIG_DST/waybar/config.jsonc" | jq -e . >/dev/null 2>&1; then
             ok "waybar config parses"
         else

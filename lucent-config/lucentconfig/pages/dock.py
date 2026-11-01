@@ -6,7 +6,6 @@ that the login reads. The page reads those files back and drives that script,
 so the key and the page can never disagree about what the dock will do.
 """
 
-import shutil
 import subprocess
 
 from .. import paths, readback
@@ -22,23 +21,6 @@ POSITIONS = [
     ("bottom", "Bottom"),
     ("top", "Top"),
 ]
-
-
-ENGINES = [
-    ("waybar", "Waybar and GTK"),
-    ("quickshell", "Quickshell (experimental)"),
-]
-
-
-def _engine():
-    # What bar.sh will start: Quickshell only when chosen *and* installed.
-    try:
-        result = subprocess.run([str(paths.BAR_SH), "--engine"],
-                                capture_output=True, text=True, timeout=5)
-    except (OSError, subprocess.TimeoutExpired):
-        return "waybar"
-    value = result.stdout.strip()
-    return value if value in dict(ENGINES) else "waybar"
 
 
 def _position():
@@ -128,35 +110,10 @@ def build(window):
         "alike.",
     ))
 
-    # Offered only where quickshell is installed — Arch and Fedora 44 package
-    # it, Fedora 43 and Ubuntu 26.04 do not — since bar.sh falls back to
-    # waybar and the GTK dock without it.
-    if shutil.which("qs"):
-        engines = [slug for slug, _ in ENGINES]
-
-        def on_engine(index):
-            if not 0 <= index < len(ENGINES):
-                return
-            chosen = engines[index]
-            if chosen == _engine():
-                window.unstage("dock:engine")
-            else:
-                window.stage("dock:engine", lambda: _bar_sh("--engine", chosen),
-                             f"bar and dock drawn by {dict(ENGINES)[chosen].split()[0]}")
-
-        card.add(Row(
-            "Bar and dock",
-            dropdown([name for _, name in ENGINES], engines.index(_engine()),
-                     on_change=on_engine),
-            "The program that draws the bar and the dock. Waybar with the GTK "
-            "dock is what lucent has always used; Quickshell draws both in one, "
-            "and is being tried out. Pins, style and position are shared.",
-        ))
-
     page.note(
         "Applying takes effect at once: the bar and the dock restart. The "
-        "settings are files in ~/.config/lucent — dock-hidden, dock-mode, "
-        "dock-position and shell-engine."
+        "settings are files in ~/.config/lucent — dock-hidden, dock-mode and "
+        "dock-position."
     )
     return page
 
@@ -178,16 +135,6 @@ def _set_mode(mode):
 
 def _set_position(edge):
     _dock_sh("--position", edge)
-
-
-def _bar_sh(*args):
-    try:
-        result = subprocess.run([str(paths.BAR_SH), *args],
-                                capture_output=True, text=True, timeout=20)
-    except (OSError, subprocess.TimeoutExpired) as exc:
-        raise RuntimeError(f"bar.sh did not run: {exc}") from exc
-    if result.returncode != 0:
-        raise RuntimeError(result.stderr.strip() or "bar.sh failed")
 
 
 def _dock_sh(*args):

@@ -56,7 +56,3 @@ DOCK_SH = SCRIPTS / "dock.sh"
 DOCK_HIDDEN = CONFIG / "lucent" / "dock-hidden"
 DOCK_MODE = CONFIG / "lucent" / "dock-mode"
 DOCK_POSITION = CONFIG / "lucent" / "dock-position"
-# Which program draws the bar and the dock: waybar and the GTK dock, or the
-# Quickshell shell. bar.sh owns it; the page asks bar.sh rather than reading
-# the file, since bar.sh also falls back to waybar where qs is missing.
-BAR_SH = SCRIPTS / "bar.sh"

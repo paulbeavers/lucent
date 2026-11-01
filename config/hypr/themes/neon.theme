@@ -12,7 +12,7 @@
 # The surfaces are lifted well above where a Catppuccin theme puts them.
 # surface0 is the inactive window border and a border that does not glow looks
 # broken next to one that does; surface1 is the dim workspace digits. Both are
-# also doing a second job — surface0 fills the waybar panel, surface1 is
+# also doing a second job — surface0 fills the panel, surface1 is
 # the terminal's ANSI black — which is what stopped them going brighter still.
 #
 # Roles, darkest background to brightest accent. Every themed config is
@@ -23,7 +23,7 @@ mode = dark
 crust     = 000306
 mantle    = 03070c
 base      = 070c12
-surface0  = 216078   # inactive window border, and the waybar panel fill
+surface0  = 216078   # inactive window border, and the panel fill
 surface1  = 246e85   # inactive workspace digits; also the terminal's ANSI black
 overlay   = 3d93a8
 subtext   = 39c96b

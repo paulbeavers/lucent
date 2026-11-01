@@ -100,7 +100,9 @@ nothing — waybar's workspaces module is the example (see
 it. lucent-dock sends `hl.dsp` dispatches itself.
 
 **The dock is lucent's own, because every packaged one is blurry on a scaled
-panel.** nwg-dock-hyprland and cairo-dock both load icons as bitmaps at the
+panel.** It is drawn by lucent-shell (below) wherever quickshell is packaged;
+what follows is the GTK dock, which is now the fallback, beside waybar, on
+Fedora 43 and Ubuntu 26.04, and which install.sh puts in nowhere else. nwg-dock-hyprland and cairo-dock both load icons as bitmaps at the
 logical size, so at 1.33 the surface stretches them; judged side by side on
 the hardware, as every scaling question must be. A second waybar was sharp
 but is a taskbar — a button per window, no grouping, no pin menu — and that
@@ -128,17 +130,16 @@ not visible from its code:
   rename, so the dock watches the directory rather than the file, whose
   monitor would stay on the old inode.
 
-**The bar and the dock have a second, experimental engine: Quickshell**
-(`config/lucent-shell/`), one program drawing both. `bar.sh --engine
-waybar|quickshell` switches, at once, recorded in
-`~/.config/lucent/shell-engine`; the Dock page offers it as "Bar and dock"
-where `qs` is installed. Waybar with the GTK dock stays the default, and is
-what `bar.sh` starts wherever `qs` is missing (Fedora 43, Ubuntu 26.04).
-`autostart.lua` starts `bar.sh`, not `waybar.sh`; SUPER+SHIFT+R is `bar.sh
---reload`; theme.sh calls `bar.sh --theme`. The shell reads the same files
-as the other engine — dock-mode, dock-position, dock-pinned, dock-hidden,
-`waybar/colors.css` and `font.css` — so switching changes nothing else.
-Not visible from its code:
+**The bar and the dock are lucent-shell** (`config/lucent-shell/`), one
+Quickshell program drawing both. Waybar and the GTK dock are only the
+fallback for releases that do not package quickshell (Fedora 43, Ubuntu
+26.04): install.sh adds `BAR_FALLBACK` to the package list there and nowhere
+else, and `bar.sh` starts whichever is installed, quickshell first. There is
+no setting. `autostart.lua` starts `bar.sh`, not `waybar.sh`; SUPER+SHIFT+R
+is `bar.sh --reload`; theme.sh calls `bar.sh --theme`. Both read the same
+files — dock-mode, dock-position, dock-pinned, dock-hidden,
+`waybar/colors.css` and `font.css` (the palette keeps that path whichever
+bar draws it). Not visible from its code:
 
 - **Panel style is one window.** With waybar it is two programs composed,
   which is everything the panel paragraph below has to work around: the
@@ -183,8 +184,11 @@ Not visible from its code:
   the workspaces and the dock. Icons never load headless, even hicolor ones,
   so judge them in a session. **Stub `pkill` and `pgrep` too** when running
   bar.sh or dock.sh that way: the real ones reach the desktop you are on.
-- **Not yet judged on hardware.** Sharpness at 1.33 is the reason lucent has
-  its own dock; that has to be seen on a retina MacBook beside the GTK one.
+- **The panel's right-hand modules are tighter than waybar's** (padding 6
+  rather than 10, margin 1 rather than 2), so they do not reach in towards
+  the dock in the middle. The top bar's islands keep waybar's spacing.
+- **Not yet judged on a retina MacBook.** Sharpness at 1.33 is the reason
+  lucent has its own dock; that has to be seen on the hardware.
 
 **State that must survive a reload lives on the window or on disk, never in a
 Lua table.** `floatall.lua` marks the windows it floated with the tag
@@ -195,7 +199,9 @@ Whether the mode is on is a file, `~/.config/lucent/float-all`, read on every
 the same reason, and its pins are `~/.config/lucent/dock-pinned`. Hidden
 means stopped, which gives back its exclusive zone.
 
-**Panel mode is waybar and the dock, composed, and it is the default.**
+**With the waybar fallback, panel mode is waybar and the GTK dock, composed,
+and it is the default.** (lucent-shell's panel is one window and needs none of
+this.)
 `~/.config/lucent/dock-mode` set to anything but `dock`, or missing, makes
 `waybar.sh` start `waybar/panel.jsonc` instead of the top bar — `waybar.sh`,
 `dock.sh`, `dock.py` and the Dock page all test `!= dock` for that reason: a full-width strip along the bottom that `include`s `config.jsonc` and

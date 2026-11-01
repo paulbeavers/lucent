@@ -10,13 +10,13 @@ Item {
     id: tray
 
     visible: SystemTray.items.values.length > 0
-    implicitWidth: row.implicitWidth + 24
+    implicitWidth: row.implicitWidth + (Settings.panelMode ? 12 : 24)
     implicitHeight: Settings.pillHeight
 
     Row {
         id: row
         anchors.centerIn: parent
-        spacing: 10
+        spacing: Settings.panelMode ? 8 : 10
 
         Repeater {
             model: SystemTray.items
