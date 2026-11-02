@@ -2219,19 +2219,21 @@ EOF
                     # UTM on a Mac reports qemu (QEMU under Hypervisor.framework,
                     # which has no KVM signature) or apple (Apple's
                     # Virtualization framework), and draws the Mac's pointer
-                    # over the guest as Parallels does. QEMU on a Linux host
-                    # reports kvm and hides its own pointer, so it is left out.
-                    # The UTM cases are the Parallels fix applied by analogy,
-                    # not yet confirmed in UTM.
+                    # over the guest as Parallels does. VMware Fusion reports
+                    # vmware and does the same; the fix was confirmed there on
+                    # 2026-11-01. vmware also covers Workstation on other hosts,
+                    # which cannot be told apart from here and is untested. QEMU
+                    # on a Linux host reports kvm and hides its own pointer, so
+                    # it is left out.
                     case "$(systemd-detect-virt 2>/dev/null || true)" in
-                        parallels|qemu|apple) mac_host_pointer=1 ;;
+                        parallels|qemu|apple|vmware) mac_host_pointer=1 ;;
                         *)                    mac_host_pointer=0 ;;
                     esac
                     if [[ $mac_host_pointer -eq 1 ]]; then
                         cat >> "$gpu_tmp" <<'EOF'
-# Parallels and UTM show the Mac's pointer over the guest unless the guest
-# hands it a cursor the way mutter does, and aquamarine's atomic path cannot:
-# virtio-gpu only exposes a cursor plane to an atomic client that sets the
+# Parallels, UTM and VMware Fusion show the Mac's pointer over the guest unless
+# the guest hands it a cursor the way mutter does, and aquamarine's atomic path
+# cannot: virtio-gpu only exposes a cursor plane to an atomic client that sets the
 # hotspot cap, which aquamarine (0.15.1, and master as of 2026-10) never sets.
 # On its legacy path the Mac's pointer stays hidden behind Hyprland's own,
 # which changes shape for resizing and text. That was found by testing on
@@ -2244,6 +2246,19 @@ EOF
 # QEMU on a Linux host hides its own pointer, so this is for VMs on a Mac.
 env = AQ_NO_ATOMIC,1
 hl.config({ cursor = { no_hardware_cursors = 1 } })
+
+EOF
+                    fi
+                    # VMware's SVGA graphics: see the comment written below.
+                    if [[ "$(systemd-detect-virt 2>/dev/null || true)" == vmware ]]; then
+                        cat >> "$gpu_tmp" <<'EOF'
+# VMware's SVGA graphics: Hyprland refuses the GPU buffers clients draw into. A
+# client's first frame ends the connection ("invalid arguments for
+# wl_surface.attach"), so lucent-config and the bar and dock died on start. Both
+# draw on the CPU here instead, which is what each setting below selects. Found
+# by testing on Fusion on Apple silicon, Fedora 44, Hyprland 0.57.
+env = GSK_RENDERER,cairo
+env = QT_QUICK_BACKEND,software
 
 EOF
                     fi

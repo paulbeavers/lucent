@@ -244,7 +244,7 @@ bind(mod .. " + X", hl.dsp.exec_cmd(
     "Clipboard history")
 
 -- ── session ─────────────────────────────────────────────────────────────────
-bind(mod .. " + Escape",    hl.dsp.exec_cmd("hyprlock"), "Lock screen")
+bind(mod .. " + Escape",    hl.dsp.exec_cmd("~/.config/hypr/scripts/lock.sh"), "Lock screen")
 bind(mod .. " + SHIFT + E", hl.dsp.exec_cmd("~/.config/hypr/scripts/powermenu.sh"), "Power menu")
 bind(mod .. " + I", hl.dsp.exec_cmd("lucent-config"), "Settings")
 bind(mod .. " + slash",     hl.dsp.exec_cmd("~/.config/hypr/scripts/keybinds.sh"), "This cheatsheet")

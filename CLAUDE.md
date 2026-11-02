@@ -563,8 +563,9 @@ What works is `AQ_NO_ATOMIC=1`, aquamarine's legacy DRM path, plus
 Hyprland's software cursor, which changes shape properly. That was found by
 testing, not derived; the legacy path sets cursors through
 `DRM_IOCTL_MODE_CURSOR2`, which carries a hotspot, and is the likely reason.
-`gpu.lua` sets both when `systemd-detect-virt` says `parallels`, `qemu` or
-`apple`. The last two are UTM on a Mac (QEMU under Hypervisor.framework, and
+`gpu.lua` sets both when `systemd-detect-virt` says `parallels`, `qemu`,
+`apple` or `vmware`; the user confirmed one pointer under VMware Fusion on
+2026-11-01. The last two are UTM on a Mac (QEMU under Hypervisor.framework, and
 Apple's Virtualization framework), added on 2026-10-26 by analogy and not yet
 confirmed there. QEMU on a Linux host says `kvm` and hides its own pointer: a
 virtio-vga-gl VM with a USB tablet showed one pointer without the fix. On
@@ -596,6 +597,25 @@ unscaled; with Hyprland's own cursor that came out double. One fix from that
 time still matters: **a reload puts the cursor back to the size Hyprland
 launched with**, so `setcursor` reads `$XCURSOR_SIZE` and runs at the top
 level of `autostart.lua` as well as in the start handler.
+
+**VMware's SVGA graphics: GPU-drawn clients die on their first frame.** Seen
+on Fusion on Apple silicon (Fedora 44 aarch64, `vmwgfx`, Hyprland 0.57,
+aquamarine 0.15.1, Mesa 26.0). The client sends `create_immed` for a dmabuf
+(AR24, implicit modifier) and then `wl_surface.attach`, and Hyprland ends the
+connection with `invalid arguments for wl_surface#N.attach`: GTK 4 says only
+"Lost connection to Wayland compositor", and Quickshell loads its config and
+exits 255, so there is no bar or dock and nothing on screen says why. `bar.sh`
+sends the shell's output to /dev/null, so run `qs -p ~/.config/lucent-shell` by
+hand to see it. Why Hyprland rejects the buffer is not established.
+CPU-drawn clients are fine. `gpu.lua` sets `GSK_RENDERER=cairo` and
+`QT_QUICK_BACKEND=software` under `vmware`, tested one at a time on each client;
+`LIBGL_ALWAYS_SOFTWARE=1` also worked on both but was not chosen, because an
+`hl.env` reaches Hyprland's own renderer too. hyprlock needs its own treatment,
+in `scripts/lock.sh`, which the lock key and hypridle's `lock_cmd` call: its
+default `screencopy_mode` aborts on the same rejection before it locks, leaving
+the desktop open, and with CPU screencopy alone it takes the lock and then dies,
+leaving "the lockscreen died". CPU screencopy plus `LIBGL_ALWAYS_SOFTWARE=1` was
+confirmed to lock and unlock. Not covered: mpv needs `vo=wlshm`.
 
 **Option+I "stopped working" after picking 200%.** The window was floating at
 x=1843 on a desktop now 1468 wide; lucent-config is single-instance, so the

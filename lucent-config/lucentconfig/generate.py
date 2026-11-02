@@ -107,7 +107,7 @@ def hypridle_conf(dim, blank, lock, suspend) -> str:
         "#" * 80,
         "",
         "general {",
-        "    lock_cmd       = pidof hyprlock || hyprlock",
+        "    lock_cmd       = pidof hyprlock || ~/.config/hypr/scripts/lock.sh",
         "    before_sleep_cmd = loginctl lock-session",
         "    after_sleep_cmd  = hyprctl dispatch 'hl.dsp.dpms({ action = \"on\" })'",
         "    ignore_dbus_inhibit = false",
