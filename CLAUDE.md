@@ -475,8 +475,10 @@ theme.sh's `render_firefox` writes `chrome/lucent.css` into every profile in
 profiles now, and `~/.mozilla/firefox` — imports it from `userChrome.css`
 and adds `toolkit.legacyUserProfileCustomizations.stylesheets` to `user.js`,
 each only if missing. It sets Firefox's own colour variables, and those get
-renamed: in 158 the toolbar text is `--toolbar-text-color`, not the older
-`--toolbar-color`. List the current ones from `browser-colors.css` and the
+renamed, so it writes two generations: 158's (`--toolbar-background-color`,
+`--toolbar-text-color`) and 150's, which Fedora 44 ships (`--toolbar-bgcolor`,
+`--toolbar-color`). A Firefox whose names are in neither list stays stock grey
+with every file in place, which is how this was found. List the current ones from `browser-colors.css` and the
 rest of `browser/omni.ja` (`unzip -p ... '*.css' | grep -o -- '--toolbar-[a-z-]*'`)
 before adding one. Firefox reads userChrome only at start; autostart runs
 `theme.sh --firefox` so a profile made since the last switch is themed by

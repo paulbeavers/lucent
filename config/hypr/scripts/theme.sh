@@ -626,8 +626,8 @@ ensure_css_import() {
 # Firefox's toolbars, tabs, address bar and menus. With its "System theme"
 # Firefox takes the toolbar colour from GTK's header bar, but in practice it
 # came out stock grey whatever gtk.css said, so the palette goes straight into
-# Firefox's own colour variables (named as browser-colors.css in Firefox 158
-# names them), through userChrome.css.
+# Firefox's own colour variables, through userChrome.css. Firefox renames those
+# between versions, so both generations are written: 158's and Fedora 44's 150.
 #
 # For every profile in profiles.ini — under ~/.config/mozilla/firefox, where
 # Firefox keeps new profiles now, and ~/.mozilla/firefox, where older installs
@@ -705,6 +705,30 @@ firefox_css() {
   --sidebar-text-color: ${text} !important;
   --chrome-content-separator-color: ${s0} !important;
   --focus-outline-color: ${accent} !important;
+  /* The same colours under the names older Firefox reads: Fedora 44 has 150.
+     Each version ignores the other's. */
+  --toolbox-bgcolor: ${mantle} !important;
+  --toolbox-textcolor: ${text} !important;
+  --toolbox-bgcolor-inactive: ${mantle} !important;
+  --toolbox-textcolor-inactive: ${sub} !important;
+  --toolbar-bgcolor: ${base} !important;
+  --toolbar-color: ${text} !important;
+  --tab-selected-bgcolor: ${base} !important;
+  --tab-selected-textcolor: ${text} !important;
+  --tab-hover-background-color: ${s0} !important;
+  --toolbar-field-color: ${text} !important;
+  --toolbar-field-focus-background-color: ${crust} !important;
+  --toolbar-field-focus-color: ${text} !important;
+  --toolbar-field-focus-border-color: ${accent} !important;
+  --toolbarbutton-hover-background: ${s0} !important;
+  --toolbarbutton-active-background: ${s1} !important;
+  --arrowpanel-background: ${mantle} !important;
+  --arrowpanel-color: ${text} !important;
+  --arrowpanel-border-color: ${s0} !important;
+  --urlbarView-highlight-background: ${accent} !important;
+  --urlbarView-highlight-color: ${crust} !important;
+  --urlbarView-hover-background: ${s0} !important;
+  --urlbarView-separator-color: ${s0} !important;
 }
 CSS
 }
