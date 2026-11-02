@@ -453,7 +453,7 @@ keymap keeps one shape.
 - **`lucent-config` is the settings app.** `SUPER + I`, or "Settings" in the
   launcher. It also opens on its welcome page at first login, and that page
   has a switch to stop it doing so. It covers display scale, resolution and refresh; the idle timeouts
-  and the lid; keyboard and touchpad; theme, wallpaper, cursor and font. Two
+  and the lid; keyboard, mouse speed and touchpad; theme, wallpaper, cursor and font. Two
   things worth knowing about it. It never edits a hand-written config: it owns
   `monitors.lua`, `hypridle.conf`, `settings.lua` and `keys.lua` outright and
   rewrites them whole, keeping the previous version as `.bak`, and

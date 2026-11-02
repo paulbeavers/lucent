@@ -1,4 +1,4 @@
-"""Input — keyboard and touchpad.
+"""Input — keyboard, mouse and touchpad.
 
 Current values come from the running compositor rather than from a file,
 because the compositor is the only thing that knows what actually took effect:
@@ -53,6 +53,10 @@ LAYOUTS = [
     ("jp", "Japanese"),
 ]
 
+# Hyprland's input:sensitivity, -1 to 1 and 0 for the hardware's own speed. Fine
+# steps near 0, where a small change is what someone is usually after.
+SPEEDS = [-0.6, -0.4, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.6, 0.8, 1.0]
+
 DELAYS = [200, 250, 300, 400, 500, 600, 750, 1000]
 RATES = [15, 20, 25, 30, 40, 50, 60, 75]
 
@@ -66,7 +70,7 @@ CAPS = [
 
 
 def build(window):
-    page = Page("Input", "Keyboard and touchpad.")
+    page = Page("Input", "Keyboard, mouse and touchpad.")
 
     # Ahead of the compositor check deliberately. This one is read from a file
     # rather than from hyprctl, and it is the setting someone whose modifier
@@ -80,7 +84,7 @@ def build(window):
                  "needs a key macOS intercepts."))
 
     if not hypr.available():
-        page.note("No compositor answered, so the keyboard and touchpad "
+        page.note("No compositor answered, so the keyboard, mouse and touchpad "
                   "settings are not shown. The modifier above is read from "
                   "the config file, so it can still be changed.")
         return page
@@ -98,6 +102,11 @@ def build(window):
                  "How fast it repeats once it starts."))
     card.add(Row("Num Lock on at startup", state.switch_control(
         "numlock_by_default", "input:numlock_by_default")))
+
+    card = page.section("Mouse")
+    card.add(Row("Pointer speed", state.speed_control(),
+                 "Applies to the mouse and the touchpad. Standard is the "
+                 "hardware's own speed."))
 
     if hypr.has_touchpad():
         card = page.section("Touchpad")
@@ -205,6 +214,21 @@ class _InputState:
     def rate_control(self):
         return self._number_control(
             "repeat_rate", "input:repeat_rate", RATES, 40, lambda v: f"{v} / second"
+        )
+
+    def speed_control(self):
+        current = hypr.get_option("input:sensitivity")
+        current = 0.0 if current is None else round(float(current), 2)
+        options = sorted(set(SPEEDS) | {current})   # a hand-set value stays visible
+
+        def label(value):
+            return "Standard" if value == 0 else f"{value:+.1f}" if round(value, 1) == value else f"{value:+.2f}"
+
+        self.values["sensitivity"] = current
+        return dropdown(
+            [label(v) for v in options],
+            selected=options.index(current),
+            on_change=lambda i: self._set("sensitivity", options[i]),
         )
 
     def _number_control(self, key, option, steps, default, label):
