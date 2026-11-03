@@ -76,7 +76,9 @@ drivers are picked up on their own.
 
 ## On Ubuntu
 
-Ubuntu 26.04 LTS or newer, any edition, amd64 or arm64. The Ubuntu-based
+Ubuntu 26.04 LTS or newer, any edition, amd64. arm64 needs a repository of your
+own with Hyprland 0.55 or newer, because the PPA below does not build for it;
+without one the script stops and says so. The Ubuntu-based
 distributions work too — Linux Mint, Pop!_OS, Zorin, elementary — as long as
 26.04 or newer is the archive underneath, which is read from `UBUNTU_CODENAME`
 rather than the derivative's own version number.
@@ -96,9 +98,10 @@ An older release is refused with that explanation rather than half-installed.
 
 What differs from Arch:
 
-- **Hyprland comes from a PPA.** Ubuntu does not package it. If a Hyprland is
-  already installed, or an enabled repository already offers one, that is what
-  gets used; only when nothing does is
+- **Hyprland comes from a PPA.** Ubuntu's own is 0.53, too old to read the Lua
+  config. If a Hyprland 0.55 or newer is already installed, or an enabled
+  repository already offers one, that is what gets used; only when nothing does
+  is
   [`ppa:cppiber/hyprland`](https://launchpad.net/~cppiber/+archive/ubuntu/hyprland)
   enabled. It supplies `hyprland` itself plus `hyprlock`, `hypridle`,
   `hyprpicker`, `hyprsunset`, `hyprpolkitagent`, `hyprland-guiutils` and

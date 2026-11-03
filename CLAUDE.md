@@ -247,10 +247,19 @@ the first page). A source published for a series does not mean a binary was
 built for it: `uwsm` is a published source for resolute with no binary, and
 PPA `waybar` is amd64-only.
 
-Neither Fedora nor Ubuntu has a Hyprland of its own. In both cases an installed
-build or an already-enabled repository is always respected, and the default —
-`nett00n/hyprland` COPR, `ppa:cppiber/hyprland` — is enabled only when nothing
-provides it.
+Neither Fedora nor Ubuntu has a Hyprland that can read this config. Fedora has
+none; **Ubuntu 26.04's universe has 0.53.3**, which has no Lua at all. In both
+cases an installed build or an already-enabled repository is respected if it is
+new enough, and the default — `nett00n/hyprland` COPR, `ppa:cppiber/hyprland` —
+is enabled only when nothing provides one.
+
+On Ubuntu the check used to ask only whether a candidate existed, so universe
+satisfied it and the PPA never went on. 0.53.3 ignores `hyprland.lua`, generates
+a stock config and starts nothing, and its wallpapers are in
+`hyprland-backgrounds`, so the whole desktop was a black screen and a pointer.
+A machine in that state re-runs `install.sh` to replace it, along with the hypr*
+tools that share its libraries. **The PPA has no arm64 builds in any series**, so
+there the script refuses rather than installing the old one.
 
 **Ubuntu's floor is 26.04, and both reasons matter.** The PPA reaches only
 0.54.3 on 24.04, below the 0.55 that reads the Lua config; and 24.04's archive

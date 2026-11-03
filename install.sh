@@ -47,9 +47,10 @@ DEFAULT_THEME=catppuccin-mocha-blue-contrast
 # which one fits depends on the panel in front of it.
 DEFAULT_WALLPAPER=starch-lattice
 
-# Neither Fedora nor Ubuntu packages Hyprland. When nothing on the machine
-# provides it yet, this COPR / PPA is enabled; an existing build or an
-# already-enabled repository is always kept.
+# Neither Fedora nor Ubuntu packages a Hyprland that can read this config:
+# Fedora has none, and Ubuntu 26.04's universe has 0.53.3. When nothing on the
+# machine provides HYPRLAND_MIN or newer, this COPR / PPA is enabled; an existing
+# build or an already-enabled repository that is new enough is always kept.
 # HYPRLAND_MIN is the first release that reads the Lua config.
 HYPRLAND_COPR=nett00n/hyprland
 HYPRLAND_PPA=ppa:cppiber/hyprland
@@ -936,6 +937,42 @@ apt_candidate_exists() {
     [[ -n $cand && $cand != "(none)" ]]
 }
 
+# The candidate's upstream version, as dpkg_version gives the installed one.
+apt_candidate_version() {
+    local v
+    v="$(apt-cache policy -- "$1" 2>/dev/null | awk '/^  Candidate:/ {print $2; exit}')"
+    [[ -z $v || $v == "(none)" ]] && return 0
+    v="${v#*:}"
+    printf '%s' "${v%%-*}"
+}
+
+version_at_least() {
+    [[ "$(printf '%s\n' "$2" "$1" | sort -V | head -1)" == "$2" ]]
+}
+
+# An installed package that cannot read the config, so it is not worth keeping.
+# A name only provided by something else has no version here and is left alone.
+hyprland_too_old() {
+    local v
+    pkg_installed hyprland || return 1
+    v="$(dpkg_version hyprland)"
+    [[ -n $v ]] && ! version_at_least "$v" "$HYPRLAND_MIN"
+}
+
+# Whether this machine can have a usable Hyprland without adding the PPA. A
+# candidate merely existing is not enough: universe offers 0.53.3 on 26.04,
+# which has no Lua at all. It ignores hyprland.lua, generates a stock config and
+# starts nothing, and the wallpapers are in another package, so all that shows
+# is a black screen and a pointer.
+hyprland_obtainable() {
+    local v
+    if pkg_installed hyprland && ! hyprland_too_old; then
+        return 0
+    fi
+    v="$(apt_candidate_version hyprland)"
+    [[ -n $v ]] && version_at_least "$v" "$HYPRLAND_MIN"
+}
+
 # True when a package is installed. Also handles package groups (base-devel),
 # which `pacman -Qq` never matches on their own name. On Fedora and Ubuntu,
 # anything that provides the name counts too.
@@ -1056,6 +1093,16 @@ for p in "${WANTED[@]}"; do
     pkg_installed "$p" || MISSING_PKGS+=("$p")
 done
 
+# A machine that took universe's Hyprland has every package and would otherwise
+# count as finished, so nothing would ever replace it. The tools go with it
+# because they share its libraries, and the PPA moves those on.
+if [[ $DISTRO == ubuntu ]] && hyprland_too_old; then
+    for p in hyprland hyprlock hypridle hyprpicker hyprsunset hyprpolkitagent \
+             hyprland-guiutils xdg-desktop-portal-hyprland; do
+        pkg_installed "$p" && MISSING_PKGS+=("$p")
+    done
+fi
+
 # Which APT components are configured. universe carries most of the desktop —
 # waybar, wofi, foot, thunar, swayosd — and is enabled by default on Ubuntu
 # Desktop but not on every derivative or minimal image, so it is checked
@@ -1091,19 +1138,20 @@ if [[ $DISTRO == ubuntu && ${#MISSING_PKGS[@]} -gt 0 ]]; then
     # transaction. So anything no enabled repository offers is filtered out
     # here instead, and reported rather than counted as missing.
     #
-    # Same exception as Fedora below: while hyprland itself has no candidate,
+    # Same exception as Fedora below: until a new enough hyprland is on offer,
     # the PPA is not enabled yet and the system phase is what enables it, so
     # nothing is filtered — otherwise the first run would write off the whole
     # Hyprland stack as unavailable and then decide it had nothing to do.
     # A machine that has never run `apt-get update` has no candidates at all
-    # and lands here too, which is the safe way round.
+    # and lands here too, which is the safe way round. The install step filters
+    # again once those repositories are on.
     #
     # universe has to be on before this means anything as well: most of the
     # desktop lives there, and filtering first would write all of it off as
     # unavailable and then leave it uninstalled on the very run that enables
     # the component.
     if [[ $APT_COMPONENTS_READY -eq 1 ]] \
-       && { pkg_installed hyprland || apt_candidate_exists hyprland; }; then
+       && hyprland_obtainable; then
         _still=()
         for p in "${MISSING_PKGS[@]}"; do
             if apt_candidate_exists "$p"; then
@@ -1475,14 +1523,32 @@ if [[ $RUN_SYSTEM -eq 1 ]]; then
         fi
 
         step "Hyprland repository"
-        # Ubuntu does not package Hyprland. As on Fedora, whatever already
-        # provides it is kept — a build installed by hand, or a PPA someone
-        # enabled themselves — and the default PPA goes on only when nothing
-        # does.
-        if pkg_installed hyprland; then
-            ok "hyprland $(dpkg_version hyprland) already installed — keeping it"
-        elif apt_candidate_exists hyprland; then
-            ok "hyprland is available from an enabled repository"
+        # Ubuntu's own Hyprland is too old for this config. As on Fedora,
+        # whatever already provides a new enough one is kept — a build installed
+        # by hand, or a PPA someone enabled themselves — and the default PPA goes
+        # on only when nothing does.
+        #
+        # That PPA builds for amd64 only, so anywhere else this has to stop
+        # here: carrying on would install the archive's build and end in the
+        # same black screen, with the reason long since scrolled away. The lists
+        # are refreshed first so a repository added by hand still counts.
+        if [[ $ARCH != x86_64 && $DRY_RUN -eq 0 ]] && ! hyprland_obtainable; then
+            require_network "checking for a Hyprland build"
+            run $SUDO apt-get update
+        fi
+        if hyprland_obtainable; then
+            if pkg_installed hyprland && ! hyprland_too_old; then
+                ok "hyprland $(dpkg_version hyprland) already installed — keeping it"
+            else
+                ok "hyprland $(apt_candidate_version hyprland) is available from an enabled repository"
+            fi
+        elif [[ $ARCH != x86_64 ]]; then
+            _hypr_msg="No Hyprland $HYPRLAND_MIN or newer for $ARCH on this Ubuntu. Lucent's config is Lua, which older builds cannot read, and ${HYPRLAND_PPA#ppa:}'s PPA builds for amd64 only. Enable a repository that has one and run this again."
+            if [[ $DRY_RUN -eq 1 ]]; then
+                warn "$_hypr_msg"
+            else
+                die "$_hypr_msg"
+            fi
         elif [[ $DRY_RUN -eq 1 ]]; then
             info "[dry-run] would enable $HYPRLAND_PPA"
         else
@@ -1539,6 +1605,18 @@ MOZEOF
             # lists may be weeks stale, and apt installs the version its lists
             # name rather than the one on the mirror.
             run $SUDO apt-get update
+            # The filter before the system phase had to pass everything through
+            # while the PPA and universe were still off. Both are on now, and
+            # apt-get has no --skip-unavailable: one unknown name, quickshell on
+            # 26.04, would fail the whole transaction.
+            if [[ $DRY_RUN -eq 0 ]]; then
+                _still=(); _gone=()
+                for p in "${MISSING_PKGS[@]}"; do
+                    if apt_candidate_exists "$p"; then _still+=("$p"); else _gone+=("$p"); fi
+                done
+                MISSING_PKGS=(${_still[@]+"${_still[@]}"})
+                [[ ${#_gone[@]} -gt 0 ]] && warn "not available here, skipped: ${_gone[*]}"
+            fi
             # DEBIAN_FRONTEND=noninteractive because several of these ask
             # debconf questions — greetd asks which display manager to use —
             # and under --for-user there is no terminal for them to appear on.
@@ -1562,13 +1640,10 @@ MOZEOF
         fi
 
         # The configuration is Lua, which Hyprland reads from 0.55 on. An older
-        # build would start with none of it applied.
-        if pkg_installed hyprland; then
-            hypr_ver="$(dpkg_version hyprland)"
-            if [[ -n $hypr_ver ]] \
-               && [[ "$(printf '%s\n' "$HYPRLAND_MIN" "$hypr_ver" | sort -V | head -1)" != "$HYPRLAND_MIN" ]]; then
-                warn "hyprland $hypr_ver is older than $HYPRLAND_MIN, which this Lua config needs"
-            fi
+        # build starts with none of it applied, which is a black screen and a
+        # pointer, so this is an error rather than a warning mid-scroll.
+        if [[ $DRY_RUN -eq 0 ]] && hyprland_too_old; then
+            die "hyprland $(dpkg_version hyprland) is still installed, and lucent's Lua config needs $HYPRLAND_MIN or newer. See: apt-cache policy hyprland"
         fi
     fi
 
