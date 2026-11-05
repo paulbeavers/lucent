@@ -540,6 +540,26 @@ and I read its "no target" message as a config mismatch when it meant "no
 surface" — then built a fix on that reading. Wallpaper behaviour is judged on
 real hardware or not at all.
 
+**A KVM switched away kills hyprlock, and it looked random.** Seen on 0.57 with
+hyprlock 0.9.7: the machine wakes with its only monitor on another computer,
+Hyprland swaps in a `FALLBACK` output, drops clients with `unknown object (N),
+message attach` in the session's journal, and hyprlock aborts on losing its
+connection. Wakes with the KVM on this machine never did it. The session stays
+locked with nothing to unlock it, so it took a reboot over ssh. Which side of that
+race is at fault is not established. `lock.sh` therefore stays running and starts
+hyprlock again for as long as `hyprctl locked` says `true`, which needs
+`misc.allow_session_lock_restore`. It asks Hyprland rather than reading the exit
+status, because hyprlock exiting without an unlock is the same problem however it
+exits, and it pauses first because an unlock may not be handled yet when hyprlock
+exits. hyprlock also fades out for some seconds after an unlock, so `locked` goes
+`false` while it is still running.
+
+Test against a nested compositor, which leaves your own session alone: run
+`Hyprland -c FILE` from a session, point `HYPRLAND_INSTANCE_SIGNATURE` and
+`WAYLAND_DISPLAY` at the new instance (`hyprctl -j instances`), and run `lock.sh`.
+`kill -ABRT` is the crash and `kill -USR1` a real unlock. Restarts are logged under
+`journalctl -t lucent-lock`.
+
 ## Broadcom: check the kernel's table, not a datasheet
 
 `WL_IDS` in `install.sh` and `installer/broadcom-live` is the list of cards the

@@ -77,6 +77,10 @@ hl.config({
 
         key_press_enables_dpms  = true,
         mouse_move_enables_dpms = true,
+
+        -- Let scripts/lock.sh start hyprlock again if it dies. Without it a new
+        -- one is refused, and a locked session has no way left to unlock.
+        allow_session_lock_restore = true,
     },
 
     xwayland = {
