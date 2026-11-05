@@ -282,6 +282,12 @@ user manager's environment, which is why autostart.lua starts the agent in the s
 shell as `dbus-update-activation-environment`: under GDM's plain Hyprland entry
 there is no uwsm to have set it already.
 
+**Ubuntu turns on subpixel font smoothing and Arch does not**, through
+`/etc/fonts/conf.d/10-sub-pixel-rgb.conf`. `config/fontconfig/conf.d/` overrides it
+per user, so every distro renders greyscale. It wins because `50-user.conf` reads
+that directory after the system's `10-` files. Check with `fc-match -v sans | grep
+rgba`, where 5 is none; running programs keep what they loaded.
+
 **Ubuntu's floor is 26.04, and both reasons matter.** The PPA reaches only
 0.54.3 on 24.04, below the 0.55 that reads the Lua config; and 24.04's archive
 has no `swayosd`, which is the *only* thing bound to the volume, mute and

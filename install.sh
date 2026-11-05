@@ -2564,6 +2564,9 @@ KBLUA
             run $SUDO install -Dm644 "$stage" "$polkit_dropin"
             rm -f "$stage"
             ok "limited hyprpolkitagent to Hyprland sessions"
+            # Only here, the once: the reports from that loop would keep bringing
+            # up crash dialogs, but one written after this is a new crash to see.
+            run $SUDO rm -f /var/crash/_usr_libexec_hyprpolkitagent.*
         fi
     fi
 
