@@ -10,8 +10,8 @@
 #     bar.sh --engine         print which one draws it: quickshell or waybar
 #
 # The bar and the dock are ~/.config/lucent-shell, one Quickshell program
-# drawing both. Where quickshell is not packaged (Fedora 43, Ubuntu 26.04)
-# install.sh puts in waybar and the GTK dock instead (waybar.sh,
+# drawing both. Where quickshell cannot be had (Fedora 43, or Ubuntu 26.04 if
+# building it failed) install.sh puts in waybar and the GTK dock instead (waybar.sh,
 # lucent-dock/dock.py), and this starts those. There is no setting: whichever
 # is installed is used, quickshell first. Both read the same files —
 # dock-mode, dock-position, dock-pinned, dock-hidden, waybar/colors.css.

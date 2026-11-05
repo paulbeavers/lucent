@@ -56,6 +56,18 @@ HYPRLAND_COPR=nett00n/hyprland
 HYPRLAND_PPA=ppa:cppiber/hyprland
 HYPRLAND_MIN=0.55
 
+# 26.04 does not package Quickshell, so where nothing offers it the system phase
+# builds this: Ubuntu's own source package from the release after it, pinned by
+# hash. Everything it needs is in 26.04 except libcpptrace-dev, which only its crash
+# handler uses, so that is left out.
+QUICKSHELL_POOL=http://archive.ubuntu.com/ubuntu/pool/universe/q/quickshell
+QUICKSHELL_DSC=quickshell_0.3.0-1build1.dsc
+QUICKSHELL_SHA256=(
+    "116056238d3ef045accd28d5540152b36600f4b7253fe8eee5c35ae6be92170d  quickshell_0.3.0-1build1.dsc"
+    "b8718348ef6d64bc06f61674d4e9bb47bc0d043f76dc87a3b83f63d546055f3e  quickshell_0.3.0-1build1.debian.tar.xz"
+    "205216575e948f23836917770473ae5fb3f980098cc706dd293833422c56b3f5  quickshell_0.3.0.orig.tar.xz"
+)
+
 # The oldest Ubuntu this supports, and why it is not older. The PPA above
 # builds for 24.04 too, but only reaches 0.54.3 there — below HYPRLAND_MIN, so
 # the Lua config would not be read at all. 24.04's archive is also missing
@@ -1106,6 +1118,13 @@ if [[ $DISTRO != arch ]] && ! quickshell_obtainable; then
     WANTED+=( ${BAR_FALLBACK[@]+"${BAR_FALLBACK[@]}"} )
 fi
 
+# On Ubuntu that is not the end of it: Quickshell gets built, and the fallback stays
+# only for if that fails. A machine without it is not finished, so a re-run retries.
+QUICKSHELL_TO_BUILD=0
+if [[ $DISTRO == ubuntu ]] && ! quickshell_obtainable; then
+    QUICKSHELL_TO_BUILD=1
+fi
+
 MISSING_PKGS=()
 for p in "${WANTED[@]}"; do
     pkg_installed "$p" || MISSING_PKGS+=("$p")
@@ -1250,11 +1269,13 @@ elif [[ -n $OTHER_DM ]]; then
 fi
 [[ $DISTRO == arch && $DO_GAMING -eq 1 ]] && info "multilib:  $( ((MULTILIB_READY))    && echo enabled    || echo disabled )"
 [[ $DISTRO == ubuntu ]] && info "apt repos: $( ((APT_COMPONENTS_READY)) && echo configured || echo "need enabling" )"
+[[ $QUICKSHELL_TO_BUILD -eq 1 ]] && info "quickshell: not packaged here, to be built"
 
 SYSTEM_COMPLETE=0
 if [[ ${#MISSING_PKGS[@]} -eq 0 && ${#PENDING_UNITS[@]} -eq 0 \
       && $DM_CONFIGURED -eq 1 && $MULTILIB_READY -eq 1 \
       && $APT_COMPONENTS_READY -eq 1 \
+      && $QUICKSHELL_TO_BUILD -eq 0 \
       && $NERD_FONTS_READY -eq 1 ]]; then
     SYSTEM_COMPLETE=1
 fi
@@ -1688,6 +1709,67 @@ MOZEOF
         # pointer, so this is an error rather than a warning mid-scroll.
         if [[ $DRY_RUN -eq 0 ]] && hyprland_too_old; then
             die "hyprland $(dpkg_version hyprland) is still installed, and lucent's Lua config needs $HYPRLAND_MIN or newer. See: apt-cache policy hyprland"
+        fi
+
+        # ── Quickshell ────────────────────────────────────────────────────────
+        # As a real package, so dpkg knows the files and a later release's own
+        # package replaces it. Never fatal: bar.sh falls back to waybar without it.
+        fetch_build_install_quickshell() {
+            local dir="$1" entry f
+            for entry in "${QUICKSHELL_SHA256[@]}"; do
+                f="${entry##* }"
+                curl -fsSL --retry 3 -o "$dir/$f" "$QUICKSHELL_POOL/$f" || return 1
+            done
+            ( cd "$dir" && printf '%s\n' "${QUICKSHELL_SHA256[@]}" | sha256sum -c --quiet ) || return 1
+            $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+                build-essential dpkg-dev debhelper fakeroot || return 1
+            ( cd "$dir" && dpkg-source --no-check -x "$QUICKSHELL_DSC" src ) || return 1
+            sed -i '/libcpptrace-dev/d' "$dir/src/debian/control" || return 1
+            sed -i 's|-DINSTALL_QML_PREFIX=|-DCRASH_HANDLER=OFF -DINSTALL_QML_PREFIX=|' "$dir/src/debian/rules" || return 1
+            grep -q 'CRASH_HANDLER=OFF' "$dir/src/debian/rules" || return 1
+            ( cd "$dir/src" && $SUDO env DEBIAN_FRONTEND=noninteractive \
+                apt-get build-dep -y --no-install-recommends ./ ) || return 1
+            ( cd "$dir/src" && DEB_BUILD_OPTIONS="parallel=$(nproc) nocheck" \
+                dpkg-buildpackage -b -uc -us ) || return 1
+            $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+                "$dir"/quickshell_*.deb || return 1
+        }
+        if [[ $QUICKSHELL_TO_BUILD -eq 1 ]] && apt_candidate_exists quickshell; then
+            # Enabling a repository above can have answered this since the plan.
+            if ! pkg_installed quickshell; then
+                run $SUDO env DEBIAN_FRONTEND=noninteractive apt-get install -y quickshell
+                UBUNTU_PKGSET=""
+            fi
+            QUICKSHELL_TO_BUILD=0
+        fi
+        if [[ $QUICKSHELL_TO_BUILD -eq 1 ]]; then
+            step "Building Quickshell"
+            if [[ $DRY_RUN -eq 1 ]]; then
+                info "[dry-run] would build and install $QUICKSHELL_DSC"
+            else
+                require_network "building Quickshell"
+                info "26.04 does not package it. This takes several minutes."
+                qs_dir="$(mktemp -d)"
+                qs_log="${TMPDIR:-/tmp}/lucent-quickshell-build.log"
+                qs_before="$qs_dir/before"; qs_manual="$qs_dir/manual"
+                dpkg-query -W -f='${Package}\n' | sed 's/:.*//' | sort -u > "$qs_before"
+                apt-mark showmanual | sort -u > "$qs_manual"
+                if fetch_build_install_quickshell "$qs_dir" > "$qs_log" 2>&1; then
+                    ok "built and installed quickshell"
+                else
+                    warn "could not build Quickshell, so the bar stays waybar. See $qs_log"
+                fi
+                UBUNTU_PKGSET=""
+                # The compilers and Qt headers came for this and are about a
+                # gigabyte. Only what this added goes: an orphan that was already
+                # here is not this script's to remove.
+                comm -13 "$qs_manual" <(apt-mark showmanual | sort -u) | grep -vx quickshell \
+                    | xargs -r $SUDO apt-mark auto >> "$qs_log" 2>&1 || true
+                comm -12 <(apt-get -s autoremove 2>/dev/null | awk '/^Remv/{print $2}' | sed 's/:.*//' | sort -u) \
+                    <(comm -13 "$qs_before" <(dpkg-query -W -f='${Package}\n' | sed 's/:.*//' | sort -u)) \
+                    | xargs -r $SUDO env DEBIAN_FRONTEND=noninteractive apt-get purge -y >> "$qs_log" 2>&1 || true
+                rm -rf "$qs_dir"
+            fi
         fi
     fi
 

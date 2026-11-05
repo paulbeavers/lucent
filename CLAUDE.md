@@ -102,7 +102,7 @@ it. lucent-dock sends `hl.dsp` dispatches itself.
 **The dock is lucent's own, because every packaged one is blurry on a scaled
 panel.** It is drawn by lucent-shell (below) wherever quickshell is packaged;
 what follows is the GTK dock, which is now the fallback, beside waybar, on
-Fedora 43 and Ubuntu 26.04, and which install.sh puts in nowhere else. nwg-dock-hyprland and cairo-dock both load icons as bitmaps at the
+Fedora 43, and wherever building Quickshell on Ubuntu fails, and which install.sh puts in nowhere else. nwg-dock-hyprland and cairo-dock both load icons as bitmaps at the
 logical size, so at 1.33 the surface stretches them; judged side by side on
 the hardware, as every scaling question must be. A second waybar was sharp
 but is a taskbar — a button per window, no grouping, no pin menu — and that
@@ -134,7 +134,8 @@ not visible from its code:
 Quickshell program drawing both. Waybar and the GTK dock are only the
 fallback for releases that do not package quickshell (Fedora 43, Ubuntu
 26.04): install.sh adds `BAR_FALLBACK` to the package list there and nowhere
-else, and `bar.sh` starts whichever is installed, quickshell first. There is
+else, and `bar.sh` starts whichever is installed, quickshell first. On Ubuntu
+install.sh then builds Quickshell, so waybar only draws if that fails. There is
 no setting. `autostart.lua` starts `bar.sh`, not `waybar.sh`; SUPER+SHIFT+R
 is `bar.sh --reload`; theme.sh calls `bar.sh --theme`. Both read the same
 files — dock-mode, dock-position, dock-pinned, dock-hidden,
@@ -281,6 +282,16 @@ intermittent. install.sh adds a drop-in with
 user manager's environment, which is why autostart.lua starts the agent in the same
 shell as `dbus-update-activation-environment`: under GDM's plain Hyprland entry
 there is no uwsm to have set it already.
+
+**26.04 has no Quickshell, so install.sh builds one.** The source is Ubuntu's own
+package from the next release, pinned by hash in `QUICKSHELL_SHA256`, without its
+crash handler because `libcpptrace-dev` is the one build dependency 26.04 lacks. It
+is a real `.deb`, the build dependencies are removed afterwards, and a failure only
+warns and leaves waybar. Its log is `/tmp/lucent-quickshell-build.log`. Two costs: a
+superseded source leaves the pool, which turns that URL into a 404 and the bar into
+waybar; and it depends on `qt6-base-private-abi` and `qt6-declarative-private-abi`,
+so a Qt ABI update in `resolute-updates` needs a rebuild. A release that packages
+it skips all of this, because a candidate wins.
 
 **Ubuntu's packages enable their user units for every graphical session**, in
 `/etc/systemd/user/graphical-session.target.wants/`. autostart.lua starts

@@ -407,9 +407,11 @@ keymap keeps one shape.
   left alone.
 - **The bar and the dock are one program.** `config/lucent-shell/`, drawn by
   Quickshell: the workspaces, the clock with a calendar, the tray and the
-  status modules, and the dock. Where Quickshell is not packaged — Fedora 43
-  and Ubuntu 26.04 — `install.sh` puts in waybar (`config/waybar/`) and a
-  GTK dock (`config/lucent-dock/`) instead, which look and behave the same;
+  status modules, and the dock. Ubuntu 26.04 does not package Quickshell, so
+  `install.sh` builds it, which takes several minutes. Where it cannot be had —
+  Fedora 43, or if that build fails — `install.sh` puts in waybar
+  (`config/waybar/`) and a GTK dock (`config/lucent-dock/`) instead, which look and
+  behave the same;
   `bar.sh` starts whichever is installed.
 - **A dock, on by default**, along the bottom: one icon per app, pinned apps first, dots for open windows, and the
   app launcher. Click opens the app or focuses it, and clicking again cycles
