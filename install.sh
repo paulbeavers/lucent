@@ -1316,6 +1316,17 @@ run() {  # execute, or just narrate under --dry-run
 
 # ── system phase ──────────────────────────────────────────────────────────────
 if [[ $RUN_SYSTEM -eq 1 ]]; then
+    # No suspending while this runs. hypridle suspends after ten minutes without
+    # input at the machine, and neither ssh nor a compiler counts: a Quickshell
+    # build over ssh went to sleep half way and looked like a slow one. tail ends
+    # with this script however it ends, and the lock goes with it. Inside a chroot
+    # there is no logind, so this fails quietly, which is fine.
+    if [[ $DRY_RUN -eq 0 ]] && command -v systemd-inhibit >/dev/null; then
+        systemd-inhibit --what=sleep --who=lucent --why="installing packages" \
+            tail --pid=$$ -f /dev/null >/dev/null 2>&1 &
+        disown
+    fi
+
     if [[ $DISTRO == arch ]]; then
         step "Tuning /etc/pacman.conf"
 
@@ -1765,7 +1776,9 @@ MOZEOF
                 # here is not this script's to remove.
                 comm -13 "$qs_manual" <(apt-mark showmanual | sort -u) | grep -vx quickshell \
                     | xargs -r $SUDO apt-mark auto >> "$qs_log" 2>&1 || true
-                comm -12 <(apt-get -s autoremove 2>/dev/null | awk '/^Remv/{print $2}' | sed 's/:.*//' | sort -u) \
+                # Suggests are off because xml-core suggests debhelper, and apt would otherwise
+                # keep it; the intersection below is what protects everything else.
+                comm -12 <(apt-get -s -o APT::AutoRemove::SuggestsImportant=false autoremove 2>/dev/null | awk '/^Remv/{print $2}' | sed 's/:.*//' | sort -u) \
                     <(comm -13 "$qs_before" <(dpkg-query -W -f='${Package}\n' | sed 's/:.*//' | sort -u)) \
                     | xargs -r $SUDO env DEBIAN_FRONTEND=noninteractive apt-get purge -y >> "$qs_log" 2>&1 || true
                 rm -rf "$qs_dir"
