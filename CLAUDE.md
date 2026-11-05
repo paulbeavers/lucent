@@ -382,6 +382,24 @@ snap, and it carries a *higher* version than Mozilla's real `.deb`, so the
 pin in `/etc/apt/preferences.d/mozilla` is what makes the repository work at
 all. Without it apt keeps choosing the snap.
 
+**Ubuntu Desktop arrives with that stub already installed**, and counting it as
+Firefox left the snap in place with the repository unused, and theme.sh's Firefox
+rendering looking in directories the snap does not use. install.sh now replaces it,
+which apt calls a downgrade because of the stub's epoch, and refuses under `-y`
+without `--allow-downgrades`. It waits while the snap is open. It copies
+`~/snap/firefox/common/.mozilla/firefox` to `~/.mozilla/firefox` and writes the mapping
+from `/usr/lib/firefox`'s hash to that profile into `profiles.ini` and `installs.ini`.
+Without the mapping Firefox silently starts a new, empty profile, which a test against
+a real Firefox caught: clearing the snap's own mapping is not enough. On a first run
+it also has to install curl itself, because `PKGS_BASE` comes later, and with no key
+the machine stayed on the snap. That is the likely reason it was left there.
+
+**Apport turns aborts at logout into crash dialogs at the next login.** hyprlock,
+hypridle and others assert on losing the compositor, which Arch's coredumps keep quiet
+about. `/etc/apport/report-ignore/lucent` lists those programs by path, and only those:
+Hyprland, the bar and applications still report. What is left of a real crash in one
+of them is `journalctl` for services, and `journalctl -t lucent-lock` for hyprlock.
+
 **It does not touch the boot.** No Plymouth, initramfs or kernel command line:
 the splash lives in starch, which owns the machines it installs. It used to live
 here, and on Fedora that meant a desktop install replacing the distro's boot

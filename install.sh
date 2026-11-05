@@ -989,6 +989,12 @@ hyprland_half_installed() {
     [[ -n $st && $st != ii* && $st != rc* && $st != un* ]]
 }
 
+# Ubuntu's transitional firefox, which is only a launcher for the snap. Counting it
+# as Firefox left Ubuntu Desktop on the snap with Mozilla's repository sitting unused.
+firefox_is_snap_stub() {
+    [[ "$(dpkg-query -W -f='${Version}' -- firefox 2>/dev/null)" == *snap* ]]
+}
+
 # Whether this machine can have a usable Hyprland without adding the PPA. A
 # candidate merely existing is not enough: universe offers 0.53.3 on 26.04,
 # which has no Lua at all. It ignores hyprland.lua, generates a stock config and
@@ -1139,6 +1145,18 @@ if [[ $DISTRO == ubuntu ]] && { hyprland_too_old || hyprland_half_installed; }; 
              hyprland-guiutils xdg-desktop-portal-hyprland; do
         pkg_installed "$p" && MISSING_PKGS+=("$p")
     done
+fi
+
+# Move Ubuntu Desktop off the Firefox snap, unless the snap is open: its profile has
+# to be copied while nothing is writing to it. A re-run does it once it is closed.
+FIREFOX_LEAVING_SNAP=0
+if [[ $DISTRO == ubuntu ]] && firefox_is_snap_stub; then
+    if pgrep -f '/snap/firefox/' >/dev/null 2>&1; then
+        warn "Firefox is open, so it stays a snap for now. Close it and run this again."
+    elif [[ ! -f $MOZILLA_APT_LIST ]] || [[ "$(apt_candidate_version firefox)" != *snap* ]]; then
+        FIREFOX_LEAVING_SNAP=1
+        MISSING_PKGS+=(firefox)
+    fi
 fi
 
 # Which APT components are configured. universe carries most of the desktop —
@@ -1623,6 +1641,13 @@ if [[ $RUN_SYSTEM -eq 1 ]]; then
                 info "[dry-run] would add Mozilla's APT repository"
             else
                 require_network "adding Mozilla's APT repository"
+                # curl is in PKGS_BASE, which installs after this. Without it the
+                # key cannot be fetched and a fresh machine stays on the snap.
+                if ! command -v curl >/dev/null; then
+                    run $SUDO apt-get update
+                    run $SUDO env DEBIAN_FRONTEND=noninteractive \
+                        apt-get install -y --no-install-recommends curl ca-certificates
+                fi
                 $SUDO install -d -m 0755 /etc/apt/keyrings
                 if curl -fsSL --retry 3 "$MOZILLA_APT_KEY" \
                        | $SUDO tee "$MOZILLA_APT_KEYRING" >/dev/null; then
@@ -1696,8 +1721,12 @@ MOZEOF
             # DEBIAN_FRONTEND=noninteractive because several of these ask
             # debconf questions — greetd asks which display manager to use —
             # and under --for-user there is no terminal for them to appear on.
+            # The stub carries an epoch Mozilla's package does not, so the pin makes
+            # this a downgrade, and -y alone refuses those.
+            apt_extra=()
+            [[ $FIREFOX_LEAVING_SNAP -eq 1 ]] && apt_extra+=(--allow-downgrades)
             run $SUDO env DEBIAN_FRONTEND=noninteractive \
-                apt-get install -y "${MISSING_PKGS[@]}"
+                apt-get install -y ${apt_extra[@]+"${apt_extra[@]}"} "${MISSING_PKGS[@]}"
             if [[ $DRY_RUN -eq 0 ]]; then
                 # The installed-package set was read before any of this ran, so
                 # it now describes the machine as it was. Drop it, or every
@@ -1720,6 +1749,61 @@ MOZEOF
         # pointer, so this is an error rather than a warning mid-scroll.
         if [[ $DRY_RUN -eq 0 ]] && hyprland_too_old; then
             die "hyprland $(dpkg_version hyprland) is still installed, and lucent's Lua config needs $HYPRLAND_MIN or newer. See: apt-cache policy hyprland"
+        fi
+
+        # ── leaving the Firefox snap ──────────────────────────────────────────
+        # The profile comes across first, and the snap goes only once it has.
+        # Firefox uses a profile only if it is mapped to its own install path. A
+        # copied one is not, so it would quietly start with a new, empty profile, and
+        # clearing the snap's mapping is not enough: tested, it still makes a new one.
+        # So the mapping is written here. 4F96D1932A9F858E is Firefox's hash of
+        # /usr/lib/firefox, where Mozilla's package installs it. If that ever changes
+        # the failure is an empty profile, with the old one still in about:profiles.
+        if [[ $FIREFOX_LEAVING_SNAP -eq 1 && $DRY_RUN -eq 0 ]]; then
+            step "Moving Firefox off the snap"
+            fx_src="$HOME/snap/firefox/common/.mozilla/firefox"
+            fx_dst="$HOME/.mozilla/firefox"
+            if firefox_is_snap_stub; then
+                warn "Mozilla's Firefox did not install, so the snap stays"
+            elif [[ -f $fx_dst/profiles.ini || -f $HOME/.config/mozilla/firefox/profiles.ini ]]; then
+                warn "a Firefox profile already exists here, so the snap and its profile stay"
+                warn "when you no longer need it: sudo snap remove firefox"
+            else
+                fx_moved=1
+                if [[ -f $fx_src/profiles.ini ]]; then
+                    mkdir -p "$HOME/.mozilla"
+                    if cp -a "$fx_src" "$fx_dst"; then
+                        fx_path="$(awk -F= '
+                            /^\[/          { if (p != "" && d == 1) { print p; found = 1; exit }; p = ""; d = 0 }
+                            $1 == "Path"    { p = $2 }
+                            $1 == "Default" { d = $2 }
+                            END             { if (!found && p != "" && d == 1) print p }
+                        ' "$fx_dst/profiles.ini")"
+                        [[ -n $fx_path ]] || fx_path="$(awk -F= '$1 == "Path" { print $2; exit }' "$fx_dst/profiles.ini")"
+                        rm -f "$fx_dst/installs.ini"
+                        sed -i '/^\[Install/,/^$/d' "$fx_dst/profiles.ini"
+                        printf '\n[Install4F96D1932A9F858E]\nDefault=%s\nLocked=1\n' "$fx_path" >> "$fx_dst/profiles.ini"
+                        printf '[4F96D1932A9F858E]\nDefault=%s\nLocked=1\n' "$fx_path" > "$fx_dst/installs.ini"
+                        find "$fx_dst" -maxdepth 2 \( -name lock -o -name .parentlock \) -delete
+                        ok "copied your Firefox profile"
+                    else
+                        rm -rf "$fx_dst"
+                        fx_moved=0
+                        warn "could not copy the Firefox profile, so the snap stays"
+                    fi
+                fi
+                if [[ $fx_moved -eq 1 ]] && command -v snap >/dev/null && snap list firefox >/dev/null 2>&1; then
+                    # Not --purge: snapd keeps a snapshot of the old data for 31 days.
+                    if $SUDO snap remove firefox >/dev/null 2>&1; then
+                        ok "removed the Firefox snap"
+                    else
+                        warn "could not remove the Firefox snap. Try: sudo snap remove firefox"
+                    fi
+                fi
+                # A pinned dock icon names the snap's desktop file.
+                [[ -f $CONFIG_DST/lucent/dock-pinned ]] \
+                    && sed -i 's/^firefox_firefox/firefox/' "$CONFIG_DST/lucent/dock-pinned"
+            fi
         fi
 
         # ── Quickshell ────────────────────────────────────────────────────────
@@ -2687,6 +2771,32 @@ KBLUA
             for unit in "${session_masked[@]}"; do
                 run $SUDO rm -f /var/crash/_usr_bin_"$unit".*
             done
+        fi
+    fi
+
+    # ── crash reports from session shutdown ───────────────────────────────────
+    # When Hyprland exits, what is connected to it can abort rather than exit:
+    # hyprlock and hypridle both assert on losing the connection. Nothing is wrong,
+    # but Apport brings each one up as a crash dialog at the next login. Hyprland
+    # itself is not on this list, nor are the bar or any application.
+    if [[ $DISTRO == ubuntu && -d /etc/apport ]]; then
+        step "Crash reports"
+        apport_list=/etc/apport/report-ignore/lucent
+        apport_conf=$'/usr/bin/hypridle\n/usr/bin/hyprlock\n/usr/bin/hyprsunset\n/usr/bin/start-hyprland\n/usr/libexec/hyprpolkitagent\n/usr/libexec/xdg-desktop-portal-hyprland\n'
+        if [[ $DRY_RUN -eq 1 ]]; then
+            info "[dry-run] would keep session shutdown out of Apport's crash dialogs"
+        elif [[ "$(cat "$apport_list" 2>/dev/null; echo x)" == "${apport_conf}x" ]]; then
+            ok "session shutdown already kept out of crash dialogs"
+        else
+            stage="$(mktemp)"
+            printf '%s' "$apport_conf" > "$stage"
+            run $SUDO install -Dm644 "$stage" "$apport_list"
+            rm -f "$stage"
+            for p in usr_bin_hypridle usr_bin_hyprlock usr_bin_hyprsunset usr_bin_start-hyprland \
+                     usr_libexec_hyprpolkitagent usr_libexec_xdg-desktop-portal-hyprland; do
+                run $SUDO rm -f /var/crash/_"$p".*
+            done
+            ok "kept session shutdown out of crash dialogs"
         fi
     fi
 
