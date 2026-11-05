@@ -282,6 +282,16 @@ user manager's environment, which is why autostart.lua starts the agent in the s
 shell as `dbus-update-activation-environment`: under GDM's plain Hyprland entry
 there is no uwsm to have set it already.
 
+**Ubuntu's packages enable their user units for every graphical session**, in
+`/etc/systemd/user/graphical-session.target.wants/`. autostart.lua starts
+`hyprland-session.target`, which brings them all up beside the copies it starts
+itself, so a Hyprland session had a second waybar (default config, so the top bar)
+and a second hypridle. At GDM's greeter the same units fail in a restart loop.
+install.sh masks `waybar`, `hypridle`, `mako`, `swaync` and `hyprsunset` on Ubuntu.
+`foot-server`, uwsm's `fumon` and `spice-vdagent` are left: they do no harm. Anything
+new that runs twice, or fails only at the login screen, is worth checking here
+first, and nothing in lucent can use `systemctl --user` on a masked unit.
+
 **Ubuntu turns on subpixel font smoothing and Arch does not**, through
 `/etc/fonts/conf.d/10-sub-pixel-rgb.conf`. `config/fontconfig/conf.d/` overrides it
 per user, so every distro renders greyscale. It wins because `50-user.conf` reads

@@ -2570,6 +2570,31 @@ KBLUA
         fi
     fi
 
+    # ── session services ──────────────────────────────────────────────────────
+    # The same packaging, for what autostart.lua starts itself or nothing here
+    # uses. Enabled for every graphical session, these gave Hyprland a second
+    # waybar across the top and a second hypridle, and at GDM's greeter they fail
+    # in a restart loop. Masked, because a package upgrade can enable a unit again
+    # but leaves a mask alone. Takes effect at the next login.
+    if [[ $DISTRO == ubuntu ]]; then
+        step "Session services"
+        session_masked=()
+        for unit in waybar hypridle mako swaync hyprsunset; do
+            [[ "$(readlink "/etc/systemd/user/$unit.service" 2>/dev/null)" == /dev/null ]] && continue
+            run $SUDO systemctl --global mask "$unit.service" >/dev/null 2>&1
+            session_masked+=("$unit")
+        done
+        if [[ ${#session_masked[@]} -eq 0 ]]; then
+            ok "duplicate session services already masked"
+        else
+            ok "masked: ${session_masked[*]}"
+            # As for the polkit agent: only the once, or a new crash would vanish.
+            for unit in "${session_masked[@]}"; do
+                run $SUDO rm -f /var/crash/_usr_bin_"$unit".*
+            done
+        fi
+    fi
+
     # ── colour theme ──────────────────────────────────────────────────────────
     # Several configs are rendered rather than copied: the bar reads
     # waybar/colors.css (the palette keeps that path whichever bar draws it),
