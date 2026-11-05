@@ -2544,6 +2544,29 @@ KBLUA
         info "  Hyprland 0.57 removes hyprlang; hyprland.lua replaces it"
     fi
 
+    # ── polkit agent ──────────────────────────────────────────────────────────
+    # Ubuntu's package enables hyprpolkitagent for every graphical session, so it
+    # also starts under GDM's greeter and in a GNOME session. GNOME Shell already
+    # holds the agent slot there, registration fails, and 0.2.0 segfaults on that
+    # path: a restart loop and a crash dialog, in sessions that do not use it.
+    # A drop-in rather than disabling it, so a package upgrade cannot undo it.
+    if [[ $DISTRO != arch ]]; then
+        step "Polkit agent"
+        polkit_dropin=/etc/systemd/user/hyprpolkitagent.service.d/10-lucent.conf
+        polkit_conf=$'# Managed by lucent/install.sh\n[Unit]\nConditionEnvironment=XDG_CURRENT_DESKTOP=Hyprland\n'
+        if [[ $DRY_RUN -eq 1 ]]; then
+            info "[dry-run] would limit hyprpolkitagent to Hyprland sessions"
+        elif [[ "$(cat "$polkit_dropin" 2>/dev/null; echo x)" == "${polkit_conf}x" ]]; then
+            ok "hyprpolkitagent already limited to Hyprland sessions"
+        else
+            stage="$(mktemp)"
+            printf '%s' "$polkit_conf" > "$stage"
+            run $SUDO install -Dm644 "$stage" "$polkit_dropin"
+            rm -f "$stage"
+            ok "limited hyprpolkitagent to Hyprland sessions"
+        fi
+    fi
+
     # ── colour theme ──────────────────────────────────────────────────────────
     # Several configs are rendered rather than copied: the bar reads
     # waybar/colors.css (the palette keeps that path whichever bar draws it),

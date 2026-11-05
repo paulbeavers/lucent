@@ -23,12 +23,14 @@ hl.on("hyprland.start", function()
     -- not, and without it the portals never start — which, among other things,
     -- leaves Firefox showing sites light on a dark desktop. In that order, and
     -- in one shell, so the portals see WAYLAND_DISPLAY when they start.
+    --
+    -- The polkit agent goes in the same shell, after them: without one anything
+    -- asking for a password silently fails, and where install.sh limits it to
+    -- Hyprland its unit reads XDG_CURRENT_DESKTOP from the environment set here.
     hl.exec_cmd("dbus-update-activation-environment --systemd WAYLAND_DISPLAY XDG_CURRENT_DESKTOP HYPRLAND_INSTANCE_SIGNATURE"
         .. " && { systemctl --user -q is-active graphical-session.target"
-        .. " || systemctl --user start hyprland-session.target; }")
-
-    -- Without a polkit agent anything asking for a password silently fails.
-    hl.exec_cmd("systemctl --user start hyprpolkitagent")
+        .. " || systemctl --user start hyprland-session.target; }"
+        .. "; systemctl --user start hyprpolkitagent")
     hl.exec_cmd("/usr/bin/gnome-keyring-daemon --start --components=secrets")
 
     -- Shell components. bar.sh starts whichever bar is chosen: waybar, through

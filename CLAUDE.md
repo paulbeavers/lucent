@@ -270,6 +270,18 @@ as needing the same. **Test apt changes against real apt**, in a chroot of
 `ubuntu-base` under `unshare --map-auto --map-root-user --mount --pid --fork`: it
 needs no root, and a dependency check of the indexes passed this collision clean.
 
+**The PPA's hyprpolkitagent crashes everywhere but Hyprland.** Its package enables
+it in `graphical-session.target` for every user, so it starts under GDM's greeter
+and in a GNOME session too. GNOME Shell holds the agent slot there, so 0.2.0 logs
+`An authentication agent already exists` and segfaults in `libsdbus-c++`, ten
+restarts at a time, leaving reports in `/var/crash` that Ubuntu shows as crash
+dialogs. In the Hyprland session itself it is healthy, which is why this looks
+intermittent. install.sh adds a drop-in with
+`ConditionEnvironment=XDG_CURRENT_DESKTOP=Hyprland`. That condition reads the
+user manager's environment, which is why autostart.lua starts the agent in the same
+shell as `dbus-update-activation-environment`: under GDM's plain Hyprland entry
+there is no uwsm to have set it already.
+
 **Ubuntu's floor is 26.04, and both reasons matter.** The PPA reaches only
 0.54.3 on 24.04, below the 0.55 that reads the Lua config; and 24.04's archive
 has no `swayosd`, which is the *only* thing bound to the volume, mute and
