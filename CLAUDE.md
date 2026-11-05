@@ -261,6 +261,15 @@ A machine in that state re-runs `install.sh` to replace it, along with the hypr*
 tools that share its libraries. **The PPA has no arm64 builds in any series**, so
 there the script refuses rather than installing the old one.
 
+**That replacement cannot be an upgrade.** The PPA's `libhyprcursor1`,
+`libudis86.1` and `hyprland-data` ship files still owned by `libhyprcursor0`,
+`libudis86-0` and `hyprland`, with no `Replaces` to cover them, so dpkg stops with
+"trying to overwrite" and leaves the stack half unpacked, with `hyprland` at `iU`
+reporting the new version. install.sh removes those three first, and treats `iU`
+as needing the same. **Test apt changes against real apt**, in a chroot of
+`ubuntu-base` under `unshare --map-auto --map-root-user --mount --pid --fork`: it
+needs no root, and a dependency check of the indexes passed this collision clean.
+
 **Ubuntu's floor is 26.04, and both reasons matter.** The PPA reaches only
 0.54.3 on 24.04, below the 0.55 that reads the Lua config; and 24.04's archive
 has no `swayosd`, which is the *only* thing bound to the volume, mute and

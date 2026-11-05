@@ -165,7 +165,16 @@ ok()   { printf '    %s✓%s %s\n' "$C_GREEN" "$C_RESET" "$*"; }
 warn() { printf '    %s!%s %s\n' "$C_YELLOW" "$C_RESET" "$*"; }
 die()  { printf '\n%sError:%s %s\n' "$C_RED" "$C_RESET" "$*" >&2; exit 1; }
 
-trap 'die "failed at line $LINENO: ${BASH_COMMAND}"' ERR
+# A command that fails inside run() reports as run's own "$@", which says nothing
+# about what broke, so run() leaves its caller's line and command here.
+RUN_LINE=""; RUN_CMD=""
+on_err() {
+    if [[ $2 == '"$@"' && -n $RUN_CMD ]]; then
+        die "failed at line $RUN_LINE: $RUN_CMD"
+    fi
+    die "failed at line $1: $2"
+}
+trap 'on_err "$LINENO" "$BASH_COMMAND"' ERR
 
 # ── preflight ─────────────────────────────────────────────────────────────────
 step "Preflight checks"
@@ -959,6 +968,15 @@ hyprland_too_old() {
     [[ -n $v ]] && ! version_at_least "$v" "$HYPRLAND_MIN"
 }
 
+# Unpacked but never configured: an in-place upgrade from universe that dpkg gave
+# up on. It reports the new version, so hyprland_too_old cannot see it, and it
+# does not run, because the libraries it needs did not get installed.
+hyprland_half_installed() {
+    local st
+    st="$(dpkg-query -W -f='${db:Status-Abbrev}' -- hyprland 2>/dev/null || true)"
+    [[ -n $st && $st != ii* && $st != rc* && $st != un* ]]
+}
+
 # Whether this machine can have a usable Hyprland without adding the PPA. A
 # candidate merely existing is not enough: universe offers 0.53.3 on 26.04,
 # which has no Lua at all. It ignores hyprland.lua, generates a stock config and
@@ -1096,8 +1114,9 @@ done
 # A machine that took universe's Hyprland has every package and would otherwise
 # count as finished, so nothing would ever replace it. The tools go with it
 # because they share its libraries, and the PPA moves those on.
-if [[ $DISTRO == ubuntu ]] && hyprland_too_old; then
-    for p in hyprland hyprlock hypridle hyprpicker hyprsunset hyprpolkitagent \
+if [[ $DISTRO == ubuntu ]] && { hyprland_too_old || hyprland_half_installed; }; then
+    MISSING_PKGS+=(hyprland)
+    for p in hyprlock hypridle hyprpicker hyprsunset hyprpolkitagent \
              hyprland-guiutils xdg-desktop-portal-hyprland; do
         pkg_installed "$p" && MISSING_PKGS+=("$p")
     done
@@ -1269,6 +1288,7 @@ run() {  # execute, or just narrate under --dry-run
     if [[ $DRY_RUN -eq 1 ]]; then
         info "[dry-run] $*"
     else
+        RUN_LINE="${BASH_LINENO[0]}"; RUN_CMD="$*"
         "$@"
     fi
 }
@@ -1605,6 +1625,30 @@ MOZEOF
             # lists may be weeks stale, and apt installs the version its lists
             # name rather than the one on the mirror.
             run $SUDO apt-get update
+            # universe's Hyprland cannot be upgraded in place. The PPA's packages
+            # ship files that hyprland, libhyprcursor0 and libudis86-0 still own,
+            # without declaring that they replace them, so dpkg stops with
+            # "trying to overwrite" and leaves everything half unpacked. Nothing
+            # else in the archive needs those three but their own -dev and -util
+            # packages. Only with a good build on offer, and it covers a machine
+            # an earlier attempt left half-installed.
+            _hypr_new="$(apt_candidate_version hyprland)"
+            if [[ $DRY_RUN -eq 0 && -n $_hypr_new ]] && version_at_least "$_hypr_new" "$HYPRLAND_MIN" \
+               && { hyprland_too_old || hyprland_half_installed; }; then
+                _old=()
+                for p in hyprland libhyprcursor0 libudis86-0; do
+                    dpkg-query -W -- "$p" >/dev/null 2>&1 && _old+=("$p")
+                done
+                info "replacing the old Hyprland packages: ${_old[*]}"
+                run $SUDO env DEBIAN_FRONTEND=noninteractive apt-get remove -y "${_old[@]}"
+                UBUNTU_PKGSET=""
+                # Removal can take dependents with it; whatever is wanted goes back.
+                for p in "${WANTED[@]}"; do
+                    if ! pkg_installed "$p" && [[ " ${MISSING_PKGS[*]} " != *" $p "* ]]; then
+                        MISSING_PKGS+=("$p")
+                    fi
+                done
+            fi
             # The filter before the system phase had to pass everything through
             # while the PPA and universe were still off. Both are on now, and
             # apt-get has no --skip-unavailable: one unknown name, quickshell on
