@@ -3,8 +3,9 @@ pragma Singleton
 // The dock's model: one entry per app, not per window — the pinned apps
 // first, then anything else open, in the order first seen.
 //
-// Pins are ~/.config/lucent/dock-pinned, one desktop file ID per line, the
-// same file the GTK dock reads, so switching engines keeps them.
+// Pins are ~/.config/lucent/dock-pinned, one desktop file ID per line. With
+// no file the defaults below are shown; the file is written the first time a
+// pin changes.
 
 import QtQuick
 import Quickshell
@@ -111,11 +112,6 @@ Singleton {
             workingDirectory: workingDirectory || Quickshell.env("HOME"),
             environment: { GTK_THEME: Theme.gtkTheme() }
         });
-    }
-
-    // A shell command line, for the bar's click actions.
-    function sh(line) {
-        run(["sh", "-c", line]);
     }
 
     function launch(app) {

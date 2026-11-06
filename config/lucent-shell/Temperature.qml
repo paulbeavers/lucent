@@ -1,6 +1,5 @@
-// thermal_zone0, as waybar read it by default; gone if there is none. Just
-// the figure: the °C says what it is. Red from 82°C, which the thermometer's
-// full/half glyph used to say as well.
+// thermal_zone0 (see scripts/stats.sh); gone if there is none. Just the
+// figure: the °C says what it is. Red from 82°C.
 
 import QtQuick
 

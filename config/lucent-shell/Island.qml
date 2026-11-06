@@ -1,5 +1,5 @@
-// One of the top bar's three floating slabs (waybar's .modules-left, -center
-// and -right): translucent base, a 1px border, rounded 12.
+// One of the top bar's three floating slabs (left, centre and right):
+// translucent base, a 1px border, rounded 12.
 
 import QtQuick
 

@@ -1,11 +1,7 @@
 // Panel style, the default: one strip across the screen edge holding the
 // workspaces with the dock right after them, and the status modules with the
-// date and time at the other end.
-//
-// With waybar this was two programs composed — waybar drawing the strip and
-// the GTK dock drawing its icons on top with no zone of its own, which had to
-// map after waybar and map again whenever waybar reloaded. Here it is one
-// window, so none of that applies.
+// date and time at the other end. It is all one window, so the dock needs no
+// surface or exclusive zone of its own here.
 
 import QtQuick
 import Quickshell
@@ -31,7 +27,7 @@ PanelWindow {
         enabled: Settings.idleInhibited
     }
 
-    // waybar's border-top, on whichever side faces the desktop.
+    // A 1px border on whichever side faces the desktop.
     Rectangle {
         anchors.left: parent.left
         anchors.right: parent.right
@@ -41,7 +37,7 @@ PanelWindow {
     }
 
     Row {
-        id: left
+        id: workspaceRow
         anchors.left: parent.left
         anchors.leftMargin: 8
         anchors.verticalCenter: parent.verticalCenter
@@ -52,7 +48,7 @@ PanelWindow {
     // The dock follows the workspaces, rather than sitting in the middle:
     // the apps are next to where the eye already is on that side.
     DockRow {
-        anchors.left: left.right
+        anchors.left: workspaceRow.right
         anchors.leftMargin: 12
         anchors.verticalCenter: parent.verticalCenter
         visible: !Settings.dockHidden

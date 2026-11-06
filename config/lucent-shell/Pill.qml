@@ -1,6 +1,6 @@
 // One module in the bar: a label on a rounded background, with clicks, scroll
-// and a tooltip. The shape is waybar's style.css — padding 0 10px, margin
-// 2px either side, radius 8 — and the height is Settings.pillHeight.
+// and a tooltip. Padding 10px either side (6 in the panel, below), margin 2px
+// either side (1 in the panel), radius 8; the height is Settings.pillHeight.
 
 import QtQuick
 
@@ -8,8 +8,8 @@ Item {
     id: pill
 
     property string text: ""
-    // A glyph drawn beside the text, 4px from it: closer than the two
-    // spaces waybar's formats used, and the same whatever the font's space.
+    // A glyph drawn beside the text, 4px from it: a fixed gap rather than
+    // spaces in the text, so it is the same whatever the font's space.
     property string icon: ""
     property color fg: Theme.c("text")
     property color bg: "transparent"
@@ -17,8 +17,9 @@ Item {
     property color hoverFg: fg
     property string tip: ""
     property bool richTip: false
-    // Tighter in the panel, whose right-hand side otherwise reaches in
-    // towards the dock in the middle; waybar's 10 in the top bar's islands.
+    // Tighter in the panel, where the status modules share one strip with
+    // the workspaces and the dock that follows them, and the dock moves
+    // right as workspaces 6-10 appear; 10 in the top bar's islands.
     property int padX: Settings.panelMode ? 6 : 10
     property int fontSize: 14
     // Glyphs sit a little larger than the figures beside them.

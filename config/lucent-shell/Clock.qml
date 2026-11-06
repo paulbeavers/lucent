@@ -1,8 +1,8 @@
 // The time; click for the full date and seconds. Hover for a month's calendar
 // with ISO week numbers, and scroll over it to page through the months.
-// Calendar colours are waybar's: month mauve, weekdays peach, weeks sapphire,
-// today red and underlined — from the palette, so they follow the theme
-// without theme.sh patching anything.
+// Calendar colours: month mauve, weekdays peach, weeks sapphire, today red
+// and underlined. They are looked up in Theme.palette each time the tooltip
+// is built, so they follow a theme switch with nothing in theme.sh for them.
 
 import QtQuick
 import Quickshell

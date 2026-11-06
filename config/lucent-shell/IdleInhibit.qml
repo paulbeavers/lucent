@@ -1,6 +1,6 @@
 // Keep the screen awake. The inhibitor itself lives on each bar window
-// (IdleInhibitor needs a surface); this is the switch. Like waybar's, it is
-// forgotten when the shell restarts.
+// (IdleInhibitor needs a surface); this is the switch. It is held only in
+// memory, so it is forgotten when the shell restarts.
 
 import QtQuick
 

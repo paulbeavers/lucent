@@ -1,4 +1,4 @@
-// The right-hand modules, in waybar's order. No network module: nm-applet's
+// The status modules, tray first. No network module: nm-applet's
 // icon in the tray already shows the connection and opens its menu.
 
 import QtQuick

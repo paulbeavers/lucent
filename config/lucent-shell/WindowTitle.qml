@@ -1,6 +1,6 @@
-// The focused window's title, on the monitor it is on — waybar's
-// hyprland/window with separate-outputs. Top bar only: in panel style the
-// dock already shows what is open.
+// The title of the window last focused on the workspace this monitor shows,
+// so each screen names its own. Top bar only: in panel style the dock
+// already shows what is open.
 
 import QtQuick
 
@@ -11,7 +11,8 @@ Pill {
     readonly property var window: Hypr.lastWindowOn(Hypr.activeWorkspaceOn(screen))
     readonly property int maxLength: 70
 
-    // waybar's rewrite rules, in the same order.
+    // A glyph in place of the app's name for Firefox, Chromium and VS Code,
+    // and before a terminal's title (one starting with ~). First match wins.
     function rewrite(t) {
         const rules = [
             [/^(.*) — Mozilla Firefox$/, "\u{f0239}  $1"],

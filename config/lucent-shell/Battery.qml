@@ -1,5 +1,5 @@
 // Gone on a machine with no battery. Warning at 25%, critical at 10%, and a
-// red pill when critical and not charging — waybar's states and style.
+// red pill when critical and not charging.
 
 import QtQuick
 

@@ -1,5 +1,5 @@
 // The default output's volume, through PipeWire. Scroll for ±5%, click for
-// pavucontrol, right-click to mute — waybar's pulseaudio module.
+// pavucontrol, right-click to mute.
 
 import QtQuick
 import Quickshell.Services.Pipewire

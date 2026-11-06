@@ -10,7 +10,8 @@
 set -u
 read -r _ rest < /proc/stat && echo "cpu $rest"
 awk '/^MemTotal:/ { t = $2 } /^MemAvailable:/ { a = $2 } END { print "mem", t, a }' /proc/meminfo
-# waybar's temperature module read thermal_zone0 by default; so does this.
+# Only thermal_zone0: which zone is the CPU differs by machine, and this does
+# not try to pick one.
 [ -r /sys/class/thermal/thermal_zone0/temp ] \
     && echo "temp $(cat /sys/class/thermal/thermal_zone0/temp)"
 for d in /sys/class/power_supply/*; do

@@ -1,16 +1,15 @@
 // The workspace row: 1 to 5 always, 6 to 10 while something is on them.
 // Click to go there; scroll for the previous or next one on this monitor.
 //
-// This is the module waybar could not do: its hyprland/workspaces sends
-// `dispatch workspace N`, which a Lua-configured Hyprland rejects, so the bar
-// built the row from ten custom modules and a signal. Here it is one Repeater
-// that speaks Lua (Hypr.focusWorkspace).
+// Clicks go through Hypr.focusWorkspace, which sends an hl.dsp dispatch
+// through hyprctl: a Lua-configured Hyprland rejects the old `dispatch
+// workspace N`, and Quickshell 0.2.1's own Hyprland.dispatch does not know
+// about Lua configs (see Hypr.qml).
 //
-// Colours as waybar's style.css: the active one a mauve pill, urgent red,
-// occupied in the text colour, empty in @overlay.
+// The active one is a mauve pill, urgent red, occupied in the text colour,
+// empty in overlay.
 
 import QtQuick
-import Quickshell
 
 Row {
     id: row

@@ -1,13 +1,20 @@
 pragma Singleton
 
-// The palette and font, from the files theme.sh renders for waybar: the same
-// colors.css the GTK dock and lucent-config read, and font.css. Both are
-// watched, so a theme switch recolours the shell without a restart.
+// The palette and font, from the files theme.sh renders: ~/.config/lucent's
+// colors.css (which lucent-config reads too) and font.css, and the light or
+// dark mode from hypr/colors.lua. All three are watched, so a theme switch is
+// meant to recolour the shell without a restart.
 //
-// theme.sh replaces these files by rename. FileView's watch is expected to
-// follow that; dock.py watches the directory instead for exactly this
-// reason, so if a theme switch ever leaves the shell in the old colours,
-// look here first.
+// What is not established: theme.sh writes each of these to a temp file and
+// moves it into place, which gives the path a new inode. A plain file watch
+// (inotify, QFileSystemWatcher) can stay on the old inode and go deaf after
+// the first switch; lucent-config avoids that by watching the directory.
+// FileView offers only watchChanges on its own path — nothing in its API
+// watches a directory — and whether its watch survives a rename over the file
+// has not been checked. The safety net does not cover it: theme.sh calls
+// `bar.sh --theme`, which restarts the shell only when the icon theme changed.
+// So if a theme switch leaves the shell in the old colours, look here first;
+// SUPER+SHIFT+R (bar.sh --restart) rereads everything.
 
 import QtQuick
 import Quickshell
