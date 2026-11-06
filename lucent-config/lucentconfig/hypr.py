@@ -84,17 +84,20 @@ def reload() -> str:
 def center_window(pid: int) -> str:
     """Centre the floating window belonging to `pid` on its monitor.
 
-    keybinds.lua's Centre window bind calls hl.dsp.window.center() with no
-    argument, which acts on the active window. The `window` selector here is
-    the one hl.dsp.focus and hl.dsp.window.close take in lucent-shell's
-    Hypr.qml, with a pid: rather than an address: target. rules.lua floats
-    this app, which is what centring is for; whatever Hyprland answers other
-    than "ok" is reported by Apply rather than dropped.
+    rules.lua floats this app, which is what centring is for. Checked against
+    Hyprland 0.57: the dispatch answers "ok", and "No floating window found"
+    when the window is not floating, which is the user having tiled it and
+    nothing to report. Any other answer is reported by Apply.
     """
-    return _ok(
-        ["dispatch", f'hl.dsp.window.center({{ window = "pid:{pid}" }})'],
-        "centring the window",
-    )
+    try:
+        return _ok(
+            ["dispatch", f'hl.dsp.window.center({{ window = "pid:{pid}" }})'],
+            "centring the window",
+        )
+    except RuntimeError as exc:
+        if "No floating window found" in str(exc):
+            return ""
+        raise
 
 
 def get_option(name: str):
