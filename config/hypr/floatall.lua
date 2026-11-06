@@ -24,6 +24,9 @@
 --
 --  The mode is remembered: ~/.config/lucent/float-all exists while it is on,
 --  so it survives a reload and the next login.
+--
+--  lucent-config's Windows page sets it through `hyprctl repl`, calling set()
+--  on this same module: require() hands back the copy keybinds.lua loaded.
 --------------------------------------------------------------------------------
 
 local M = {}
@@ -70,11 +73,20 @@ local function tile(w)
     hl.dispatch(hl.dsp.window.float({ action = "disable", window = win }))
 end
 
+function M.is_on()
+    return is_on()
+end
+
+-- On or off, rather than a flip: a switch in lucent-config means one or the
+-- other, whatever the key did since the page was drawn. Asking for the state
+-- the mode is already in does nothing, not even the notification.
+--
 -- `mod` is the primary modifier keybinds.lua settled on, for the hint: there
 -- are no title bars to drag, so moving a floating window takes the modifier.
-function M.toggle(mod)
+function M.set(on, mod)
+    on = on and true or false
+    if on == is_on() then return end
     mod = mod or "SUPER"
-    local on = not is_on()
     remember(on)
     for _, w in ipairs(hl.get_windows()) do
         if on then float(w) else tile(w) end
@@ -85,6 +97,10 @@ function M.toggle(mod)
     else
         hl.exec_cmd("notify-send -a Windows -t 1500 'Tiling' 'Windows tile again.'")
     end
+end
+
+function M.toggle(mod)
+    M.set(not is_on(), mod)
 end
 
 hl.on("window.open", function(w)

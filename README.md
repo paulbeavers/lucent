@@ -448,6 +448,7 @@ keymap keeps one shape.
   `SUPER + left-drag` and resizes with `SUPER + right-drag` or by its border.
   `floatall.lua` explains the tag it uses to tell them apart; the mode
   survives a reload and a login through `~/.config/lucent/float-all`.
+  lucent-config's Windows page has the same switch.
 - **Two tiling layouts.** `theme.lua` sets `general:layout` (dwindle by
   default) and `SUPER + T` flips the running session between dwindle and
   Hyprland's built-in scrolling layout — a PaperWM-style tape of columns.

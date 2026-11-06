@@ -479,6 +479,12 @@ GNOME's design language and resists being overridden.
 - The Dock page keeps no state of its own. "Show at login" is the
   `dock-hidden` marker SUPER+D writes, and the style is `dock-mode`, applied
   through `dock.sh --mode`; the page reads both back.
+- Nor does the Windows page. "Float every window" is floatall.lua's mode, the
+  one SUPER+SHIFT+V toggles: it reads `~/.config/lucent/float-all` back, and
+  Apply calls `require("floatall").set(on)` through `hyprctl repl`. That reaches
+  the module keybinds.lua already loaded, so open windows float or tile at once.
+  `set` rather than `toggle`, because a switch means on or off whatever the key
+  did since the page was drawn.
 
 Display scale is the setting worth understanding: a scale is legal only if it
 is a multiple of 1/120 *and* divides the resolution into whole pixels both
