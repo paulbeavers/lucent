@@ -12,13 +12,12 @@ HOME = Path.home()
 CONFIG = Path(os.environ.get("XDG_CONFIG_HOME") or HOME / ".config")
 
 HYPR = CONFIG / "hypr"
-WAYBAR = CONFIG / "waybar"
-
-# The palette theme.sh renders for waybar. We import the same file rather than
-# rendering a third copy, so SUPER+SHIFT+T restyles this app too.
-COLORS_CSS = WAYBAR / "colors.css"
+# The palette theme.sh renders, which the bar and dock read too, so
+# SUPER+SHIFT+T restyles this app as well. Its own directory is watched, because
+# theme.sh replaces the file by rename.
+COLORS_CSS = CONFIG / "lucent" / "colors.css"
 # The theme's font family, which theme.sh renders beside the palette.
-FONT_CSS = WAYBAR / "font.css"
+FONT_CSS = CONFIG / "lucent" / "font.css"
 
 # Hand-written, and left alone.
 INPUT_LUA = HYPR / "input.lua"

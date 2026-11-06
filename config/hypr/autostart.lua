@@ -33,17 +33,10 @@ hl.on("hyprland.start", function()
         .. "; systemctl --user start hyprpolkitagent")
     hl.exec_cmd("/usr/bin/gnome-keyring-daemon --start --components=secrets")
 
-    -- Shell components. bar.sh starts whichever bar is chosen: waybar, through
-    -- its own launcher (scripts/waybar.sh), which starts it with SIGRTMIN+1
-    -- ignored because the refresh signal below is fatal to a waybar that has
-    -- not installed its handler yet; or the Quickshell shell, which draws the
-    -- bar and the dock together.
+    -- The bar and the dock: one Quickshell program, config/lucent-shell, which
+    -- bar.sh starts. It leaves the dock out if SUPER + D hid it last time.
     hl.exec_cmd("~/.config/hypr/scripts/bar.sh")
     hl.exec_cmd("mako")
-
-    -- The dock, unless SUPER + D hid it last time. dock.sh has why
-    -- hidden means stopped.
-    hl.exec_cmd("~/.config/hypr/scripts/dock.sh --start")
 
     -- The wallpaper. There is no daemon to start first: --restore reads the
     -- recorded choice and runs swaybg with it, and swaybg takes the image as
@@ -100,37 +93,3 @@ set_cursor()
 hl.on("hyprland.shutdown", function()
     hl.exec_cmd("systemctl --user stop hyprland-session.target")
 end)
-
---------------------------------------------------------------------------------
---  Keep the workspace row in the bar current
---
---  The bar draws workspaces with ten custom modules instead of waybar's
---  hyprland/workspaces, because that module cannot switch workspaces on a
---  Lua-configured Hyprland — see waybar/config.jsonc for the whole story. A
---  custom module only refreshes when told to, and SIGRTMIN+1 is what tells it
---  (every one of the ten carries "signal": 1).
---
---  Doing it from here rather than from a daemon tailing the event socket means
---  no extra process, and no socat: the compositor already knows, so it can just
---  say so.
---------------------------------------------------------------------------------
-
--- -x, so the substring does not also match scripts/waybar.sh in the instant
--- before it execs. That launcher is what keeps an early signal — one sent
--- while waybar is still starting, when SIGRTMIN+1 still has its default
--- action of killing the process — from taking the bar down with it.
-local function refresh_workspaces()
-    hl.exec_cmd("pkill -RTMIN+1 -x waybar")
-end
-
-for _, event in ipairs({
-    "workspace.active",
-    "workspace.created",
-    "workspace.removed",
-    "window.open",
-    "window.close",
-    "window.urgent",
-    "monitor.focused",
-}) do
-    hl.on(event, refresh_workspaces)
-end

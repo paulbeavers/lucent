@@ -7,7 +7,6 @@ it will never touch.
 """
 
 import platform
-import shutil
 import subprocess
 
 from .. import __version__, hypr, paths, readback
@@ -39,12 +38,8 @@ def build(window):
     card = page.section("Versions")
     card.add(Row("lucent-config", _value(__version__)))
     card.add(Row("Hyprland", _value(_hyprland_version())))
-    # The bar is Quickshell wherever it is packaged, waybar where it is not
-    # (bar.sh starts whichever is installed, in that order).
-    if shutil.which("qs"):
-        card.add(Row("Quickshell", _value(_version("qs"))))
-    else:
-        card.add(Row("Waybar", _value(_version("waybar"))))
+    # The bar and the dock are Quickshell, which install.sh requires.
+    card.add(Row("Quickshell", _value(_version("qs"))))
     card.add(Row("GTK", _value("%d.%d.%d" % (
         Gtk.get_major_version(), Gtk.get_minor_version(), Gtk.get_micro_version()))))
     card.add(Row("Kernel", _value(platform.release())))

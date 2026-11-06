@@ -118,8 +118,7 @@ hl.window_rule({
 })
 
 -- ── helper terminals ────────────────────────────────────────────────────────
--- The bar's cpu and memory modules (and waybar's network module, in the
--- fallback) open btop and nmtui with this class.
+-- The bar's cpu and memory modules open btop with this class.
 hl.window_rule({
     name  = "floating-term",
     match = { class = "^(floating-term)$" },
@@ -138,10 +137,9 @@ hl.window_rule({
 
 -- ── layer rules ─────────────────────────────────────────────────────────────
 -- Layers are the shell surfaces: the bar, the launcher, notifications.
-hl.layer_rule({ name = "blur-waybar",  match = { namespace = "^(waybar)$" },        blur = true, ignore_alpha = 0.2 })
-hl.layer_rule({ name = "blur-dock",    match = { namespace = "^(lucent-dock)$" },   blur = true, ignore_alpha = 0.2 })
--- The Quickshell bar and panel (config/lucent-shell), blurred as waybar is.
+-- The bar and panel, and the floating dock (config/lucent-shell).
 hl.layer_rule({ name = "blur-bar",     match = { namespace = "^(lucent-bar)$" },    blur = true, ignore_alpha = 0.2 })
+hl.layer_rule({ name = "blur-dock",    match = { namespace = "^(lucent-dock)$" },   blur = true, ignore_alpha = 0.2 })
 hl.layer_rule({ name = "blur-wofi",    match = { namespace = "^(wofi)$" },          blur = true, ignore_alpha = 0.3 })
 hl.layer_rule({ name = "blur-notifs",  match = { namespace = "^(notifications)$" }, blur = true, ignore_alpha = 0.3 })
 hl.layer_rule({ name = "no-anim-pick", match = { namespace = "^(hyprpicker)$" },    no_anim = true })

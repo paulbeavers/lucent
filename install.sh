@@ -18,7 +18,6 @@ set -Eeuo pipefail
 readonly SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 readonly CONFIG_SRC="$SCRIPT_DIR/config"
 CONFIG_DST="${XDG_CONFIG_HOME:-$HOME/.config}"
-readonly BACKUP_DIR="$HOME/.config-backup-$(date +%Y%m%d-%H%M%S)"
 
 # Default fractional scale for generated monitor lines. Hyprland requires the
 # scaled resolution to land on a whole pixel, so a scale is only used when it
@@ -56,6 +55,10 @@ HYPRLAND_COPR=nett00n/hyprland
 HYPRLAND_PPA=ppa:cppiber/hyprland
 HYPRLAND_MIN=0.55
 
+# The bar and the dock are one Quickshell program, config/lucent-shell, and there
+# is no fallback: Quickshell is a requirement. QUICKSHELL_MIN is the oldest API
+# lucent-shell is written against (Fedora 44's).
+QUICKSHELL_MIN=0.2.1
 # 26.04 does not package Quickshell, so where nothing offers it the system phase
 # builds this: Ubuntu's own source package from the release after it, pinned by
 # hash. Everything it needs is in 26.04 except libcpptrace-dev, which only its crash
@@ -205,9 +208,12 @@ else
     [[ $EUID -ne 0 ]] || die "Run this as your normal user, not root, or pass --for-user NAME."
 fi
 [[ -n ${CONFIG_DST_OVERRIDE:-} ]] && CONFIG_DST="$CONFIG_DST_OVERRIDE"
+# After --for-user has moved HOME, so a backup lands in the home it belongs to
+# and the final chown covers it.
+readonly BACKUP_DIR="$HOME/.config-backup-$(date +%Y%m%d-%H%M%S)"
 
 # Arch, Fedora or Ubuntu. Everything distro-specific below — package names, the
-# package manager, the initramfs tool, where Hyprland comes from — branches on
+# package manager, where Hyprland and Quickshell come from — branches on
 # DISTRO; the configuration it deploys is identical on all three.
 #
 # ID_LIKE, not just ID, so the Ubuntu-based distributions come out as ubuntu:
@@ -653,9 +659,7 @@ PKGS_DESKTOP=(
     # PKGS_THEME; this is the Python binding, and the only thing the settings
     # app adds to the image.
     python-gobject
-    # The bar and the dock: config/lucent-shell, started by bar.sh. Arch has
-    # no fallback list; waybar and the GTK dock are for distributions that do
-    # not package quickshell (BAR_FALLBACK below).
+    # The bar and the dock: config/lucent-shell, started by bar.sh.
     quickshell
 )
 PKGS_FONTS=(
@@ -749,14 +753,10 @@ if [[ ${DISTRO:-} == fedora ]]; then
         imv mpv
         ImageMagick jq
         python3-gobject
-        # Fedora 44 has 0.2.1, whose API covers everything lucent-shell uses;
-        # 43 has none, and gets BAR_FALLBACK instead.
+        # Fedora 44 has 0.2.1, QUICKSHELL_MIN. 43 has none and is refused.
         quickshell
         dconf
     )
-    # The bar and the dock where quickshell cannot be had: waybar and the GTK
-    # dock, which is a gtk4-layer-shell surface. Added to WANTED only then.
-    BAR_FALLBACK=( waybar gtk4-layer-shell )
     # JetBrainsMono Nerd Font and the Nerd Font symbols are not packaged; the
     # system phase fetches them from the Nerd Fonts release instead.
     PKGS_FONTS=(
@@ -850,14 +850,12 @@ elif [[ ${DISTRO:-} == ubuntu ]]; then
         # lucent-config is GTK4 through PyGObject: the binding, the cairo
         # integration and GTK4's own typelib, which is a separate package here.
         python3-gi python3-gi-cairo gir1.2-gtk-4.0
-        # Not in 26.04's archive; the availability filter drops it, and
-        # BAR_FALLBACK stands in, until it is.
+        # Not in 26.04's archive, so the availability filter drops it and the
+        # system phase builds it instead (QUICKSHELL_DSC). A later release that
+        # packages it installs it from here.
         quickshell
         dconf-cli
     )
-    # waybar and the GTK dock, for as long as quickshell is not packaged here.
-    # Added to WANTED only then.
-    BAR_FALLBACK=( waybar libgtk4-layer-shell0 gir1.2-gtk4layershell-1.0 )
     # The Nerd Fonts are not packaged, so the system phase fetches them from
     # the upstream release exactly as it does on Fedora.
     PKGS_FONTS=(
@@ -1063,7 +1061,7 @@ apt_component_enabled() {
 
 # Neither Fedora nor Ubuntu packages the Nerd Fonts every config here names,
 # so they are fetched from the upstream release instead: JetBrainsMono Nerd
-# Font for text, Symbols Nerd Font for the icons waybar and wofi draw.
+# Font for text, Symbols Nerd Font for the icons the bar and wofi draw.
 NERD_FONTS=( JetBrainsMono NerdFontsSymbolsOnly )
 NERD_FONTS_DIR=/usr/local/share/fonts/nerd-fonts
 nerd_fonts_present() {
@@ -1104,12 +1102,13 @@ for _i in "${!GPU_VENDORS[@]}"; do
 done
 [[ -n $BCM_DRIVER ]] && info "wireless:  $BCM_NAME — $BCM_DRIVER"
 
-# The bar and the dock are lucent-shell, which needs quickshell. Arch always
-# has it; on Fedora and Ubuntu, a release that does not package it (Fedora
-# 43, Ubuntu 26.04) gets waybar and the GTK dock instead, and bar.sh starts
-# whichever is installed. When the answer cannot be had — offline, or a
-# component not enabled yet — both are wanted: the unavailable one is passed
-# over, and a waybar installed beside quickshell is never started.
+# Quickshell is required, and where it comes from depends on the distro:
+#
+#   Arch     the quickshell package, in extra.
+#   Fedora   the quickshell package, from 44 on. Fedora 43 has none and is
+#            refused here, before anything has been changed.
+#   Ubuntu   26.04 has none, so the system phase builds Ubuntu's own source
+#            package from the next release (QUICKSHELL_DSC).
 quickshell_obtainable() {
     pkg_installed quickshell && return 0
     case "$DISTRO" in
@@ -1120,15 +1119,12 @@ quickshell_obtainable() {
         *)      return 1 ;;
     esac
 }
-if [[ $DISTRO != arch ]] && ! quickshell_obtainable; then
-    WANTED+=( ${BAR_FALLBACK[@]+"${BAR_FALLBACK[@]}"} )
-fi
-
-# On Ubuntu that is not the end of it: Quickshell gets built, and the fallback stays
-# only for if that fails. A machine without it is not finished, so a re-run retries.
 QUICKSHELL_TO_BUILD=0
-if [[ $DISTRO == ubuntu ]] && ! quickshell_obtainable; then
-    QUICKSHELL_TO_BUILD=1
+if ! quickshell_obtainable; then
+    case "$DISTRO" in
+        ubuntu) QUICKSHELL_TO_BUILD=1 ;;
+        fedora) die "No Quickshell package is available here, and lucent's bar and dock need it ($QUICKSHELL_MIN or newer). Fedora packages it from 44 on. If this is Fedora 44, check the network and run this again." ;;
+    esac
 fi
 
 MISSING_PKGS=()
@@ -1160,7 +1156,7 @@ if [[ $DISTRO == ubuntu ]] && firefox_is_snap_stub; then
 fi
 
 # Which APT components are configured. universe carries most of the desktop —
-# waybar, wofi, foot, thunar, swayosd — and is enabled by default on Ubuntu
+# wofi, foot, thunar, swayosd — and is enabled by default on Ubuntu
 # Desktop but not on every derivative or minimal image, so it is checked
 # rather than assumed.
 # steam is in multiverse and is a 32-bit package, so --gaming also needs the
@@ -1808,7 +1804,7 @@ MOZEOF
 
         # ── Quickshell ────────────────────────────────────────────────────────
         # As a real package, so dpkg knows the files and a later release's own
-        # package replaces it. Never fatal: bar.sh falls back to waybar without it.
+        # package replaces it. Required: a failed build stops the install.
         fetch_build_install_quickshell() {
             local dir="$1" entry f
             for entry in "${QUICKSHELL_SHA256[@]}"; do
@@ -1849,10 +1845,10 @@ MOZEOF
                 qs_before="$qs_dir/before"; qs_manual="$qs_dir/manual"
                 dpkg-query -W -f='${Package}\n' | sed 's/:.*//' | sort -u > "$qs_before"
                 apt-mark showmanual | sort -u > "$qs_manual"
+                qs_built=0
                 if fetch_build_install_quickshell "$qs_dir" > "$qs_log" 2>&1; then
+                    qs_built=1
                     ok "built and installed quickshell"
-                else
-                    warn "could not build Quickshell, so the bar stays waybar. See $qs_log"
                 fi
                 UBUNTU_PKGSET=""
                 # The compilers and Qt headers came for this and are about a
@@ -1866,6 +1862,9 @@ MOZEOF
                     <(comm -13 "$qs_before" <(dpkg-query -W -f='${Package}\n' | sed 's/:.*//' | sort -u)) \
                     | xargs -r $SUDO env DEBIAN_FRONTEND=noninteractive apt-get purge -y >> "$qs_log" 2>&1 || true
                 rm -rf "$qs_dir"
+                # After the clean-up, so a failure does not leave the compilers behind.
+                [[ $qs_built -eq 1 ]] \
+                    || die "Quickshell did not build, and lucent's bar and dock need it. The log is $qs_log; run this again to retry."
             fi
         fi
     fi
@@ -2073,6 +2072,18 @@ else
     [[ $DO_PACKAGES != no ]] && info "nothing to install — skipping to configuration"
 fi
 
+# ── Quickshell, checked ───────────────────────────────────────────────────────
+# Whichever way it came, the bar and the dock need it and need QUICKSHELL_MIN:
+# stop here rather than deploy a desktop with no bar.
+if [[ $DRY_RUN -eq 0 ]]; then
+    command -v qs >/dev/null \
+        || die "Quickshell is not installed, and lucent's bar and dock need it. Run this again without --configs-only to install it."
+    qs_version="$(qs --version 2>/dev/null | grep -oE '[0-9]+\.[0-9]+(\.[0-9]+)?' | head -1 || true)"
+    if [[ -n $qs_version ]] && ! version_at_least "$qs_version" "$QUICKSHELL_MIN"; then
+        die "Quickshell $qs_version is installed, and lucent's bar and dock need $QUICKSHELL_MIN or newer."
+    fi
+fi
+
 # ── configuration ─────────────────────────────────────────────────────────────
 if [[ $DO_CONFIGS -eq 1 ]]; then
     step "Syncing configuration files"
@@ -2126,6 +2137,26 @@ if [[ $DO_CONFIGS -eq 1 ]]; then
         for f in "${CHANGED_FILES[@]}"; do info "updated  $f"; done
         ok "$N_ADDED added, $N_CHANGED updated, $N_SAME unchanged"
         [[ $N_CHANGED -gt 0 && $DRY_RUN -eq 0 ]] && info "previous versions saved to $BACKUP_DIR"
+    fi
+
+    # Files an earlier lucent deployed and this one no longer has: the waybar
+    # bar and the GTK dock, which were the fallback before Quickshell became a
+    # requirement, and the palette's old home beside them. The sync above never
+    # removes anything, so they are moved into the backup rather than deleted.
+    retired=()
+    for rel in waybar lucent-dock hypr/scripts/waybar.sh; do
+        [[ -e $CONFIG_DST/$rel ]] && retired+=("$rel")
+    done
+    if [[ ${#retired[@]} -gt 0 ]]; then
+        if [[ $DRY_RUN -eq 1 ]]; then
+            info "[dry-run] would move retired configs to $BACKUP_DIR: ${retired[*]}"
+        else
+            for rel in "${retired[@]}"; do
+                mkdir -p "$BACKUP_DIR/$(dirname "$rel")"
+                mv "$CONFIG_DST/$rel" "$BACKUP_DIR/$rel"
+            done
+            ok "moved retired configs to $BACKUP_DIR: ${retired[*]}"
+        fi
     fi
 
     # ~/.bashrc gets one line that loads config/bash/bashrc, synced above.
@@ -2567,7 +2598,7 @@ EOF
 # UTM cuts rounded window corners off and leaves the gap black, on active and
 # inactive windows alike. Square corners were the only fix in a test of each
 # effect: shadow, blur and a squircle rounding_power all left it. Rounded boxes
-# that clients draw themselves, waybar's and mako's, are unaffected.
+# that clients draw themselves, the bar's and mako's, are unaffected.
 hl.config({ decoration = { rounding = 0 } })
 
 EOF
@@ -2752,9 +2783,11 @@ KBLUA
     # ── session services ──────────────────────────────────────────────────────
     # The same packaging, for what autostart.lua starts itself or nothing here
     # uses. Enabled for every graphical session, these gave Hyprland a second
-    # waybar across the top and a second hypridle, and at GDM's greeter they fail
-    # in a restart loop. Masked, because a package upgrade can enable a unit again
-    # but leaves a mask alone. Takes effect at the next login.
+    # hypridle, a second notification daemon and, where waybar is installed (lucent
+    # used to install it), a second bar; at GDM's greeter they fail in a restart
+    # loop. Masked, because a package upgrade can enable a unit again but leaves a
+    # mask alone, and a mask of a unit that is not installed is harmless. Takes
+    # effect at the next login.
     if [[ $DISTRO == ubuntu ]]; then
         step "Session services"
         session_masked=()
@@ -2801,9 +2834,8 @@ KBLUA
     fi
 
     # ── colour theme ──────────────────────────────────────────────────────────
-    # Several configs are rendered rather than copied: the bar reads
-    # waybar/colors.css (the palette keeps that path whichever bar draws it),
-    # wofi @imports one, hypr requires a colors.lua, foot and mako include their
+    # Several configs are rendered rather than copied: the bar and lucent-config
+    # read ~/.config/lucent/colors.css, wofi @imports one, hypr requires a colors.lua, foot and mako include their
     # own. None of those exist until a theme is applied, so this has to run on
     # every install or the bar comes up in its built-in colours.
     step "Colour theme"
@@ -3002,15 +3034,6 @@ fi
 # ── validation ────────────────────────────────────────────────────────────────
 if [[ $DO_CONFIGS -eq 1 && $DRY_RUN -eq 0 ]]; then
     step "Validating configuration"
-
-    # Only where waybar is the bar: the fallback, on a release without quickshell.
-    if command -v jq >/dev/null && command -v waybar >/dev/null; then
-        if sed -e 's@^[[:space:]]*//.*@@' "$CONFIG_DST/waybar/config.jsonc" | jq -e . >/dev/null 2>&1; then
-            ok "waybar config parses"
-        else
-            warn "waybar config.jsonc has a syntax error"
-        fi
-    fi
 
     # Ask the running compositor directly. Works from inside the session, and
     # also from a plain terminal by looking the instance up in the runtime dir.

@@ -1,9 +1,0 @@
-// Waybar — the panel at the top of the screen instead of the bottom.
-//
-// panel.jsonc with one key changed; waybar.sh picks this file when the dock's
-// position (~/.config/lucent/dock-position) is top. Everything else, and every
-// module, comes through the include chain from panel.jsonc and config.jsonc.
-{
-  "include": ["~/.config/waybar/panel.jsonc"],
-  "position": "top"
-}

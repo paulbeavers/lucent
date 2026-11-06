@@ -49,7 +49,7 @@ Singleton {
     }
 
     FileView {
-        path: theme.config + "/waybar/colors.css"
+        path: theme.config + "/lucent/colors.css"
         watchChanges: true
         onFileChanged: reload()
         onLoaded: {
@@ -75,7 +75,7 @@ Singleton {
     }
 
     FileView {
-        path: theme.config + "/waybar/font.css"
+        path: theme.config + "/lucent/font.css"
         watchChanges: true
         printErrors: false
         onFileChanged: reload()
