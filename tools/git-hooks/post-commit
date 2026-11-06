@@ -52,8 +52,10 @@ subj="$(git log -1 --format=%s)"
         echo "post-commit: starch pin already at ${sha:0:7}"
         exit 0
     fi
+    # Only the pin: anything else already staged in starch is not this hook's
+    # to commit.
     git add lucent
-    git commit -q -m "Bump lucent: $subj" \
+    git commit -q -m "Bump lucent: $subj" -- lucent \
         -m "Recorded automatically by lucent's post-commit hook." \
         && echo "post-commit: starch pin -> ${sha:0:7} ($subj)"
     git push -q origin HEAD 2>/dev/null || echo "post-commit: starch commit made but not pushed"

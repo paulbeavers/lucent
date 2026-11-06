@@ -76,7 +76,8 @@ QUICKSHELL_SHA256=(
 # the Lua config would not be read at all. 24.04's archive is also missing
 # swayosd, which is the only thing bound to the volume and brightness keys, so
 # a 24.04 desktop would come up with those keys silently dead. 26.04 carries
-# all of it and needs the PPA for Hyprland alone.
+# the rest; its Hyprland comes from the PPA and its Quickshell is built, because
+# universe has neither one that lucent can use.
 UBUNTU_MIN_VERSION=26.04
 
 # Ubuntu ships Firefox only as a transitional package that pulls in snapd and
@@ -180,6 +181,12 @@ ok()   { printf '    %s✓%s %s\n' "$C_GREEN" "$C_RESET" "$*"; }
 warn() { printf '    %s!%s %s\n' "$C_YELLOW" "$C_RESET" "$*"; }
 die()  { printf '\n%sError:%s %s\n' "$C_RED" "$C_RESET" "$*" >&2; exit 1; }
 
+# True when version $1 is $2 or newer. Both are upstream versions: no epoch, no
+# packaging revision, which sort -V would otherwise compare as part of it.
+version_at_least() {
+    [[ "$(printf '%s\n' "$2" "$1" | sort -V | head -1)" == "$2" ]]
+}
+
 # A command that fails inside run() reports as run's own "$@", which says nothing
 # about what broke, so run() leaves its caller's line and command here.
 RUN_LINE=""; RUN_CMD=""
@@ -270,7 +277,7 @@ if [[ $DISTRO == ubuntu ]]; then
         warn "no UBUNTU_CODENAME in /etc/os-release; assuming $UBUNTU_MIN_VERSION or newer"
     elif [[ -z $_ubuntu_ver ]]; then
         warn "unrecognised Ubuntu release '$UBUNTU_CODENAME'; assuming it is newer than $UBUNTU_MIN_VERSION"
-    elif [[ "$(printf '%s\n' "$UBUNTU_MIN_VERSION" "$_ubuntu_ver" | sort -V | head -1)" != "$UBUNTU_MIN_VERSION" ]]; then
+    elif ! version_at_least "$_ubuntu_ver" "$UBUNTU_MIN_VERSION"; then
         die "Ubuntu $_ubuntu_ver ($UBUNTU_CODENAME) is too old: this needs $UBUNTU_MIN_VERSION or newer.
        Hyprland $HYPRLAND_MIN is the first release that reads the Lua config in
        config/hypr, and no repository builds that for $UBUNTU_CODENAME."
@@ -325,6 +332,19 @@ ok "$DISTRO_NAME ($ARCH), running as ${FOR_USER:-$(id -un)}"
 # On Apple silicon that is two cards: `asahi` renders and `apple-drm` only
 # drives the displays. A display-only card is not a GPU and is skipped, or a
 # Mac would be written up as an unknown device and put on software rendering.
+# What kind of VM this is, if any, as systemd-detect-virt says. Read once here;
+# gpu.lua and the primary modifier both act on it.
+VIRT="$(systemd-detect-virt 2>/dev/null || true)"
+
+# A VM on a Mac: Parallels, UTM (qemu under Hypervisor.framework, or apple for
+# Apple's Virtualization framework) and VMware Fusion. The host keeps Command and
+# draws its own pointer over the guest. QEMU on a Linux host reports kvm, not
+# qemu, so it is not counted. vmware also covers Workstation on Windows and Linux
+# hosts, which cannot be told apart from here.
+mac_vm() {
+    case "$VIRT" in parallels|qemu|apple|vmware) return 0 ;; *) return 1 ;; esac
+}
+
 GPU_VENDORS=()
 GPU_NAMES=()
 
@@ -597,7 +617,7 @@ PKGS_GPU=(
     libva libva-utils mesa-utils
     xorg-xwayland
 )
-# 32-bit counterparts, only used when --no-gaming is not passed.
+# 32-bit counterparts, only used with --gaming.
 PKGS_GPU32=( lib32-mesa lib32-vulkan-icd-loader )
 
 NVIDIA_NOTES=0
@@ -674,8 +694,8 @@ PKGS_FONTS=(
 # Hyprland, at login) went dark. Thunar, started by D-Bus, never did.
 PKGS_THEME=( papirus-icon-theme adwaita-icon-theme gnome-themes-extra gtk3 gtk4 )
 
-# End-user applications. Firefox already gets MOZ_ENABLE_WAYLAND=1 from env.conf
-# and a Picture-in-Picture window rule from rules.conf.
+# End-user applications. Firefox already gets MOZ_ENABLE_WAYLAND=1 from env.lua
+# and a Picture-in-Picture window rule from rules.lua.
 PKGS_APPS=( firefox neovim vim )
 PKGS_SHELL=( fastfetch btop ripgrep fd bat eza fzf zoxide starship bash-completion lazygit )
 # sddm depends on xorg-server even when, as here, the greeter runs on Wayland.
@@ -821,10 +841,10 @@ elif [[ ${DISTRO:-} == ubuntu ]]; then
     )
     # PC sound firmware, as on Fedora: an arm64 machine has its own stack.
     [[ $ARCH == x86_64 ]] && PKGS_AUDIO+=( firmware-sof-signed )
-    # Ubuntu does not package Hyprland itself. hyprland and the hypr* tools
-    # come from the PPA the system phase enables if nothing already provides
-    # them; uwsm, swaybg, the portals and the Qt platform plugins are all in
-    # Ubuntu's own archive.
+    # Universe's Hyprland is 0.53.3, too old for the Lua config, so hyprland and
+    # the hypr* tools come from the PPA the system phase enables unless something
+    # already provides a new enough one; uwsm, swaybg, the portals and the Qt
+    # platform plugins are all in Ubuntu's own archive.
     PKGS_HYPRLAND=(
         hyprland uwsm
         swaybg hyprlock hypridle hyprpicker hyprsunset
@@ -842,6 +862,10 @@ elif [[ ${DISTRO:-} == ubuntu ]]; then
         gvfs gvfs-backends gvfs-fuse udiskie
         network-manager-gnome
         gnome-keyring
+        # lucent-config writes the lid setting through pkexec. Arch and Fedora
+        # ship it inside polkit; Ubuntu packages it on its own, and a minimal
+        # install does not have it.
+        pkexec
         swayosd brightnessctl
         grim slurp swappy wl-clipboard cliphist
         nwg-look nwg-displays
@@ -965,8 +989,23 @@ apt_candidate_version() {
     printf '%s' "${v%%-*}"
 }
 
-version_at_least() {
-    [[ "$(printf '%s\n' "$2" "$1" | sort -V | head -1)" == "$2" ]]
+# Hyprland's version, installed and on offer, on Fedora and Ubuntu. Neither
+# packages one that reads this config (Fedora has none; Ubuntu 26.04's universe
+# has 0.53.3), so both check what they find against HYPRLAND_MIN. Arch's
+# Hyprland is always current.
+hyprland_installed_version() {
+    case "$DISTRO" in
+        fedora) rpm -q --qf '%{version}' hyprland 2>/dev/null || true ;;
+        ubuntu) dpkg_version hyprland ;;
+    esac
+}
+
+hyprland_candidate_version() {
+    case "$DISTRO" in
+        fedora) dnf repoquery --quiet --available --qf '%{version}\n' hyprland 2>/dev/null \
+                    | sort -V | tail -1 ;;
+        ubuntu) apt_candidate_version hyprland ;;
+    esac
 }
 
 # An installed package that cannot read the config, so it is not worth keeping.
@@ -974,7 +1013,7 @@ version_at_least() {
 hyprland_too_old() {
     local v
     pkg_installed hyprland || return 1
-    v="$(dpkg_version hyprland)"
+    v="$(hyprland_installed_version)"
     [[ -n $v ]] && ! version_at_least "$v" "$HYPRLAND_MIN"
 }
 
@@ -993,8 +1032,8 @@ firefox_is_snap_stub() {
     [[ "$(dpkg-query -W -f='${Version}' -- firefox 2>/dev/null)" == *snap* ]]
 }
 
-# Whether this machine can have a usable Hyprland without adding the PPA. A
-# candidate merely existing is not enough: universe offers 0.53.3 on 26.04,
+# Whether this machine can have a usable Hyprland without adding the COPR or the
+# PPA. A candidate merely existing is not enough: universe offers 0.53.3 on 26.04,
 # which has no Lua at all. It ignores hyprland.lua, generates a stock config and
 # starts nothing, and the wallpapers are in another package, so all that shows
 # is a black screen and a pointer.
@@ -1003,7 +1042,7 @@ hyprland_obtainable() {
     if pkg_installed hyprland && ! hyprland_too_old; then
         return 0
     fi
-    v="$(apt_candidate_version hyprland)"
+    v="$(hyprland_candidate_version)"
     [[ -n $v ]] && version_at_least "$v" "$HYPRLAND_MIN"
 }
 
@@ -1132,6 +1171,9 @@ for p in "${WANTED[@]}"; do
     pkg_installed "$p" || MISSING_PKGS+=("$p")
 done
 
+# ── Ubuntu ──
+# What is outstanding beyond missing packages, and which of those apt can have.
+
 # A machine that took universe's Hyprland has every package and would otherwise
 # count as finished, so nothing would ever replace it. The tools go with it
 # because they share its libraries, and the PPA moves those on.
@@ -1142,7 +1184,6 @@ if [[ $DISTRO == ubuntu ]] && { hyprland_too_old || hyprland_half_installed; }; 
         pkg_installed "$p" && MISSING_PKGS+=("$p")
     done
 fi
-
 # Move Ubuntu Desktop off the Firefox snap, unless the snap is open: its profile has
 # to be copied while nothing is writing to it. A re-run does it once it is closed.
 FIREFOX_LEAVING_SNAP=0
@@ -1216,13 +1257,23 @@ if [[ $DISTRO == ubuntu && ${#MISSING_PKGS[@]} -gt 0 ]]; then
     fi
 fi
 
+# ── Fedora ──
+# An old Hyprland is an upgrade, not a replacement: dnf moves an installed package
+# on to the COPR's build. Counted as missing so the system phase runs, and
+# upgraded there.
+FEDORA_HYPRLAND_UPGRADE=0
+if [[ $DISTRO == fedora ]] && hyprland_too_old; then
+    FEDORA_HYPRLAND_UPGRADE=1
+    MISSING_PKGS+=(hyprland)
+fi
+
 if [[ $DISTRO == fedora && ${#MISSING_PKGS[@]} -gt 0 ]]; then
     # Offline the query fails, or answers from stale metadata with nothing at
     # all. Either way everything missing stays missing, the safe way round.
     if _avail="$(dnf repoquery --quiet --available --qf '%{name}\n' "${MISSING_PKGS[@]}" 2>/dev/null)" \
        && [[ -n $_avail ]]; then
-        if ! pkg_installed hyprland && ! grep -qx hyprland <<<"$_avail"; then
-            :   # the Hyprland COPR is not enabled yet; see above
+        if ! hyprland_obtainable; then
+            :   # the Hyprland COPR is not enabled yet: filter nothing until it is
         else
             _still=()
             for p in "${MISSING_PKGS[@]}"; do
@@ -1237,6 +1288,7 @@ if [[ $DISTRO == fedora && ${#MISSING_PKGS[@]} -gt 0 ]]; then
     fi
 fi
 
+# ── every distro ──
 NERD_FONTS_READY=1
 if [[ $DISTRO != arch ]] && ! nerd_fonts_present; then
     NERD_FONTS_READY=0
@@ -1376,7 +1428,7 @@ if [[ $RUN_SYSTEM -eq 1 ]]; then
         # still runs — the services need enabling, and that needs no network.
         # Syncing anyway would make an otherwise entirely offline install fail on a
         # machine that has not been connected yet.
-        if [[ ${#MISSING_PKGS[@]} -eq 0 && $DO_AUR -eq 0 && $DO_GAMING -eq 0 ]]; then
+        if [[ ${#MISSING_PKGS[@]} -eq 0 && $DO_AUR -eq 0 && $MULTILIB_READY -eq 1 ]]; then
             step "Packages"
             ok "all ${#WANTED[@]} already installed; nothing to download"
         else
@@ -1390,7 +1442,7 @@ if [[ $RUN_SYSTEM -eq 1 ]]; then
         # The install medium carries every vendor's driver, because it cannot know
         # what it will be installed onto. Once that is known, the rest can go: an
         # AMD laptop has no reason to keep 900MB of NVIDIA userspace, and a machine
-        # with no Broadcom card has no reason to keep two Broadcom drivers.
+        # with no Broadcom card has no reason to keep the Broadcom wl driver.
         #
         # Only ever removes what this script itself would have installed, and only
         # what the detected hardware rules out. -Rn without the cascade: these are
@@ -1399,25 +1451,18 @@ if [[ $RUN_SYSTEM -eq 1 ]]; then
         step "Drivers not needed here"
         unneeded=()
 
-        has_vendor() {
-            local want="$1" v
-            for v in ${GPU_VENDORS[@]+"${GPU_VENDORS[@]}"}; do
-                [[ $v == "$want" ]] && return 0
-            done
-            return 1
-        }
 
-        has_vendor nvidia || unneeded+=( nvidia-open-dkms nvidia-utils nvidia-settings
+        gpu_has nvidia || unneeded+=( nvidia-open-dkms nvidia-utils nvidia-settings
                                          libva-nvidia-driver lib32-nvidia-utils )
-        has_vendor amd    || unneeded+=( vulkan-radeon lib32-vulkan-radeon )
-        has_vendor intel  || unneeded+=( vulkan-intel intel-media-driver lib32-vulkan-intel )
+        gpu_has amd    || unneeded+=( vulkan-radeon lib32-vulkan-radeon )
+        gpu_has intel  || unneeded+=( vulkan-intel intel-media-driver lib32-vulkan-intel )
 
         [[ $BCM_DRIVER == wl ]] || unneeded+=( broadcom-wl-dkms )
 
         # dkms and the kernel headers exist on the medium to build the two modules
         # above. With neither in use they are 310MB of build tooling for nothing —
         # and a plain Arch install would not have them unless something asked.
-        if ! has_vendor nvidia && [[ $BCM_DRIVER != wl ]]; then
+        if ! gpu_has nvidia && [[ $BCM_DRIVER != wl ]]; then
             unneeded+=( dkms linux-headers )
         fi
 
@@ -1488,13 +1533,16 @@ if [[ $RUN_SYSTEM -eq 1 ]]; then
         # supports partial upgrades, and dnf updates whatever a new package
         # actually needs.
         step "Hyprland repository"
-        # Fedora does not package Hyprland. Whatever already provides it is
-        # kept, whether that is a build already installed or a COPR someone
-        # enabled by hand. The default COPR is enabled only when nothing does.
-        if pkg_installed hyprland; then
-            ok "hyprland $(rpm -q --qf '%{version}' hyprland) already installed — keeping it"
-        elif dnf repoquery --quiet --available hyprland 2>/dev/null | grep -q .; then
-            ok "hyprland is available from an enabled repository"
+        # Fedora does not package Hyprland. Whatever already provides one new
+        # enough to read the config is kept, whether that is a build already
+        # installed or a COPR someone enabled by hand. The default COPR is
+        # enabled only when nothing does.
+        if hyprland_obtainable; then
+            if pkg_installed hyprland && ! hyprland_too_old; then
+                ok "hyprland $(hyprland_installed_version) already installed — keeping it"
+            else
+                ok "hyprland $(hyprland_candidate_version) is available from an enabled repository"
+            fi
         else
             require_network "enabling the Hyprland COPR"
             if ! dnf copr --help >/dev/null 2>&1; then
@@ -1514,6 +1562,8 @@ if [[ $RUN_SYSTEM -eq 1 ]]; then
             # for this machine — steam away from Asahi, the iHD driver without
             # RPM Fusion — is reported instead of failing the whole transaction.
             run $SUDO dnf install -y --skip-unavailable "${MISSING_PKGS[@]}"
+            # install leaves an installed package where it is; upgrade moves it.
+            [[ $FEDORA_HYPRLAND_UPGRADE -eq 1 ]] && run $SUDO dnf upgrade -y 'hyprland*'
             if [[ $DRY_RUN -eq 0 ]]; then
                 skipped=()
                 for _p in "${MISSING_PKGS[@]}"; do
@@ -1528,15 +1578,13 @@ if [[ $RUN_SYSTEM -eq 1 ]]; then
         fi
 
         # The configuration is Lua, which Hyprland reads from 0.55 on. An older
-        # build would start with none of it applied.
-        if pkg_installed hyprland; then
-            hypr_ver="$(rpm -q --qf '%{version}' hyprland)"
-            if [[ "$(printf '%s\n' "$HYPRLAND_MIN" "$hypr_ver" | sort -V | head -1)" != "$HYPRLAND_MIN" ]]; then
-                warn "hyprland $hypr_ver is older than $HYPRLAND_MIN, which this Lua config needs"
-            fi
+        # build starts with none of it applied, which is a black screen and a
+        # pointer, so this is an error rather than a warning mid-scroll.
+        if [[ $DRY_RUN -eq 0 ]] && hyprland_too_old; then
+            die "hyprland $(hyprland_installed_version) is installed, and lucent's Lua config needs $HYPRLAND_MIN or newer. dnf did not replace it; see: dnf list --showduplicates hyprland"
         fi
 
-    else
+    elif [[ $DISTRO == ubuntu ]]; then
         # ── Ubuntu ────────────────────────────────────────────────────────────
         # No whole-system upgrade here either, and for the same reason as
         # Fedora: apt supports partial upgrades and pulls in whatever a new
@@ -1629,42 +1677,40 @@ if [[ $RUN_SYSTEM -eq 1 ]]; then
         # and the Firefox snap. Mozilla's own repository serves a real .deb for
         # amd64 and arm64, which is what the other two distributions install,
         # and it honours the MOZ_ENABLE_WAYLAND=1 that env.lua already sets.
-        if printf '%s\n' "${PKGS_APPS[@]}" | grep -qx firefox; then
-            step "Firefox repository"
-            if [[ -f $MOZILLA_APT_LIST ]]; then
-                ok "Mozilla's APT repository is already configured"
-            elif [[ $DRY_RUN -eq 1 ]]; then
-                info "[dry-run] would add Mozilla's APT repository"
-            else
-                require_network "adding Mozilla's APT repository"
-                # curl is in PKGS_BASE, which installs after this. Without it the
-                # key cannot be fetched and a fresh machine stays on the snap.
-                if ! command -v curl >/dev/null; then
-                    run $SUDO apt-get update
-                    run $SUDO env DEBIAN_FRONTEND=noninteractive \
-                        apt-get install -y --no-install-recommends curl ca-certificates
-                fi
-                $SUDO install -d -m 0755 /etc/apt/keyrings
-                if curl -fsSL --retry 3 "$MOZILLA_APT_KEY" \
-                       | $SUDO tee "$MOZILLA_APT_KEYRING" >/dev/null; then
-                    echo "deb [signed-by=$MOZILLA_APT_KEYRING] https://packages.mozilla.org/apt mozilla main" \
-                        | $SUDO tee "$MOZILLA_APT_LIST" >/dev/null
-                    # The pin is not optional. Ubuntu's transitional package
-                    # carries a higher version than Mozilla's real one, so
-                    # without this apt keeps picking the snap.
-                    $SUDO tee "$MOZILLA_APT_PREFS" >/dev/null <<'MOZEOF'
+        step "Firefox repository"
+        if [[ -f $MOZILLA_APT_LIST ]]; then
+            ok "Mozilla's APT repository is already configured"
+        elif [[ $DRY_RUN -eq 1 ]]; then
+            info "[dry-run] would add Mozilla's APT repository"
+        else
+            require_network "adding Mozilla's APT repository"
+            # curl is in PKGS_BASE, which installs after this. Without it the
+            # key cannot be fetched and a fresh machine stays on the snap.
+            if ! command -v curl >/dev/null; then
+                run $SUDO apt-get update
+                run $SUDO env DEBIAN_FRONTEND=noninteractive \
+                    apt-get install -y --no-install-recommends curl ca-certificates
+            fi
+            $SUDO install -d -m 0755 /etc/apt/keyrings
+            if curl -fsSL --retry 3 "$MOZILLA_APT_KEY" \
+                   | $SUDO tee "$MOZILLA_APT_KEYRING" >/dev/null; then
+                echo "deb [signed-by=$MOZILLA_APT_KEYRING] https://packages.mozilla.org/apt mozilla main" \
+                    | $SUDO tee "$MOZILLA_APT_LIST" >/dev/null
+                # The pin is not optional. Ubuntu's transitional package
+                # carries a higher version than Mozilla's real one, so
+                # without this apt keeps picking the snap.
+                $SUDO tee "$MOZILLA_APT_PREFS" >/dev/null <<'MOZEOF'
 Package: firefox*
 Pin: origin packages.mozilla.org
 Pin-Priority: 1000
 MOZEOF
-                    ok "added Mozilla's APT repository"
-                else
-                    # Leave nothing half-written, or apt-get update fails on a
-                    # keyring that is not a key and nothing installs at all.
-                    $SUDO rm -f "$MOZILLA_APT_KEYRING"
-                    warn "could not fetch Mozilla's signing key"
-                    warn "Firefox will come from Ubuntu instead, as a snap"
-                fi
+                ok "added Mozilla's APT repository"
+            else
+                # Leave nothing half-written, or apt-get update fails on a
+                # keyring that is not a key and nothing installs at all.
+                $SUDO rm -f "$MOZILLA_APT_KEYRING"
+                warn "could not fetch Mozilla's signing key"
+                warn "Firefox will come from Ubuntu instead, as a snap"
             fi
         fi
 
@@ -2015,14 +2061,17 @@ EOF
             info "uwsm session file not found; launching Hyprland directly"
         fi
 
-        # Each distribution's greetd package creates a differently named
-        # account, and config.toml naming one that does not exist is a login
-        # screen that never appears: Arch makes `greeter`, Fedora `greetd`,
-        # and Debian and Ubuntu `_greetd` (declared in the package's
-        # sysusers.d, with /var/lib/greetd as its home).
-        greeter_user=greeter
-        [[ $DISTRO == fedora ]] && greeter_user=greetd
-        [[ $DISTRO == ubuntu ]] && greeter_user=_greetd
+        # greetd is Fedora's and Ubuntu's login manager here (Arch has SDDM,
+        # above). Each package creates a differently named account, and
+        # config.toml naming one that does not exist is a login screen that
+        # never appears: Fedora makes `greetd`, Debian and Ubuntu `_greetd`
+        # (declared in the package's sysusers.d, with /var/lib/greetd as its
+        # home).
+        if [[ $DISTRO == fedora ]]; then
+            greeter_user=greetd
+        else
+            greeter_user=_greetd
+        fi
 
         if [[ $DRY_RUN -eq 1 ]]; then
             info "[dry-run] would write /etc/greetd/config.toml"
@@ -2041,7 +2090,7 @@ EOF
             ok "wrote /etc/greetd/config.toml"
         fi
 
-        # Only reached with another display manager enabled under --greetd.
+        # Only reached with another display manager enabled under --login-manager.
         # It holds the display-manager.service alias greetd needs.
         if [[ -n $OTHER_DM ]]; then
             run $SUDO systemctl disable "$OTHER_DM"
@@ -2094,11 +2143,30 @@ if [[ $DO_CONFIGS -eq 1 ]]; then
     # File-by-file rather than directory-at-a-time. Identical files are left
     # untouched, changed ones are backed up first, and files that exist only in
     # ~/.config (monitors.lua, anything you added) are never removed.
+    # Two files are patched in place after they are copied: theme.sh writes the
+    # palette and font into hyprlock.conf and between markers in wofi's
+    # style.css, and wallpaper.sh writes the wallpaper into hyprlock.conf. So
+    # the installed copy never matches the repo's byte for byte. Compared with
+    # those values masked, a copy that differs only by them counts as current,
+    # rather than being backed up and copied again on every run.
+    themed_view() {
+        case "$1" in
+            hypr/hyprlock.conf)
+                sed -E -e 's/rgb\([0-9a-fA-F]{6}\)/rgb()/g' -e 's/##[0-9a-fA-F]{6}/##/g' \
+                       -e 's/^([[:space:]]*(path|font_family)[[:space:]]*=).*/\1/' "$2" ;;
+            wofi/style.css)
+                sed '/theme colours begin/,/theme colours end/d' "$2" ;;
+            *)
+                cat "$2" ;;
+        esac
+    }
+
     while IFS= read -r -d '' src; do
         rel="${src#"$CONFIG_SRC"/}"
         dst="$CONFIG_DST/$rel"
 
-        if [[ -f $dst ]] && cmp -s "$src" "$dst"; then
+        if [[ -f $dst ]] && { cmp -s "$src" "$dst" \
+                || cmp -s <(themed_view "$rel" "$src") <(themed_view "$rel" "$dst"); }; then
             N_SAME=$((N_SAME + 1))
             continue
         fi
@@ -2138,6 +2206,22 @@ if [[ $DO_CONFIGS -eq 1 ]]; then
         ok "$N_ADDED added, $N_CHANGED updated, $N_SAME unchanged"
         [[ $N_CHANGED -gt 0 && $DRY_RUN -eq 0 ]] && info "previous versions saved to $BACKUP_DIR"
     fi
+
+    # Seeded once, then left alone: lucent-config owns these afterwards and
+    # rewrites them whole, so syncing them like the rest would put the defaults
+    # back over the user's choices on every run. That is why they live in
+    # defaults/ rather than config/.
+    while IFS= read -r -d '' src; do
+        rel="${src#"$SCRIPT_DIR/defaults"/}"
+        [[ -e $CONFIG_DST/$rel ]] && continue
+        if [[ $DRY_RUN -eq 1 ]]; then
+            info "[dry-run] would add $rel"
+        else
+            mkdir -p "$CONFIG_DST/$(dirname "$rel")"
+            cp --preserve=mode "$src" "$CONFIG_DST/$rel"
+            ok "added $rel (lucent-config's from now on)"
+        fi
+    done < <(find "$SCRIPT_DIR/defaults" -type f -print0)
 
     # Files an earlier lucent deployed and this one no longer has: the waybar
     # bar and the GTK dock, which were the fallback before Quickshell became a
@@ -2198,19 +2282,32 @@ if [[ $DO_CONFIGS -eq 1 ]]; then
     elif [[ $DRY_RUN -eq 1 ]]; then
         info "[dry-run] would install lucent-config to $app_dst"
     else
-        run $SUDO rm -rf "$app_dst"
-        run $SUDO mkdir -p "$app_dst"
-        run $SUDO cp -r "$app_src/lucentconfig" "$app_src/lucent-config" "$app_dst/"
-        run $SUDO chmod 755 "$app_dst/lucent-config"
-        # Python bytecode from running it out of the checkout has no business
-        # being shipped; it is regenerated and it names the old paths.
-        $SUDO find "$app_dst" -name __pycache__ -type d -exec rm -rf {} + 2>/dev/null || true
-
-        # The launcher is a symlink, and the entry point resolves its own real
-        # path before adding it to sys.path, so the package is found through it.
-        run $SUDO ln -sfn "$app_dst/lucent-config" /usr/local/bin/lucent-config
-        run $SUDO install -Dm644 "$app_src/lucent-config.desktop" \
-            /usr/share/applications/lucent-config.desktop
+        # Staged and compared first, so a run with nothing new for the app asks
+        # for no root at all. Python bytecode from running it out of the checkout
+        # has no business being shipped: it is regenerated and names old paths.
+        app_stage="$(mktemp -d)"
+        cp -r "$app_src/lucentconfig" "$app_src/lucent-config" "$app_stage/"
+        find "$app_stage" -name __pycache__ -type d -exec rm -rf {} + 2>/dev/null || true
+        chmod 755 "$app_stage/lucent-config"
+        app_current=0
+        if diff -rq "$app_stage" "$app_dst" >/dev/null 2>&1 \
+           && [[ "$(readlink /usr/local/bin/lucent-config 2>/dev/null)" == "$app_dst/lucent-config" ]] \
+           && cmp -s "$app_src/lucent-config.desktop" /usr/share/applications/lucent-config.desktop; then
+            app_current=1
+        fi
+        if [[ $app_current -eq 0 ]]; then
+            run $SUDO rm -rf "$app_dst"
+            run $SUDO mkdir -p "$app_dst"
+            run $SUDO cp -r "$app_stage/lucentconfig" "$app_stage/lucent-config" "$app_dst/"
+            run $SUDO chmod -R u=rwX,go=rX "$app_dst"
+            run $SUDO chmod 755 "$app_dst/lucent-config"
+            # The launcher is a symlink, and the entry point resolves its own real
+            # path before adding it to sys.path, so the package is found through it.
+            run $SUDO ln -sfn "$app_dst/lucent-config" /usr/local/bin/lucent-config
+            run $SUDO install -Dm644 "$app_src/lucent-config.desktop" \
+                /usr/share/applications/lucent-config.desktop
+        fi
+        rm -rf "$app_stage"
         # It was starch-config until 2026-10-17. Left in place, the old copy is
         # a second "Settings" in the launcher that opens a stale app.
         if [[ -e /usr/local/lib/starch-config || -L /usr/local/bin/starch-config \
@@ -2219,7 +2316,11 @@ if [[ $DO_CONFIGS -eq 1 ]]; then
                 /usr/share/applications/starch-config.desktop
             info "removed the old starch-config"
         fi
-        ok "lucent-config installed — SUPER+I, or \"Settings\" in the launcher"
+        if [[ $app_current -eq 1 ]]; then
+            ok "lucent-config already current"
+        else
+            ok "lucent-config installed — \"Settings\" in the launcher, or the modifier + I"
+        fi
     fi
 
     # ── monitors ──────────────────────────────────────────────────────────────
@@ -2332,20 +2433,16 @@ if [[ $DO_CONFIGS -eq 1 ]]; then
     # ── primary modifier ──────────────────────────────────────────────────────
     # In a VM on a Mac, Command never reaches the guest as SUPER: the host
     # keeps it for itself, so every default bind is dead — including SUPER+I,
-    # the only way into the lucent-config setting that would fix it. On
-    # Parallels start with Option leading instead, in the same keys.lua that
-    # lucent-config writes. Written once and then left alone, like
+    # the only way into the lucent-config setting that would fix it. So on
+    # Parallels, UTM and VMware Fusion (mac_vm) Option leads instead, in the same
+    # keys.lua that lucent-config writes. Written once and then left alone, like
     # monitors.lua: lucent-config owns it afterwards, and an existing file is
     # someone's choice. Never under config/ — see CLAUDE.md.
     step "Primary modifier"
     keys_conf="$CONFIG_DST/hypr/keys.lua"
-    case "$(systemd-detect-virt 2>/dev/null || true)" in
-        parallels) mac_vm=1 ;;
-        *)         mac_vm=0 ;;
-    esac
     if [[ -f $keys_conf ]]; then
         ok "keeping your existing keys.lua"
-    elif [[ $mac_vm -eq 0 ]]; then
+    elif ! mac_vm; then
         ok "SUPER leads (the default)"
     elif [[ $DRY_RUN -eq 1 ]]; then
         info "[dry-run] would write $keys_conf with Option (ALT) leading"
@@ -2382,7 +2479,7 @@ EOF
     if [[ $DRY_RUN -eq 1 ]]; then
         info "[dry-run] would write $lid_conf"
     elif [[ -f $lid_conf ]]; then
-        $SUDO rm -f "$old_lid_conf"
+        [[ -e $old_lid_conf ]] && run $SUDO rm -f "$old_lid_conf"
         ok "lid already configured"
     elif [[ -f $old_lid_conf ]]; then
         run $SUDO mv "$old_lid_conf" "$lid_conf"
@@ -2471,7 +2568,7 @@ EOF
 
         # Load it now as well as at boot, so a card that was not working
         # starts working without waiting for the reboot where possible.
-        if [[ $BCM_DRIVER == wl ]] && [[ -z $FOR_USER ]]; then
+        if [[ -z $FOR_USER ]]; then
             run $SUDO modprobe wl 2>/dev/null || true
         fi
     fi
@@ -2540,9 +2637,8 @@ EOF
                 virtual)
                     cat >> "$gpu_tmp" <<'EOF'
 # ── Virtual GPU ───────────────────────────────────────────────────────────────
-# Running in a VM. virtio-gpu with venus, falling back to software rendering.
-env = LIBVA_DRIVER_NAME,
-env = WLR_RENDERER_ALLOW_SOFTWARE,1
+# Running in a VM: virtio-gpu, or another emulated card. Nothing needs setting:
+# Mesa picks its driver itself and renders in software when there is no 3D.
 
 EOF
                     # UTM on a Mac reports qemu (QEMU under Hypervisor.framework,
@@ -2554,11 +2650,7 @@ EOF
                     # which cannot be told apart from here and is untested. QEMU
                     # on a Linux host reports kvm and hides its own pointer, so
                     # it is left out.
-                    case "$(systemd-detect-virt 2>/dev/null || true)" in
-                        parallels|qemu|apple|vmware) mac_host_pointer=1 ;;
-                        *)                    mac_host_pointer=0 ;;
-                    esac
-                    if [[ $mac_host_pointer -eq 1 ]]; then
+                    if mac_vm; then
                         cat >> "$gpu_tmp" <<'EOF'
 # Parallels, UTM and VMware Fusion show the Mac's pointer over the guest unless
 # the guest hands it a cursor the way mutter does, and aquamarine's atomic path
@@ -2579,7 +2671,7 @@ hl.config({ cursor = { no_hardware_cursors = 1 } })
 EOF
                     fi
                     # VMware's SVGA graphics: see the comment written below.
-                    if [[ "$(systemd-detect-virt 2>/dev/null || true)" == vmware ]]; then
+                    if [[ $VIRT == vmware ]]; then
                         cat >> "$gpu_tmp" <<'EOF'
 # VMware's SVGA graphics: Hyprland refuses the GPU buffers clients draw into. A
 # client's first frame ends the connection ("invalid arguments for
@@ -2592,7 +2684,7 @@ env = QT_QUICK_BACKEND,software
 EOF
                     fi
                     # UTM only: Parallels draws rounded corners correctly.
-                    case "$(systemd-detect-virt 2>/dev/null || true)" in
+                    case "$VIRT" in
                         qemu|apple)
                             cat >> "$gpu_tmp" <<'EOF'
 # UTM cuts rounded window corners off and leaves the gap black, on active and
@@ -2629,10 +2721,9 @@ EOF
                 unknown)
                     cat >> "$gpu_tmp" <<'EOF'
 # ── Unrecognised GPU ──────────────────────────────────────────────────────────
-# The PCI vendor ID did not match AMD, Intel, NVIDIA or a known VM device.
-# Software rendering is enabled so the session still starts. Set the correct
-# LIBVA_DRIVER_NAME and Vulkan ICD by hand once you know the hardware.
-env = WLR_RENDERER_ALLOW_SOFTWARE,1
+# The PCI vendor ID did not match AMD, Intel, NVIDIA or a known VM device, so
+# nothing is set and Mesa chooses for itself. Set LIBVA_DRIVER_NAME and the
+# Vulkan ICD by hand once you know the hardware.
 
 EOF
                     ;;
@@ -2754,13 +2845,19 @@ KBLUA
         info "  Hyprland 0.57 removes hyprlang; hyprland.lua replaces it"
     fi
 
+    # ══ Ubuntu only: session fix-ups ═════════════════════════════════════════
+    # Ubuntu's packages enable their user services for every graphical session,
+    # GDM's login screen and GNOME included, and Apport turns any crash into a
+    # dialog. The three steps below deal with what that does to a Hyprland
+    # desktop. Arch and Fedora enable none of these units, so need none of it.
+
     # ── polkit agent ──────────────────────────────────────────────────────────
-    # Ubuntu's package enables hyprpolkitagent for every graphical session, so it
+    # The PPA's package enables hyprpolkitagent for every graphical session, so it
     # also starts under GDM's greeter and in a GNOME session. GNOME Shell already
     # holds the agent slot there, registration fails, and 0.2.0 segfaults on that
     # path: a restart loop and a crash dialog, in sessions that do not use it.
     # A drop-in rather than disabling it, so a package upgrade cannot undo it.
-    if [[ $DISTRO != arch ]]; then
+    if [[ $DISTRO == ubuntu ]]; then
         step "Polkit agent"
         polkit_dropin=/etc/systemd/user/hyprpolkitagent.service.d/10-lucent.conf
         polkit_conf=$'# Managed by lucent/install.sh\n[Unit]\nConditionEnvironment=XDG_CURRENT_DESKTOP=Hyprland\n'
@@ -2835,9 +2932,10 @@ KBLUA
 
     # ── colour theme ──────────────────────────────────────────────────────────
     # Several configs are rendered rather than copied: the bar and lucent-config
-    # read ~/.config/lucent/colors.css, wofi @imports one, hypr requires a colors.lua, foot and mako include their
-    # own. None of those exist until a theme is applied, so this has to run on
-    # every install or the bar comes up in its built-in colours.
+    # read ~/.config/lucent/colors.css, wofi has its colours between markers,
+    # hypr requires a colors.lua, foot and mako include their own. None of those
+    # exist until a theme is applied, so this has to run on every install or the
+    # bar comes up in its built-in colours.
     step "Colour theme"
     theme_script="$CONFIG_DST/hypr/scripts/theme.sh"
     theme_dir="$CONFIG_DST/hypr/themes"
@@ -2899,8 +2997,8 @@ KBLUA
     else
         warn "imagemagick not available; drop an image in $wall_dir"
     fi
-    # hyprlock.conf names the current wallpaper, and it
-    # were just overwritten by the config sync. Put the recorded pick back.
+    # hyprlock.conf names the current wallpaper, and the sync above replaces the
+    # file whenever the shipped copy changes. Put the recorded pick back.
     #
     # --restore is a no-op when nothing has been picked yet, which is exactly
     # the case on a first install — so the desktop came up with whatever the
@@ -2937,28 +3035,44 @@ KBLUA
     if [[ $DRY_RUN -eq 1 ]]; then
         info "[dry-run] would write the system dconf defaults"
     elif command -v dconf >/dev/null; then
-        run $SUDO install -d /etc/dconf/db/local.d /etc/dconf/profile
-        # Fedora already has a profile, naming more databases than this one
-        # (site, distro). Replacing it would drop those, so only add `local`
-        # where it is missing.
-        if [[ ! -f /etc/dconf/profile/user ]]; then
-            printf '%s\n' \
-                "user-db:user" \
-                "system-db:local" \
-                | run $SUDO tee /etc/dconf/profile/user >/dev/null
-        elif ! grep -qx 'system-db:local' /etc/dconf/profile/user; then
-            echo "system-db:local" | run $SUDO tee -a /etc/dconf/profile/user >/dev/null
-        fi
-        printf '%s\n' \
+        # Written and compiled only when something differs, so a re-run that
+        # changes nothing here asks for no root.
+        dconf_db=/etc/dconf/db/local.d/00-lucent-theme
+        # Its name until the rename to lucent; replaced by the one above.
+        dconf_old=/etc/dconf/db/local.d/00-starch-theme
+        dconf_want="$(printf '%s\n' \
             "# Generated by lucent." \
             "[org/gnome/desktop/interface]" \
             "gtk-theme='Adwaita-dark'" \
             "icon-theme='Papirus-Dark'" \
             "color-scheme='prefer-dark'" \
             "font-name='Noto Sans 11'" \
-            "cursor-theme='Adwaita'" \
-            | run $SUDO tee /etc/dconf/db/local.d/00-starch-theme >/dev/null
-        if run $SUDO dconf update; then
+            "cursor-theme='Adwaita'")"
+        dconf_changed=0
+        # Fedora already has a profile, naming more databases than this one
+        # (site, distro). Replacing it would drop those, so only add `local`
+        # where it is missing.
+        if [[ ! -f /etc/dconf/profile/user ]]; then
+            run $SUDO install -d /etc/dconf/profile
+            printf '%s\n' "user-db:user" "system-db:local" \
+                | run $SUDO tee /etc/dconf/profile/user >/dev/null
+            dconf_changed=1
+        elif ! grep -qx 'system-db:local' /etc/dconf/profile/user; then
+            echo "system-db:local" | run $SUDO tee -a /etc/dconf/profile/user >/dev/null
+            dconf_changed=1
+        fi
+        if [[ "$(cat "$dconf_db" 2>/dev/null)" != "$dconf_want" ]]; then
+            run $SUDO install -d /etc/dconf/db/local.d
+            printf '%s\n' "$dconf_want" | run $SUDO tee "$dconf_db" >/dev/null
+            dconf_changed=1
+        fi
+        if [[ -e $dconf_old ]]; then
+            run $SUDO rm -f "$dconf_old"
+            dconf_changed=1
+        fi
+        if [[ $dconf_changed -eq 0 ]]; then
+            ok "dark is already the system default"
+        elif run $SUDO dconf update; then
             ok "dark is the system default (portal-aware apps included)"
         else
             warn "dconf update failed; Firefox may come up light"
@@ -3102,6 +3216,13 @@ fi
 # ── done ──────────────────────────────────────────────────────────────────────
 step "Done"
 
+# The key every bind starts with, for the hints below: ALT where keys.lua says
+# so (a VM on a Mac, or lucent-config's choice), SUPER otherwise. Padded to
+# SUPER's width so the columns line up either way.
+LEAD=SUPER
+grep -qsE 'mod[[:space:]]*=[[:space:]]*"ALT"' "$CONFIG_DST/hypr/keys.lua" && LEAD=ALT
+printf -v LEAD '%-5s' "$LEAD"
+
 if [[ $RUN_SYSTEM -eq 0 && $DO_CONFIGS -eq 1 ]]; then
     cat <<EOF
 
@@ -3125,15 +3246,15 @@ $( if [[ $DO_DM -eq 1 && $DISTRO == arch ]]; then
    else
        echo "    2. Log in on a TTY and run: uwsm start hyprland-uwsm.desktop"
    fi )
-    3. Press ${C_YELLOW}SUPER + slash${C_RESET} for the keybind cheatsheet.
+    3. Press ${C_YELLOW}${LEAD} + slash${C_RESET} for the keybind cheatsheet.
 
   ${C_BLUE}Essential keys:${C_RESET}
-    SUPER + Return        terminal        SUPER + Shift + D  launcher
-    SUPER + E             file manager    SUPER + Q    close window
-    SUPER + 1..9          workspace       SUPER + C/V  copy / paste
-    SUPER + Shift + S     screenshot      SUPER + X    clipboard history
-    SUPER + Shift + E     power menu      SUPER + Esc  lock
-    SUPER + W             wallpaper       SUPER + Shift + T  colour theme
+    ${LEAD} + Return        terminal        ${LEAD} + Shift + D  launcher
+    ${LEAD} + E             file manager    ${LEAD} + Q    close window
+    ${LEAD} + 1..9          workspace       ${LEAD} + C/V  copy / paste
+    ${LEAD} + Shift + S     screenshot      ${LEAD} + X    clipboard history
+    ${LEAD} + Shift + E     power menu      ${LEAD} + Esc  lock
+    ${LEAD} + W             wallpaper       ${LEAD} + Shift + T  colour theme
 
   ${C_BLUE}Config:${C_RESET} ~/.config/hypr/  (edits apply live)
   ${C_DIM}Re-run this script any time — it will only refresh what changed.${C_RESET}
