@@ -1,9 +1,10 @@
 """Dock — whether it shows at login, dock or panel, and bottom or top.
 
-Both settings already have a home outside this app: dock.sh hides and shows
-the dock (SUPER+D) and switches its mode, and records each in a marker file
-that the login reads. The page reads those files back and drives that script,
-so the key and the page can never disagree about what the dock will do.
+All three settings already have a home outside this app: dock.sh hides and
+shows the dock (SUPER+D) and switches its style and edge, and records each in
+a marker file that the shell reads at start. The page reads those files back
+and drives that script, so the key and the page can never disagree about what
+the dock will do.
 """
 
 import subprocess
@@ -35,7 +36,7 @@ def _mode():
     try:
         value = paths.DOCK_MODE.read_text().strip()
     except OSError:
-        return "panel"   # the default, as dock.sh and waybar.sh read it
+        return "panel"   # the default, as the shell reads it: anything but "dock"
     return "dock" if value == "dock" else "panel"
 
 
@@ -44,7 +45,7 @@ def _shown_at_login():
 
 
 def build(window):
-    page = Page("Dock", "The apps along the bottom of the screen.")
+    page = Page("Dock", "The row of apps along the edge of the screen.")
     key = readback.modifier()
 
     card = page.section("At login")
@@ -84,10 +85,10 @@ def build(window):
     card.add(Row(
         "Style",
         dropdown([name for _, name in MODES], slugs.index(mode_now), on_change=on_mode),
-        "Panel, the default, is one strip across the bottom with the dock, the "
-        "workspaces, the date and time and the rest of the top bar's items, and "
-        "the top bar goes away. Dock floats at the bottom, centred, under the "
-        "bar at the top.",
+        "Panel, the default, is one strip along the edge chosen below, with "
+        "the dock, the workspaces, the date and time and the rest of the top "
+        "bar's items, and the top bar goes away. Dock keeps the bar at the "
+        "top and floats the dock, centred, at that edge.",
     ))
 
     edges = [slug for slug, _ in POSITIONS]
@@ -111,9 +112,10 @@ def build(window):
     ))
 
     page.note(
-        "Applying takes effect at once: the bar and the dock restart. The "
-        "settings are files in ~/.config/lucent — dock-hidden, dock-mode and "
-        "dock-position."
+        "Style and position take effect at once when applied: the bar and "
+        "the dock restart. Showing at login takes effect at the next login. "
+        "The settings are files in ~/.config/lucent — dock-hidden, dock-mode "
+        "and dock-position."
     )
     return page
 

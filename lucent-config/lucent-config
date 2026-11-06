@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""lucent-config — settings for a starch desktop.
+"""lucent-config — settings for a lucent desktop.
 
 There is nothing to install: the package sits next to this file and is what
 gets imported, so running it from a git checkout and running it from wherever

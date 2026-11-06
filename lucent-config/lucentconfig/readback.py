@@ -31,7 +31,10 @@ def hypridle_timeouts():
     except OSError:
         return found
 
-    for block in re.findall(r"listener\s*\{(.*?)\}", text, re.S):
+    # A block ends at a line that is only "}", not at the first brace: the
+    # blank listener's on-timeout is `hl.dsp.dpms({ action = "off" })`, and
+    # stopping at the brace inside that cut the block before its on-resume.
+    for block in re.findall(r"^\s*listener\s*\{(.*?)^\s*\}\s*$", text, re.S | re.M):
         timeout = re.search(r"timeout\s*=\s*(\d+)", block)
         action = re.search(r"on-timeout\s*=\s*(.+)", block)
         if not (timeout and action):
@@ -50,7 +53,9 @@ def hypridle_timeouts():
 
 
 # keys.lua is a two-token module, so a regex beats carrying a Lua parser.
-_MODIFIER_RE = re.compile(r"""\bmod\s*=\s*["'](SUPER|ALT)["']""", re.I)
+# Case-sensitive, like keybinds.lua's own test (`keys.mod == "ALT"`): a file
+# saying "alt" binds with SUPER, so it must read back as SUPER too.
+_MODIFIER_RE = re.compile(r"""\bmod\s*=\s*["'](SUPER|ALT)["']""")
 
 
 def modifier() -> str:
@@ -64,7 +69,7 @@ def modifier() -> str:
     except OSError:
         return "SUPER"
     match = _MODIFIER_RE.search(text)
-    return match.group(1).upper() if match else "SUPER"
+    return match.group(1) if match else "SUPER"
 
 
 def lid_action() -> str:
@@ -90,8 +95,17 @@ def has_battery() -> bool:
         return False
     for entry in power.iterdir():
         try:
-            if (entry / "type").read_text().strip() == "Battery":
-                return True
+            if (entry / "type").read_text().strip() != "Battery":
+                continue
         except OSError:
             continue
+        # A wireless mouse or headset reports a battery too, with scope
+        # "Device"; only the machine's own (scope "System", or no scope file
+        # at all on older drivers) says there is a lid.
+        try:
+            if (entry / "scope").read_text().strip() == "Device":
+                continue
+        except OSError:
+            pass
+        return True
     return False

@@ -2,8 +2,9 @@
 
 Current values come from the running compositor rather than from a file,
 because the compositor is the only thing that knows what actually took effect:
-input.lua is the default, settings.lua overrides it, and a device rule can
-override that again.
+input.lua is the default, keyboard.lua (which install.sh writes from the
+system's own keyboard setting) overrides its four kb_ keys, settings.lua
+overrides both, and a device rule can override that again.
 
 Writing goes the other way. Rather than edit input.lua, which is hand-written
 and full of comments, the page emits hypr/settings.lua — a generated module
@@ -60,7 +61,9 @@ SPEEDS = [-0.6, -0.4, -0.2, -0.1, 0.0, 0.1, 0.2, 0.3, 0.4, 0.6, 0.8, 1.0]
 DELAYS = [200, 250, 300, 400, 500, 600, 750, 1000]
 RATES = [15, 20, 25, 30, 40, 50, 60, 75]
 
-# Caps Lock is the one xkb option people actually reach for.
+# Caps Lock is the one xkb option people actually reach for. Only the caps:
+# entry of kb_options is this menu's; anything else there — a layout switch
+# key from the system setting, say — is kept as it is.
 CAPS = [
     ("", "Caps Lock"),
     ("caps:escape", "Escape"),
@@ -121,9 +124,10 @@ def build(window):
         page.note("No touchpad found, so those settings are not shown.")
 
     page.note(
-        "Applying writes hypr/settings.lua, which is loaded after the "
-        "hand-written config so it wins. Delete that file to go back to the "
-        "defaults in input.lua."
+        "Applying writes hypr/settings.lua, which is loaded after the rest "
+        "of the config so it wins. Deleting it goes back to input.lua, with "
+        "the keyboard layout and options from keyboard.lua, the system "
+        "setting install.sh copied in."
     )
     return page
 
@@ -186,24 +190,36 @@ class _InputState:
             codes.insert(0, current)
             names.insert(0, current)
         self.values["kb_layout"] = current
-        return dropdown(
-            names,
-            selected=codes.index(current),
-            on_change=lambda i: self._set("kb_layout", codes[i]),
-        )
+        # Written alongside the layout every time, because settings.lua is
+        # rewritten whole: a variant that keyboard.lua set for the system's
+        # layout ("dvorak" for "us") must not be left to ride along with a
+        # different one, and must not come back on a later Apply either.
+        variant = hypr.get_option("input:kb_variant") or ""
+        self.values["kb_variant"] = variant
+
+        def choose(index):
+            # Back to the layout it started on gets its own variant back.
+            code = codes[index]
+            self.values["kb_variant"] = variant if code == current else ""
+            self._set("kb_layout", code)
+
+        return dropdown(names, selected=codes.index(current), on_change=choose)
 
     def caps_control(self):
         current = hypr.get_option("input:kb_options") or ""
+        others, caps = _split_caps(current)
         codes = [code for code, _name in CAPS]
         names = [name for _code, name in CAPS]
-        if current not in codes:
-            codes.insert(0, current)
-            names.insert(0, current or "(none)")
+        if caps not in codes:  # a caps: option the menu does not offer
+            codes.insert(0, caps)
+            names.insert(0, caps)
         self.values["kb_options"] = current
         return dropdown(
             names,
-            selected=codes.index(current),
-            on_change=lambda i: self._set("kb_options", codes[i]),
+            selected=codes.index(caps),
+            on_change=lambda i: self._set(
+                "kb_options", ",".join(others + ([codes[i]] if codes[i] else []))
+            ),
         )
 
     def delay_control(self):
@@ -263,3 +279,13 @@ class _InputState:
             target[leaf] = value
         generate.write(paths.SETTINGS_LUA, generate.settings_lua(config))
         hypr.reload()
+
+
+def _split_caps(options: str):
+    """"grp:alt_shift_toggle,caps:escape" -> (["grp:alt_shift_toggle"], "caps:escape").
+
+    The other options in order, and the caps: one ("" if there is none).
+    """
+    entries = [o.strip() for o in options.split(",") if o.strip()]
+    caps = next((o for o in entries if o.startswith("caps:")), "")
+    return [o for o in entries if not o.startswith("caps:")], caps

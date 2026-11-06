@@ -50,15 +50,33 @@ def build(window):
     card.add(Row("Idle", _value(_short(paths.HYPRIDLE_CONF), dim=True),
                  "Rewritten whole. Previous version kept as .bak."))
     card.add(Row("Input", _value(_short(paths.SETTINGS_LUA), dim=True),
-                 "Loaded after the hand-written config, so it wins. Delete it "
+                 "Loaded after the rest of the config, so it wins. Delete it "
                  "to go back to the defaults."))
+    card.add(Row("Modifier key", _value(_short(paths.KEYS_LUA), dim=True),
+                 "Read by keybinds.lua before it binds anything. Delete it to "
+                 "go back to Super."))
     card.add(Row("Lid", _value(str(readback.LID_CONF), dim=True),
                  "The only file outside your home directory. Needs a password."))
+    card.add(Row("Show at login", _value(_short(paths.STATE), dim=True),
+                 "This app's own record, of the one choice nothing else "
+                 "holds. Absent until that switch is first touched."))
+    card.add(Row("Dock", _value(_short(paths.DOCK_HIDDEN.parent) + "/dock-*",
+                                dim=True),
+                 "dock-hidden, which the page writes as the key does; "
+                 "dock-mode and dock-position, through dock.sh."))
+    card.add(Row("Windows", _value(_short(paths.FLOAT_ALL), dim=True),
+                 "Written by floatall.lua, which the page asks to switch."))
+    card.add(Row("Cursor and font size", _value("gsettings", dim=True),
+                 "org.gnome.desktop.interface cursor-size and font-name; the "
+                 "font's family is left to the theme."))
 
     card = page.section("Files it never touches")
-    for name in ("input.lua", "theme.lua", "keybinds.lua", "rules.lua",
-                 "autostart.lua", "env.lua"):
+    for name in ("hyprland.lua", "input.lua", "theme.lua", "keybinds.lua",
+                 "rules.lua", "autostart.lua", "env.lua", "floatall.lua",
+                 "programs.lua"):
         card.add(Row(name, _value("hand-written", dim=True)))
+    for name in ("keyboard.lua", "gpu.lua"):
+        card.add(Row(name, _value("written by install.sh", dim=True)))
 
     page.note(
         "Theme and wallpaper are not in either list: those are applied by "

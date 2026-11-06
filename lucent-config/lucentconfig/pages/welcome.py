@@ -23,7 +23,11 @@ TOUR = [
      "When the screen dims, blanks and locks, when the machine suspends, and "
      "what closing the lid does."),
     ("\U000f030c", "Input",
-     "Keyboard layout, what Caps Lock does, key repeat, and the touchpad."),
+     "Which key every shortcut starts with (Alt/Option suits a VM on a "
+     "Mac), keyboard layout, what Caps Lock does, key repeat, and the "
+     "touchpad."),
+    ("\U000f05b2", "Windows",
+     "Tiled, or every window floating like a stacking desktop."),
     ("\U000f03d8", "Look",
      "Theme, wallpaper, cursor and font size. The theme applies everywhere at "
      "once, including this window."),

@@ -2,11 +2,11 @@
 Type=Application
 Name=Settings
 GenericName=Desktop Settings
-Comment=Display scale, idle timeouts, input and appearance
+Comment=Display scale, idle timeouts, input and modifier key, windows, appearance and the dock
 Exec=lucent-config
 Icon=preferences-desktop
 Terminal=false
 Categories=Settings;DesktopSettings;GTK;
-Keywords=settings;preferences;configuration;scale;display;idle;suspend;theme;
+Keywords=settings;preferences;configuration;scale;display;idle;suspend;keyboard;modifier;windows;floating;theme;dock;panel;
 StartupNotify=true
 StartupWMClass=dev.lucent.config

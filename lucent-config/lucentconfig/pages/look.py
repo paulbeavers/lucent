@@ -2,8 +2,8 @@
 
 Almost nothing here is implemented twice. theme.sh and wallpaper.sh already do
 this work, are already bound to the theme and wallpaper keys, and already know
-about every consumer of a palette — waybar, foot, mako, wofi, hyprlock. The
-page drives those scripts rather than reimplementing what they do, so there is
+about every consumer of a palette — the bar and dock, foot, mako, wofi,
+hyprlock, GTK and Firefox. The page drives those scripts rather than reimplementing what they do, so there is
 one code path and it is the one that already worked.
 """
 
@@ -34,6 +34,12 @@ def _run(args, **kw):
         return subprocess.run(args, capture_output=True, text=True, timeout=20, **kw)
     except (OSError, subprocess.TimeoutExpired):
         return _Failed()
+
+
+def _check(out, what):
+    """Raise if a command failed, so Apply names it rather than saying "Applied."."""
+    if out.returncode != 0:
+        raise RuntimeError(f"{what}: {out.stderr.strip() or 'failed'}")
 
 
 def _gsettings(key, default=None):
@@ -78,7 +84,11 @@ def build(window):
     card.add(Row("Random", button("Surprise me", on_click=state.random_wallpaper)))
 
     card = page.section("Size")
-    card.add(Row("Cursor size", state.cursor_control()))
+    card.add(Row("Cursor size", state.cursor_control(),
+                 "Sets the size GTK applications use. The desktop's own "
+                 "pointer changes too, but only until Hyprland next reloads "
+                 "or you log in again, which put it back to the session's "
+                 "size (24)."))
     card.add(Row("Interface font size", state.font_control(),
                  "Applies to GTK applications. Display scale is on the "
                  "Display page and moves everything, not just text."))
@@ -173,15 +183,28 @@ class _LookState:
         self.window.stage("look:cursor", self._apply_cursor, f"cursor → {size}px")
 
     def _apply_cursor(self):
-        _run(["gsettings", "set", "org.gnome.desktop.interface",
-              "cursor-size", str(self.cursor)])
-        # XWayland and Hyprland's own cursor are set separately from the GTK one.
-        _run(["hyprctl", "setcursor", _gsettings("cursor-theme", "Adwaita") or
-              "Adwaita", str(self.cursor)])
+        _check(_run(["gsettings", "set", "org.gnome.desktop.interface",
+                     "cursor-size", str(self.cursor)]), "gsettings")
+        # Hyprland's own cursor is set separately from the GTK one, and only
+        # for this session. autostart.lua runs `hyprctl setcursor Adwaita
+        # $XCURSOR_SIZE` at its top level, so every reload puts it back to
+        # env.lua's 24 — and settings.lua cannot change that: it loads after
+        # autostart.lua, whose set_cursor has already been started with the
+        # environment env.lua left, so an hl.env("XCURSOR_SIZE", ...) there
+        # arrives too late on every reload. Making this stick needs
+        # the size in env.lua or gpu.lua, which load first, and neither is
+        # this app's to write. The row says so instead of pretending.
+        out = _run(["hyprctl", "setcursor", _gsettings("cursor-theme", "Adwaita") or
+                    "Adwaita", str(self.cursor)])
+        _check(out, "hyprctl setcursor")
+        # hyprctl can exit 0 with an error as its reply.
+        reply = out.stdout.strip()
+        if reply and reply != "ok":
+            raise RuntimeError(f"hyprctl setcursor: {reply}")
 
     def font_control(self):
         name = _gsettings("font-name", "Noto Sans 11") or "Noto Sans 11"
-        self.font_family, current = _split_font(name)
+        _family, current = _split_font(name)
         options = sorted(set(FONT_SIZES) | {current})
         self.font_size = current
         return dropdown(
@@ -195,8 +218,16 @@ class _LookState:
         self.window.stage("look:font", self._apply_font, f"font → {size}pt")
 
     def _apply_font(self):
-        _run(["gsettings", "set", "org.gnome.desktop.interface",
-              "font-name", f"{self.font_family} {self.font_size}"])
+        # The family is read again here rather than kept from when the page was
+        # built: theme.sh owns it, and a theme applied in the same batch — or
+        # with SUPER+SHIFT+T while the page was open — would otherwise be put
+        # back to the old family. Only the size is this page's.
+        name = _gsettings("font-name")
+        if not name:
+            raise RuntimeError("could not read the current font from gsettings")
+        family, _size = _split_font(name)
+        _check(_run(["gsettings", "set", "org.gnome.desktop.interface",
+                     "font-name", f"{family} {self.font_size}"]), "gsettings")
 
 
 def _split_font(name: str):

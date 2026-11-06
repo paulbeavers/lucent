@@ -1,9 +1,9 @@
 """Idle — what happens when you stop using the machine.
 
-Four timeouts and the lid. They are dependent on each other in ways that are
-easy to get wrong by hand: locking after suspending means the machine goes to
-sleep unlocked, and blanking the screen before dimming it makes the dim
-pointless. The page says so rather than letting you find out later.
+Four timeouts and the lid. Most orders are safe — hypridle locks before any
+sleep whatever the timeouts say (before_sleep_cmd) — but blanking the screen
+before dimming it makes the dim pointless, and the page says so rather than
+letting you find out later.
 """
 
 import subprocess
@@ -73,7 +73,6 @@ class _IdleState:
         self.window = window
         self.values = dict(current)
         self.lid = readback.lid_action()
-        self.lid_original = self.lid
         self.warning = None
 
     def control(self, key):
@@ -92,18 +91,30 @@ class _IdleState:
             on_change=self._set_lid,
         )
 
+    # Both compare with the files as they are now, not as they were when the
+    # page was built: after an Apply the page stays open, and comparing with
+    # the old values made changing one back look like no change at all. The
+    # timeouts compare as the menu shows them, snapped to the offered steps,
+    # so a hand-written 450 seconds moved away and back is not a change.
     def _set(self, key, index):
         if not 0 <= index < len(STEPS):
             return
         self.values[key] = STEPS[index]
         self.check()
-        self.window.stage("idle", self.apply, "idle timeouts")
+        on_disk = readback.hypridle_timeouts()
+        if all(_closest(self.values[k]) == _closest(on_disk[k]) for k in on_disk):
+            self.window.unstage("idle")
+        else:
+            self.window.stage("idle", self.apply, "idle timeouts")
 
     def _set_lid(self, index):
         if not 0 <= index < len(LID_ACTIONS):
             return
         self.lid = LID_ACTIONS[index][0]
-        self.window.stage("idle", self.apply, "idle timeouts")
+        if self.lid == readback.lid_action():
+            self.window.unstage("idle:lid")
+        else:
+            self.window.stage("idle:lid", self.apply_lid, "lid action")
 
     # ── the parts that are easy to get wrong ─────────────────────────────────
     def check(self):
@@ -111,12 +122,11 @@ class _IdleState:
             return
         v = self.values
         problems = []
-        if v["lock"] and v["suspend"] and v["lock"] > v["suspend"]:
-            problems.append("suspending before locking leaves it asleep unlocked")
+        # No warning about suspending before locking, or suspending with
+        # locking off: hypridle.conf's before_sleep_cmd locks the session
+        # ahead of every sleep, so the machine never wakes to an open desktop.
         if v["dim"] and v["blank"] and v["dim"] > v["blank"]:
             problems.append("the screen goes dark before it dims, so the dim never shows")
-        if v["suspend"] and not v["lock"]:
-            problems.append("nothing locks it, so waking goes straight to the desktop")
 
         if problems:
             self.warning.set_text("Careful: " + "; ".join(problems) + ".")
@@ -133,9 +143,9 @@ class _IdleState:
             generate.hypridle_conf(v["dim"], v["blank"], v["lock"], v["suspend"]),
         )
         _restart_hypridle(any(v.values()))
-        if self.lid != self.lid_original:
-            _write_lid(self.lid)
-            self.lid_original = self.lid
+
+    def apply_lid(self):
+        _write_lid(self.lid)
 
 
 def _restart_hypridle(wanted: bool):

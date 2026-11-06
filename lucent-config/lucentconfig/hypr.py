@@ -60,21 +60,41 @@ def eval_lua(expr: str) -> str:
     return _run(["repl", expr], check=False).strip()
 
 
-def apply(table_expr: str) -> str:
-    """hl.config({...}) with the given table, for a live preview."""
-    return eval_lua(f"hl.config({table_expr}) return 'ok'")
+def _ok(args, what: str) -> str:
+    """Run a hyprctl command that answers "ok", and raise if it did not.
+
+    hyprctl can exit 0 with an error as its whole reply — a Lua dispatch that
+    fails to evaluate is the usual case — so the exit status alone would let
+    Apply say "Applied." over a change that never happened. An empty reply is
+    let through: it says nothing either way, and calling it a failure would
+    only be a guess. A non-zero exit is still NotRunning, which callers that
+    can do without a compositor catch; an error reply is a RuntimeError, as
+    every other failed apply step is, and the footer names it.
+    """
+    reply = _run(args).strip()
+    if reply and reply != "ok":
+        raise RuntimeError(f"{what}: {reply}")
+    return reply
 
 
 def reload() -> str:
-    return _run(["reload"], check=False).strip()
+    return _ok(["reload"], "hyprctl reload")
 
 
 def center_window(pid: int) -> str:
-    """Centre the floating window belonging to `pid` on its monitor."""
-    return _run(
+    """Centre the floating window belonging to `pid` on its monitor.
+
+    keybinds.lua's Centre window bind calls hl.dsp.window.center() with no
+    argument, which acts on the active window. The `window` selector here is
+    the one hl.dsp.focus and hl.dsp.window.close take in lucent-shell's
+    Hypr.qml, with a pid: rather than an address: target. rules.lua floats
+    this app, which is what centring is for; whatever Hyprland answers other
+    than "ok" is reported by Apply rather than dropped.
+    """
+    return _ok(
         ["dispatch", f'hl.dsp.window.center({{ window = "pid:{pid}" }})'],
-        check=False,
-    ).strip()
+        "centring the window",
+    )
 
 
 def get_option(name: str):

@@ -1,13 +1,14 @@
 /* lucent-config — GTK4 stylesheet
  *
  * The colour names are not defined here. theme.sh renders the active palette
- * to waybar/colors.css as @define-color declarations, and theme.py prepends
- * that file to this one before handing the pair to GTK. So this stylesheet
- * only ever names roles — @base, @mauve, @overlay — and switching theme with
- * SUPER+SHIFT+T restyles this app along with the bar.
+ * to ~/.config/lucent/colors.css as @define-color declarations, and theme.py
+ * prepends that file to this one before handing the pair to GTK. So this
+ * stylesheet only ever names roles — @base, @mauve, @overlay — and switching
+ * theme with SUPER+SHIFT+T restyles this app along with the bar.
  *
- * The font family here is the fallback: theme.py appends waybar/font.css
- * after this file, so a theme that names a font (Adwaita Light) sets it.
+ * The font family here is the fallback: theme.py appends
+ * ~/.config/lucent/font.css after this file, so a theme that names a font
+ * (Adwaita Light) sets it.
  *
  * Deliberately no libadwaita. Its stylesheet encodes GNOME's design language
  * and resists being overridden; without it every pixel here is ours.
@@ -60,7 +61,7 @@ window.background {
   background-color: alpha(@surface0, 0.62);
 }
 
-/* theme.py works out which way the palette goes and sets this class. */
+/* theme.py works out which way the palette goes, and app.py sets this class. */
 window.sc-light .sc-content-pane {
   background-color: alpha(@base, 0.45);
 }
@@ -110,7 +111,6 @@ window.sc-light .sc-sidebar {
 
 /* GTK gives a list its own base colour, which reads as a panel sitting on top
  * of the card rather than part of it. */
-.sc-sidebar listview,
 .sc-sidebar list,
 .sc-sidebar row,
 listview,
@@ -208,9 +208,7 @@ list {
  * inset on a dark theme and raised on a light one, which is correct both ways
  * round. */
 dropdown > button,
-button,
-spinbutton,
-entry {
+button {
   background-color: alpha(@base, 0.8);
   background-image: none;
   color: @text;
@@ -222,9 +220,7 @@ entry {
 }
 
 dropdown > button:hover,
-button:hover,
-spinbutton:hover,
-entry:focus {
+button:hover {
   background-color: @base;
   border-color: @overlay;
 }
@@ -297,24 +293,6 @@ switch > slider {
 
 switch:checked > slider {
   background-color: @crust;
-}
-
-scale trough {
-  background-color: @surface0;
-  border-radius: 999px;
-  min-height: 5px;
-}
-
-scale highlight {
-  background-color: @mauve;
-  border-radius: 999px;
-}
-
-scale slider {
-  background-color: @text;
-  border-radius: 999px;
-  min-width: 15px;
-  min-height: 15px;
 }
 
 /* ── footer ──────────────────────────────────────────────────────────────── */

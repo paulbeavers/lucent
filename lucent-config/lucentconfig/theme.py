@@ -1,9 +1,10 @@
 """Load the stylesheet, with the live palette in front of it.
 
-theme.sh already renders the active theme to waybar/colors.css as a list of
-@define-color declarations. Rather than teach it about a third consumer, we
-read that file and paste it on top of our own stylesheet — so the app is themed
-by whatever the desktop is themed by, and SUPER+SHIFT+T changes both.
+theme.sh already renders the active theme to ~/.config/lucent/colors.css as a
+list of @define-color declarations, for the bar and the dock. Rather than teach
+it about another consumer, we read that file and paste it on top of our own
+stylesheet — so the app is themed by whatever the desktop is themed by, and
+SUPER+SHIFT+T changes both.
 """
 
 import re
@@ -14,8 +15,9 @@ from gi.repository import Gdk, Gio, Gtk
 from . import paths
 
 # Used when colors.css is missing, which is the case on live media and on any
-# machine where theme.sh has not run yet. Catppuccin Mocha, the same default
-# theme.sh ships with, so the app looks right rather than unstyled.
+# machine where theme.sh has not run yet. Plain Catppuccin Mocha: install.sh's
+# default theme, catppuccin-mocha-blue-contrast, is a variant of it, so the app
+# looks close to right rather than unstyled.
 FALLBACK = """
 @define-color crust     #11111b;
 @define-color mantle    #181825;
@@ -50,7 +52,7 @@ def palette_css() -> str:
 
 
 def font_css() -> str:
-    """The theme's font family: waybar/font.css, which theme.sh renders.
+    """The theme's font family: ~/.config/lucent/font.css, which theme.sh renders.
 
     It goes after style.css, so its `* { font-family }` wins over the one
     there, which stays as what this app uses when the file is missing. A
@@ -76,8 +78,8 @@ def is_light(palette: str) -> bool:
     a wallpaper still reads as dark, and light text stays legible. A light
     @base at 60% over the same wallpaper turns grey, and the dark text on it
     disappears — which is exactly how Catppuccin Latte broke twice. So the
-    stylesheet carries both sets of alphas and the window gets a `light` class
-    to pick between them.
+    stylesheet carries both sets of alphas and app.py gives the window an
+    `sc-light` class to pick between them.
 
     Decided from @base rather than a `mode` key because colors.css is the only
     file we read, and every palette has to define @base.
@@ -93,7 +95,7 @@ def is_light(palette: str) -> bool:
 class Theme:
     """The stylesheet, kept in step with the desktop's theme.
 
-    SUPER+SHIFT+T rewrites colors.css and signals waybar and mako to
+    SUPER+SHIFT+T rewrites colors.css and tells the bar and mako to
     pick it up. An app that only read the palette at startup would sit there in
     the old colours until it was restarted, which is exactly the kind of small
     wrongness that makes something feel bolted on. So we watch the file.

@@ -19,9 +19,6 @@ COLORS_CSS = CONFIG / "lucent" / "colors.css"
 # The theme's font family, which theme.sh renders beside the palette.
 FONT_CSS = CONFIG / "lucent" / "font.css"
 
-# Hand-written, and left alone.
-INPUT_LUA = HYPR / "input.lua"
-
 # Generated. lucent-config owns these outright and rewrites them whole; each
 # one carries a header saying so.
 MONITORS_LUA = HYPR / "monitors.lua"
@@ -34,10 +31,10 @@ SETTINGS_LUA = HYPR / "settings.lua"
 # so a value arriving in settings.lua would arrive after everything is bound.
 KEYS_LUA = HYPR / "keys.lua"
 
-# Our own record of what the user chose, which is the thing the generated files
-# are rendered from. Kept separate because a generated file cannot always be
-# read back: "suspend after 10 minutes" survives a round trip, but "scale 1.6 on
-# a display that cannot do 1.6" does not.
+# The app's own record of choices, and only of those that cannot be read back
+# from the system — today just "show this at login", a preference about the app
+# itself that no other file has an opinion on. Not a cache of the other
+# settings: every page reads those back from where they live. See state.py.
 STATE = CONFIG / "lucent" / "settings.json"
 # Where it lived until 2026-10-17, when the app was starch-config. Still read
 # when the new file does not exist yet, so someone who had turned the welcome
@@ -49,8 +46,8 @@ THEME_SH = SCRIPTS / "theme.sh"
 WALLPAPER_SH = SCRIPTS / "wallpaper.sh"
 
 # The dock. Plain marker files rather than entries in settings.json: dock.sh
-# and waybar.sh read them at login, and they are the record, so the page reads
-# them back rather than keeping a copy.
+# and the shell (lucent-shell's Settings.qml) read them, and they are the
+# record, so the page reads them back rather than keeping a copy.
 DOCK_SH = SCRIPTS / "dock.sh"
 DOCK_HIDDEN = CONFIG / "lucent" / "dock-hidden"
 DOCK_MODE = CONFIG / "lucent" / "dock-mode"

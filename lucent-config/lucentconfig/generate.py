@@ -51,7 +51,11 @@ def _header(what: str, extra: str = "") -> str:
 
 
 def monitors_lua(entries) -> str:
-    """`entries` is a list of dicts: output, mode, position, scale."""
+    """`entries` is a list of dicts: output, mode, position, scale, transform.
+
+    An entry with `disabled` set is written as just that, so an output someone
+    had turned off stays off rather than coming back on the next Apply.
+    """
     body = _header(
         "Display layout. Change it in lucent-config, or with nwg-displays.",
         """
@@ -63,12 +67,21 @@ lucent-config only offers scales that are legal for the mode in question.
     )
 
     for e in entries:
-        body += (
+        if e.get("disabled"):
+            body += 'hl.monitor({{ output = "{output}", disabled = true }})\n'.format(**e)
+            continue
+        line = (
             'hl.monitor({{ output = "{output}", mode = "{mode}", '
-            'position = "{position}", scale = {scale} }})\n'
+            'position = "{position}", scale = {scale}'
         ).format(**e)
+        # 0 is Hyprland's own default, so only a rotated or flipped output
+        # needs it spelled out.
+        if e.get("transform"):
+            line += ", transform = %d" % int(e["transform"])
+        body += line + " })\n"
 
-    fallback = entries[0]["scale"] if entries else 1
+    enabled = [e for e in entries if not e.get("disabled")]
+    fallback = enabled[0]["scale"] if enabled else 1
     body += (
         "\n-- Catch-all for a display plugged in later. If its resolution does not\n"
         "-- divide evenly by this scale Hyprland will snap to the nearest legal one;\n"
@@ -118,7 +131,7 @@ def hypridle_conf(dim, blank, lock, suspend) -> str:
     listeners = []
     if dim:
         listeners.append(
-            (dim, "brightnessctl -s set 10", "brightnessctl -r", "dim the backlight")
+            (dim, "brightnessctl -s set 10%", "brightnessctl -r", "dim the backlight")
         )
     if blank:
         listeners.append(
@@ -162,28 +175,38 @@ def _minutes(seconds: int) -> str:
 
 
 def keys_lua(mod: str) -> str:
-    """The modifier pair keybinds.lua reads before it binds anything.
+    """The modifier trio keybinds.lua reads before it binds anything.
+
+    The file holds only `mod`; keybinds.lua derives the other two from it.
+    With SUPER leading they are mod=SUPER, alt=ALT, solo=ALT; with ALT leading,
+    mod=ALT, alt=CTRL, solo="ALT + CTRL". `solo` is what the three binds that
+    would otherwise use the secondary key alone are given.
 
     Not an hl.config override, so not part of settings.lua: by the time
     hyprland.lua gets to settings.lua, keybinds.lua has already bound
     everything. keybinds.lua requires this module itself instead.
     """
     primary = "ALT" if str(mod).upper() == "ALT" else "SUPER"
-    secondary = "CTRL" if primary == "ALT" else "ALT"
+    if primary == "ALT":
+        trio = 'mod = ALT, alt = CTRL, solo = "ALT + CTRL"'
+    else:
+        trio = "mod = SUPER, alt = ALT, solo = ALT"
     body = _header(
         "Which key every keybind starts with.",
         f"""
-The primary modifier is {primary} and the secondary one is {secondary}.
+keybinds.lua reads `mod` from here and binds with three modifiers:
+{trio}.
 
-Both move, which is the point. Several binds use the two at once
-(primary + secondary + H) and three use the secondary alone, so changing only
-the primary would collapse eleven of them onto combinations already in use —
-and Hyprland reports none of that.
+All three move, which is the point. Several binds use mod and alt at once
+(mod + alt + H), so changing only mod would collapse eleven of them onto
+combinations already in use — and Hyprland reports none of that. Three binds
+take `solo`, which is alt alone with SUPER leading; with ALT leading it is
+ALT + CTRL, because CTRL + Tab and CTRL + [ belong to the applications.
 
-With ALT leading, the secondary is CTRL rather than SUPER on purpose: SUPER is
-Command, and in a VM on a Mac the host keeps it. Binds sent there would read
-as bound and never fire, which is worse than a collision because nothing says
-so. No bind in the ALT layout needs Command at all.
+With ALT leading, alt is CTRL rather than SUPER on purpose: SUPER is Command,
+and in a VM on a Mac the host keeps it. Binds sent there would read as bound
+and never fire, which is worse than a collision because nothing says so. No
+bind in the ALT layout needs Command at all.
 
 Delete this file to go back to SUPER leading.
         """,

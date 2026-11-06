@@ -28,11 +28,21 @@ def build(window):
 
     for st in state:
         card = page.section(st.title)
+        if st.disabled:
+            # Listed so it is not a surprise in monitors.lua, but not offered:
+            # the file keeps it disabled, and turning it back on is
+            # nwg-displays' job or a hand edit, not this page's.
+            card.add(Row("Turned off", None,
+                         "This output is disabled, and applying keeps it that "
+                         "way."))
+            continue
         st.attach(card, window, state)
 
     page.note(
         "Applying rewrites hypr/monitors.lua and reloads Hyprland. The previous "
-        "file is kept as monitors.lua.bak."
+        "file is kept as monitors.lua.bak. Rotation and disabled outputs are "
+        "carried over; anything else set by hand in that file, such as "
+        "mirroring, bit depth or VRR, is not."
     )
     return page
 
@@ -54,6 +64,11 @@ class _MonitorState:
         self.refresh = float(monitor.get("refreshRate") or 60.0)
         self.scale = float(monitor.get("scale") or 1.0)
         self.position = "{}x{}".format(monitor.get("x", 0), monitor.get("y", 0))
+        # Not offered here, but carried across a rewrite: monitors.lua is
+        # written whole, and leaving these out turned a rotated screen upright
+        # and a disabled one back on.
+        self.transform = int(monitor.get("transform") or 0)
+        self.disabled = bool(monitor.get("disabled"))
         self.modes = _parse_modes(monitor.get("availableModes") or [])
 
         if not self.modes:
@@ -156,12 +171,15 @@ class _MonitorState:
         )
 
     def entry(self):
+        if self.disabled:
+            return {"output": self.name, "disabled": True}
         w, h = self.resolution
         return {
             "output": self.name,
             "mode": f"{w}x{h}@{self.refresh:.2f}",
             "position": self.position,
             "scale": generate.scale_str(self.scale),
+            "transform": self.transform,
         }
 
 
