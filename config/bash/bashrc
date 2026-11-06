@@ -74,11 +74,10 @@ if command -v fzf >/dev/null; then
     if command -v "$__lucent_bat" >/dev/null; then
         export FZF_CTRL_T_OPTS="--preview '$__lucent_bat --color=always --style=numbers --line-range=:200 {}'"
     fi
-    # Ctrl-R history, Ctrl-T files, Alt-C directories. fzf --bash is 0.48+.
+    # Ctrl-R history, Ctrl-T files, Alt-C directories. fzf --bash is 0.48+,
+    # which every supported release ships.
     if __lucent_fzf=$(fzf --bash 2>/dev/null); then
         eval "$__lucent_fzf"
-    elif [[ -f /usr/share/fzf/shell/key-bindings.bash ]]; then
-        . /usr/share/fzf/shell/key-bindings.bash
     fi
     unset __lucent_fzf
 fi

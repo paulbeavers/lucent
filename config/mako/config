@@ -3,7 +3,9 @@
 # Full options: man 5 mako
 
 # ── placement ─────────────────────────────────────────────────────────────────
-# Below the bar (38px bar + 6px margin + a little breathing room).
+# Sized for the top bar of dock style: 38px bar + 6px margin + a little
+# breathing room. In the default panel style the panel is at the bottom, so
+# this only leaves a gap at the top.
 anchor=top-right
 margin=10,14,10
 outer-margin=52,0,0,0

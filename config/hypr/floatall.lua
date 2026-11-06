@@ -73,10 +73,6 @@ local function tile(w)
     hl.dispatch(hl.dsp.window.float({ action = "disable", window = win }))
 end
 
-function M.is_on()
-    return is_on()
-end
-
 -- On or off, rather than a flip: a switch in lucent-config means one or the
 -- other, whatever the key did since the page was drawn. Asking for the state
 -- the mode is already in does nothing, not even the notification.

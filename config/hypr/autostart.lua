@@ -6,8 +6,9 @@
 --  is a call at the top level of this file, which a reload runs again; only the
 --  cursor needs that.
 --
---  uwsm-managed sessions start the portals and polkit agent as systemd user
---  units, so this stays short on purpose.
+--  Under uwsm the portals come up as systemd user units on their own; the
+--  start handler below covers a plain session, and starts the polkit agent's
+--  unit either way.
 --------------------------------------------------------------------------------
 
 local function set_cursor()

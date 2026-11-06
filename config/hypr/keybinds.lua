@@ -8,9 +8,9 @@
 --  Find a key's name with:  wev
 --
 --  No bind below spells a modifier literally. `mod` is the primary one, which
---  starts nearly every shortcut, and `alt` is the secondary one used by the
---  handful that need two. They are a pair so that lucent-config can swap
---  them — see below.
+--  starts nearly every shortcut, `alt` is the secondary one used by the
+--  handful that need two, and `solo` is what the secondary alone becomes.
+--  The three move together when lucent-config changes the primary — see below.
 --------------------------------------------------------------------------------
 
 local p = require("programs")
@@ -21,13 +21,13 @@ local floatall = require("floatall")
 -- which is what you want in a VM on a Mac: the host keeps Command (SUPER) for
 -- itself, so a desktop whose every shortcut starts with it is unusable there.
 --
--- The secondary has to move as well, and NOT to SUPER. Eleven binds use both
--- modifiers (mod + ALT + H) or the secondary on its own (ALT + Tab), so
--- pointing mod at ALT and leaving the secondary alone collapses
+-- The secondary has to move as well, and NOT to SUPER. Eleven binds use it:
+-- eight with the primary (mod + ALT + H) and three on its own (ALT + Tab).
+-- Pointing mod at ALT and leaving the secondary alone collapses
 -- "mod + ALT + H" into "ALT + H" — already Focus left — eleven collisions
 -- Hyprland reports none of. But handing the secondary to SUPER instead is no
 -- better: it is exactly the key that does not arrive. macOS keeps Command+Tab
--- for its own app switcher and the guest never sees it, so those thirteen
+-- for its own app switcher and the guest never sees it, so those eleven
 -- binds would read as bound and do nothing, which is worse than a collision
 -- because nothing anywhere says so.
 --
@@ -58,6 +58,7 @@ local floatall = require("floatall")
 -- on the machine: this falls back to the default pair and carries on, and
 -- Hyprland reports the broken module in `hyprctl configerrors` by itself, so
 -- the failure is still loud without being fatal. Verified both ways.
+-- The default is the SUPER/ALT/ALT trio; ALT leading gives ALT/CTRL/ALT + CTRL.
 local mod, alt = "SUPER", "ALT"
 local solo = alt
 local ok, keys = pcall(require, "keys")
@@ -257,16 +258,16 @@ bind(mod .. " + SHIFT + R", hl.dsp.exec_cmd("~/.config/hypr/scripts/bar.sh --res
 local osd = { locked = true, repeating = true }
 bind("XF86AudioRaiseVolume",  hl.dsp.exec_cmd("swayosd-client --output-volume raise"), "AudioRaiseVolume", osd)
 bind("XF86AudioLowerVolume",  hl.dsp.exec_cmd("swayosd-client --output-volume lower"), "AudioLowerVolume", osd)
-hl.bind("XF86MonBrightnessUp",   hl.dsp.exec_cmd("swayosd-client --brightness raise"),    osd)
-hl.bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("swayosd-client --brightness lower"),    osd)
+bind("XF86MonBrightnessUp",   hl.dsp.exec_cmd("swayosd-client --brightness raise"), "Brightness up", osd)
+bind("XF86MonBrightnessDown", hl.dsp.exec_cmd("swayosd-client --brightness lower"), "Brightness down", osd)
 
 -- Keyboard backlight. A separate device from the screen, and swayosd only
 -- knows about the screen, so these go through a script that finds whichever
 -- kbd_backlight this machine has — the name is vendor-specific. On a machine
 -- without one the script exits quietly, so these are harmless on a desktop.
-hl.bind("XF86KbdBrightnessUp",   hl.dsp.exec_cmd("~/.config/hypr/scripts/kbd-backlight.sh up"),   osd)
-hl.bind("XF86KbdBrightnessDown", hl.dsp.exec_cmd("~/.config/hypr/scripts/kbd-backlight.sh down"), osd)
-hl.bind("XF86KbdLightOnOff",     hl.dsp.exec_cmd("~/.config/hypr/scripts/kbd-backlight.sh toggle"), osd)
+bind("XF86KbdBrightnessUp",   hl.dsp.exec_cmd("~/.config/hypr/scripts/kbd-backlight.sh up"),     "Keyboard backlight up", osd)
+bind("XF86KbdBrightnessDown", hl.dsp.exec_cmd("~/.config/hypr/scripts/kbd-backlight.sh down"),   "Keyboard backlight down", osd)
+bind("XF86KbdLightOnOff",     hl.dsp.exec_cmd("~/.config/hypr/scripts/kbd-backlight.sh toggle"), "Keyboard backlight on/off", osd)
 
 -- Apple dropped the keyboard backlight keys in 2020, so on an Apple silicon
 -- MacBook the ones above never fire. SUPER turns the screen brightness keys
@@ -276,11 +277,11 @@ bind(mod .. " + XF86MonBrightnessDown", hl.dsp.exec_cmd("~/.config/hypr/scripts/
 
 local lockedOnly = { locked = true }
 bind("XF86AudioMute",    hl.dsp.exec_cmd("swayosd-client --output-volume mute-toggle"), "AudioMute", lockedOnly)
-hl.bind("XF86AudioMicMute", hl.dsp.exec_cmd("swayosd-client --input-volume mute-toggle"),  lockedOnly)
+bind("XF86AudioMicMute", hl.dsp.exec_cmd("swayosd-client --input-volume mute-toggle"), "AudioMicMute", lockedOnly)
 bind("XF86AudioPlay",    hl.dsp.exec_cmd("playerctl play-pause"), "AudioPlay", lockedOnly)
 bind("XF86AudioPause",   hl.dsp.exec_cmd("playerctl play-pause"), "AudioPause", lockedOnly)
-hl.bind("XF86AudioNext",    hl.dsp.exec_cmd("playerctl next"),       lockedOnly)
-hl.bind("XF86AudioPrev",    hl.dsp.exec_cmd("playerctl previous"),   lockedOnly)
+bind("XF86AudioNext",    hl.dsp.exec_cmd("playerctl next"),     "AudioNext", lockedOnly)
+bind("XF86AudioPrev",    hl.dsp.exec_cmd("playerctl previous"), "AudioPrev", lockedOnly)
 
 -- ── submaps ─────────────────────────────────────────────────────────────────
 -- A "resize mode": press SUPER+R, resize with hjkl or the arrows, Escape leaves.

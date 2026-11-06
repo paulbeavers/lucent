@@ -35,7 +35,8 @@ hl.config({
     },
 
     binds = {
-        -- Pressing the workspace key you are already on sends you back.
+        -- Off: pressing the workspace key you are already on does nothing,
+        -- rather than sending you back to the previous one.
         workspace_back_and_forth = false,
         allow_workspace_cycles   = true,
         workspace_center_on      = 1,

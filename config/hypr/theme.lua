@@ -6,7 +6,28 @@
 --  hypr/scripts/theme.sh and returns a table of role -> six-digit hex.
 --------------------------------------------------------------------------------
 
-local c = require("colors")
+-- colors.lua does not exist until theme.sh has run once, and a hard require
+-- would fail the whole config with it — no binds, emergency mode. So a missing
+-- module falls back to the palette below (Catppuccin Mocha Blue High Contrast,
+-- the default theme); env.lua and rules.lua already treat it as dark. As with
+-- optional() in hyprland.lua, only a missing file is tolerated: an error
+-- inside colors.lua is re-raised rather than hidden behind a working desktop.
+local function palette()
+    local ok, mod = pcall(require, "colors")
+    if ok then return mod end
+    if not tostring(mod):match("module 'colors' not found") then error(mod, 0) end
+    return {
+        crust = "0c0c14", mantle = "12121c", base = "161622",
+        surface0 = "4f5169", surface1 = "636680", overlay = "8c91a8",
+        subtext = "c0c7de", text = "e2e9fc", rosewater = "f5e0dc",
+        red = "f38ba8", peach = "fab387", yellow = "f9e2af",
+        green = "a6e3a1", teal = "94e2d5", sapphire = "92d5f3",
+        blue = "a0c5fd", lavender = "a0c5fd", mauve = "92d5f3", pink = "f5c2e7",
+        mode = "dark",
+    }
+end
+
+local c = palette()
 
 -- hyprlang wrote colours as rgb(hex); the Lua API takes the same string form.
 local function rgb(hex) return "rgb(" .. hex .. ")" end
@@ -82,16 +103,9 @@ hl.config({
         preserve_split = true,
         smart_split    = false,
         smart_resizing = true,
-        -- On an ultrawide, split side-by-side until windows get narrow.
+        -- A new window always goes to the right of (or below) the one it
+        -- splits, rather than following the pointer.
         force_split    = 2,
-    },
-
-    master = {
-        new_status     = "master",
-        new_on_top     = false,
-        mfact          = 0.5,
-        orientation    = "left",
-        smart_resizing = true,
     },
 
     -- Built in as of 0.56 — no plugin. An endless horizontal tape of columns;

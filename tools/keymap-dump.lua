@@ -2,13 +2,18 @@
 --
 --     luajit tools/keymap-dump.lua config/hypr           -- as configured
 --     luajit tools/keymap-dump.lua config/hypr SUPER     -- force the default
---     luajit tools/keymap-dump.lua config/hypr ALT       -- force the swap
+--     luajit tools/keymap-dump.lua config/hypr ALT       -- force ALT leading
 --
 -- Exits 1 if two binds resolve to the same combination, which is the whole
--- reason this exists. The modifier is a pair that swaps (see keybinds.lua), and
--- the wrong way to implement that collapses eleven binds onto combinations
--- already in use -- without Hyprland saying a word about any of them. Compare
--- the two modes after touching keybinds.lua:
+-- reason this exists. The modifiers are a trio (see keybinds.lua): SUPER leads
+-- with ALT as the secondary by default, and in ALT mode ALT leads with CTRL as
+-- the secondary. The wrong way to implement that collapses eleven binds onto
+-- combinations already in use -- without Hyprland saying a word about any of
+-- them. ALT mode must also bind nothing with SUPER, which a Mac host keeps:
+--
+--     luajit tools/keymap-dump.lua config/hypr ALT | grep SUPER   # empty
+--
+-- Compare the two modes after touching keybinds.lua:
 --
 --     diff <(luajit tools/keymap-dump.lua config/hypr SUPER) \
 --          <(luajit tools/keymap-dump.lua config/hypr ALT)

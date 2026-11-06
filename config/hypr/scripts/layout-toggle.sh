@@ -1,10 +1,5 @@
 #!/usr/bin/env bash
-# Layout toggle — SUPER + T. Flips general:layout between dwindle and scrolling.
-#
-#     layout-toggle.sh            toggle
-#     layout-toggle.sh dwindle    force a specific layout
-#     layout-toggle.sh scrolling
-#     layout-toggle.sh --print    print the current layout and exit
+# Layout toggle — MOD + T. Flips general:layout between dwindle and scrolling.
 #
 # The switch is a runtime `hyprctl eval`, so it re-tiles the open windows
 # immediately but does not touch theme.lua: a fresh session puts you back on
@@ -17,18 +12,22 @@ set -euo pipefail
 
 note() { command -v notify-send >/dev/null && notify-send -a Layout -t 1500 "$@" || true; }
 
+# The hint names the modifier the binds actually use. keys.lua is written by
+# lucent-config and is absent until the modifier has been changed, which means
+# SUPER; keybinds.sh reads it the same way.
+MOD=SUPER
+if grep -qE 'mod[[:space:]]*=[[:space:]]*"ALT"' \
+        "${XDG_CONFIG_HOME:-$HOME/.config}/hypr/keys.lua" 2>/dev/null; then
+    MOD=ALT
+fi
+
 current() { hyprctl getoption general:layout -j | jq -r '.str'; }
 
-case "${1-}" in
-    --print)             current; exit 0 ;;
-    dwindle|scrolling)   next="$1" ;;
-    "")                  [[ "$(current)" == scrolling ]] && next=dwindle || next=scrolling ;;
-    *)                   echo "usage: layout-toggle.sh [dwindle|scrolling|--print]" >&2; exit 2 ;;
-esac
+if [[ "$(current)" == scrolling ]]; then next=dwindle; else next=scrolling; fi
 
 hyprctl eval "hl.config({ general = { layout = \"$next\" } })" >/dev/null
 
 case "$next" in
-    scrolling) note "Scrolling" "Windows on an endless tape. SUPER + - / = resizes a column." ;;
+    scrolling) note "Scrolling" "Windows on an endless tape. $MOD + - / = resizes a column." ;;
     dwindle)   note "Dwindle"   "Back to binary-split tiling." ;;
 esac

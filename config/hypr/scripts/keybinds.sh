@@ -35,13 +35,15 @@ format_binds() {
         | @tsv
     ' | awk -F'\t' '
         # Hyprland modmask bits: SHIFT 1, CAPS 2, CTRL 4, ALT 8, SUPER 64.
+        # Tested with arithmetic rather than and(), which is gawk only: Ubuntu
+        # ships mawk, where and() is "never defined" and the cheatsheet empty.
         {
             mask = $1 + 0
             keys = ""
-            if (and(mask, 64)) keys = keys "SUPER + "
-            if (and(mask,  8)) keys = keys "ALT + "
-            if (and(mask,  4)) keys = keys "CTRL + "
-            if (and(mask,  1)) keys = keys "SHIFT + "
+            if (int(mask / 64) % 2) keys = keys "SUPER + "
+            if (int(mask /  8) % 2) keys = keys "ALT + "
+            if (int(mask /  4) % 2) keys = keys "CTRL + "
+            if (mask % 2)           keys = keys "SHIFT + "
             keys = keys $2
 
             # Prefer a human description when the config supplies one.
@@ -63,6 +65,8 @@ format_binds() {
                 if (seen) print ""
                 if ($1 == "")
                     print "── GLOBAL ───────────────────────────────────────────"
+                else if ($1 == "passthrough")
+                    print "── SUBMAP: " $1 "  (" mod "+F12 enters and leaves) ─────"
                 else
                     print "── SUBMAP: " $1 "  (" mod "+R enters, Esc leaves) ─────"
                 last = $1; seen = 1

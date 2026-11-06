@@ -4,18 +4,21 @@
 # Offers two sources: your own images in ~/Pictures/wallpapers, and the
 # wallpapers Hyprland ships in /usr/share/hypr (wall0-2). The system ones are
 # read in place rather than copied — they are 13-27MB each, and an update to
-# the hyprland package brings in whatever it ships next.
+# the hyprland package brings in whatever it ships next. That path is Arch's
+# packaging; elsewhere they may not be there at all (Ubuntu splits them into
+# hyprland-backgrounds), and then the picker offers only your own.
 #
 #     wallpaper.sh              open the picker
 #     wallpaper.sh --set <path> apply one image directly
-#     wallpaper.sh --random     set a random one, no menu (handy in autostart)
-#     wallpaper.sh --restore    re-apply the recorded choice (install time)
-#     wallpaper.sh --print      list what would be offered, one path per line
+#     wallpaper.sh --random     set a random one, no menu
+#     wallpaper.sh --restore    re-apply the recorded choice (every login)
 #     wallpaper.sh --no-reload  record the choice but do not put it on screen
 #
 # The choice is recorded in ~/.config/hypr/.active-wallpaper, and hyprlock.conf
-# is rewritten from it so the lock screen matches. Both are files the installer
-# syncs, so --restore is how a re-run puts your pick back after the sync.
+# is rewritten from it so the lock screen matches. hyprlock.conf is a file the
+# installer syncs and .active-wallpaper is not, so the installer runs
+# `--no-reload --restore` after the sync to put your pick back on the lock
+# screen. autostart.lua runs --restore at every login to draw it.
 #
 # The wallpaper itself is drawn by swaybg, which takes the image as an argument
 # — no daemon, no socket, nothing to wait for. It replaced hyprpaper, whose
@@ -25,6 +28,7 @@ set -euo pipefail
 
 CFG="${XDG_CONFIG_HOME:-$HOME/.config}"
 WALLPAPER_DIR="${WALLPAPER_DIR:-$HOME/Pictures/wallpapers}"
+# Arch's path for Hyprland's own wallpapers; absent is fine (see above).
 SYSTEM_DIR="${SYSTEM_WALLPAPER_DIR:-/usr/share/hypr}"
 HYPRLOCK_CONF="${HYPRLOCK_CONF:-$CFG/hypr/hyprlock.conf}"
 ACTIVE_FILE="${ACTIVE_WALLPAPER_FILE:-$CFG/hypr/.active-wallpaper}"
@@ -173,10 +177,6 @@ case "${1:-}" in
         [[ -n $img && -f $img ]] || exit 0
         apply "$img"
         ;;
-    --print)
-        collect
-        printf '%s\n' "${FILES[@]}"
-        ;;
     --random)
         collect
         apply "${FILES[RANDOM % ${#FILES[@]}]}"
@@ -185,7 +185,7 @@ case "${1:-}" in
         collect
         # swaybg has no IPC to ask, and the recorded choice is what it was
         # started from, so the file is the answer.
-        current="$([[ -r $ACTIVE_FILE ]] && <"$ACTIVE_FILE" || true)"
+        current="$(cat "$ACTIVE_FILE" 2>/dev/null || true)"
         choice="$(printf '%s\n' "${LABELS[@]}" \
             | wofi --dmenu --prompt "Wallpaper${current:+ (${current##*/})}" \
                    --width 520 --height 420 --cache-file /dev/null --insensitive)" || exit 0
@@ -197,6 +197,6 @@ case "${1:-}" in
         die "no wallpaper named $choice"
         ;;
     *)
-        die "unknown option: $1 (try --set, --random, --restore or --print)"
+        die "unknown option: $1 (try --set, --random or --restore)"
         ;;
 esac

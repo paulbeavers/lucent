@@ -877,12 +877,11 @@ patch_hyprlock() {
     local conf="$CFG/hypr/hyprlock.conf" tmp
     [[ -w $conf ]] || return 0
     tmp="$(mktemp "${conf}.XXXXXX")"
-    awk -v c_base="${C[base]}"       -v c_text="${C[text]}" \
-        -v c_mauve="${C[mauve]}"     -v c_red="${C[red]}" \
-        -v c_surface="${C[surface0]}" -v c_subtext="${C[subtext]}" \
+    awk -v c_text="${C[text]}"       -v c_mauve="${C[mauve]}" \
+        -v c_red="${C[red]}"         -v c_surface="${C[surface0]}" \
+        -v c_subtext="${C[subtext]}" \
         -v font="${C[font]:-$DEFAULT_FONT}" '
         function setvar(n, v) { return sprintf("$%-7s = rgb(%s)", n, v) }
-        /^[[:space:]]*\$base[[:space:]]*=/    { print setvar("base",    c_base);    next }
         /^[[:space:]]*\$text[[:space:]]*=/    { print setvar("text",    c_text);    next }
         /^[[:space:]]*\$mauve[[:space:]]*=/   { print setvar("mauve",   c_mauve);   next }
         /^[[:space:]]*\$red[[:space:]]*=/     { print setvar("red",     c_red);     next }
