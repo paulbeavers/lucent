@@ -1978,7 +1978,7 @@ MOZEOF
         else
             warn "PipeWire user services will start on first graphical login"
         fi
-    elif systemctl --user enable pipewire.service pipewire-pulse.service wireplumber.service >/dev/null 2>&1; then
+    elif run systemctl --user enable pipewire.service pipewire-pulse.service wireplumber.service >/dev/null 2>&1; then
         ok "PipeWire user services enabled"
     else
         warn "PipeWire user services will start on first graphical login"
