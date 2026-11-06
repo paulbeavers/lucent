@@ -9,7 +9,7 @@ file is for someone changing it.
 
 Hyprland 0.55 deprecated the hyprlang `.conf` format and 0.57 removes it.
 `config/hypr/*.lua` is the current form. The files still ending in `.conf` —
-`hyprlock`, `hypridle`, `hyprpaper` — belong to other programs and keep their
+`hyprlock` and `hypridle` — belong to other programs and keep their
 own formats.
 
 **`hyprctl dispatch` now takes Lua, and the old syntax fails silently.** With a
@@ -27,9 +27,8 @@ accepted but wrong: `hl.dsp.dpms("off")` is not an error, it silently means
 *toggle*. The table form `{ action = "off" }` is what you want.
 
 **Third-party tools that send the old strings cannot be fixed from here.**
-Waybar's `hyprland/workspaces` hardcodes `dispatch workspace N` with no setting
-to change it, which is why the bar draws its workspace row from ten `custom/`
-modules instead. Anything new that "does nothing when clicked" is worth
+Waybar's `hyprland/workspaces`, for one, hardcodes `dispatch workspace N` with
+no setting to change it. Anything new that "does nothing when clicked" is worth
 checking here first.
 
 **`hl.config` sets one key and leaves its siblings alone.** That is what makes
@@ -38,7 +37,7 @@ override four input settings without rewriting `input.lua`.
 
 **`settings.lua` is loaded last, which makes it useless for anything the
 hand-written modules *act on* rather than read.** Binds are the case in point:
-`keybinds.lua` registers all 132 of them when `hyprland.lua` requires it, long
+`keybinds.lua` registers all 134 of them when `hyprland.lua` requires it, long
 before `settings.lua` exists. That is why the modifier lives in its own
 `keys.lua`, which `keybinds.lua` requires itself. Anything else that has to be
 decided before a module runs needs the same treatment.
@@ -95,101 +94,79 @@ a running session, lists them. Run it after every Hyprland upgrade.
 **Anything that talks to the IPC socket has to speak Lua.** A Lua-configured
 Hyprland evaluates everything after `dispatch` as Lua, so a program that sends
 `dispatch focuswindow address:…` gets a syntax error back and its clicks do
-nothing — waybar's workspaces module is the example (see
-`waybar/config.jsonc`). Check a new shell component for this before adopting
-it. lucent-dock sends `hl.dsp` dispatches itself.
-
-**The dock is lucent's own, because every packaged one is blurry on a scaled
-panel.** It is drawn by lucent-shell (below) wherever quickshell is packaged;
-what follows is the GTK dock, which is now the fallback, beside waybar, on
-Fedora 43, and wherever building Quickshell on Ubuntu fails, and which install.sh puts in nowhere else. nwg-dock-hyprland and cairo-dock both load icons as bitmaps at the
-logical size, so at 1.33 the surface stretches them; judged side by side on
-the hardware, as every scaling question must be. A second waybar was sharp
-but is a taskbar — a button per window, no grouping, no pin menu — and that
-was rejected as confusing. `config/lucent-dock/dock.py` is GTK 4 through
-PyGObject on gtk4-layer-shell, so it draws at the real scale. Things that are
-not visible from its code:
-
-- gtk4-layer-shell must load before libwayland-client, which a Python program
-  can only arrange with LD_PRELOAD; the script re-executes itself with it set,
-  then removes it from its environment and from the launch context, or every
-  app it starts inherits the preload.
-- It names its process `lucent-dock` with prctl, and `dock.sh` uses
-  `pgrep -x lucent-dock`. A `pgrep -f` on the script path also matches any
-  shell whose command line mentions it — it killed the test shell once.
-- It is a `Gtk.Application` with a fixed ID, so a second start exits.
-- It reads `j/clients` again on window events from `.socket2.sock`, never on a
-  timer, and not while a menu is open: rebuilding the buttons would destroy
-  the popover under the pointer.
-- It sets `GTK_THEME` afresh, from `colors.lua`'s mode, on every launch.
-  env.lua puts it in Hyprland's environment and a reload updates what
-  Hyprland starts next, but the dock keeps the environment it started with:
-  after a switch from a dark theme to a light one, apps it opened (and apps
-  opened from the launcher it opened) came up dark until the next login.
-- Its colours are waybar's `colors.css`. theme.sh replaces that file by
-  rename, so the dock watches the directory rather than the file, whose
-  monitor would stay on the old inode.
+nothing. Waybar's `hyprland/workspaces` was the example, and one reason the bar
+is lucent's own. Check a new shell component for this before adopting it.
 
 **The bar and the dock are lucent-shell** (`config/lucent-shell/`), one
-Quickshell program drawing both. Waybar and the GTK dock are only the
-fallback for releases that do not package quickshell (Fedora 43, Ubuntu
-26.04): install.sh adds `BAR_FALLBACK` to the package list there and nowhere
-else, and `bar.sh` starts whichever is installed, quickshell first. On Ubuntu
-install.sh then builds Quickshell, so waybar only draws if that fails. There is
-no setting. `autostart.lua` starts `bar.sh`, not `waybar.sh`; SUPER+SHIFT+R
-is `bar.sh --reload`; theme.sh calls `bar.sh --theme`. Both read the same
-files — dock-mode, dock-position, dock-pinned, dock-hidden,
-`waybar/colors.css` and `font.css` (the palette keeps that path whichever
-bar draws it). Not visible from its code:
+Quickshell program drawing both, and there is no fallback: Quickshell is a
+requirement, installed on Arch and Fedora 44, built by install.sh on Ubuntu
+26.04 (below), and missing on Fedora 43, which install.sh refuses.
+`QUICKSHELL_MIN` (0.2.1, Fedora 44's) is checked before configs are deployed.
+Waybar and a GTK dock used to stand in where Quickshell was missing; they were
+removed on 2026-11-05, and install.sh moves their deployed configs into the
+backup directory. `autostart.lua` starts `bar.sh`; SUPER+SHIFT+R is `bar.sh
+--restart`; theme.sh calls `bar.sh --theme`. The shell reads dock-mode,
+dock-position, dock-pinned and dock-hidden in `~/.config/lucent`, and the
+palette theme.sh renders beside them, `~/.config/lucent/colors.css` and
+`font.css`, which lucent-config reads too.
 
-- **Panel style is one window.** With waybar it is two programs composed,
-  which is everything the panel paragraph below has to work around: the
-  dock mapping after waybar, mapping again on every waybar reload,
-  `PANEL_HEIGHT` matching. None of that applies to the shell; `PanelBar.qml`
-  holds the workspaces, `DockRow` and the status modules in one surface.
+The dock is lucent's own because every packaged one was blurry on a scaled
+panel: nwg-dock-hyprland and cairo-dock load icons as bitmaps at the logical
+size, so at 1.33 the surface stretches them. That was judged side by side on
+the hardware, as every scaling question must be. Not visible from the code:
+
+- **Panel style is one window.** `PanelBar.qml` holds the workspaces,
+  `DockRow` and the status modules in one surface, so the dock needs no
+  surface or zone of its own there.
 - **Its process is `qs`, whatever it runs**, so nothing can use `pgrep -x`
   for it. `bar.sh` finds it by its bar's layer namespace, `lucent-bar` (the
-  floating dock is `lucent-dock`, as the GTK one is), and stops it with `qs
-  kill -p`. `qs -n` refuses a second instance.
-- **Hiding the dock is IPC, not a stop.** `dock.sh` writes `dock-hidden` as
-  before and then `qs -p ~/.config/lucent-shell ipc call dock hide|show`; at
-  start `bar.sh` passes the file's state as `LUCENT_DOCK_HIDDEN`, because a
-  file's absence cannot be watched.
-- **Qt does not read GTK's icon theme.** env.lua sets
-  `QT_QPA_PLATFORMTHEME=qt5ct`, which a Qt 6 program cannot load. `bar.sh`
-  passes `QS_ICON_THEME` from gsettings at start; `bar.sh --theme` restarts
-  the shell only when a theme brought a different icon theme. Colours and
-  the font are watched and change live.
+  floating dock is `lucent-dock`), and stops it with `qs kill -p`. `qs -n`
+  refuses a second instance.
+- **Hiding the dock is IPC, not a stop.** `dock.sh` writes or removes
+  `dock-hidden` and then runs `qs -p ~/.config/lucent-shell ipc call dock
+  hide|show`; at start `bar.sh` passes the file's state as
+  `LUCENT_DOCK_HIDDEN`, because a file's absence cannot be watched. Mode and
+  position are read at start, so `dock.sh --mode` and `--position` restart
+  the shell.
+- **Qt does not read GTK's icon theme.** `bar.sh` passes `QS_ICON_THEME` from
+  gsettings at start; `bar.sh --theme` restarts the shell only when a theme
+  brought a different icon theme. Colours and the font are watched, but
+  theme.sh replaces those files by rename and FileView watches the file, not
+  the directory, so whether a switch recolours the running shell has not been
+  confirmed. SUPER+SHIFT+R always does.
 - **It dispatches through `hyprctl`, in Lua**, not quickshell's
   `Hyprland.dispatch`: 0.3 knows about Lua configs, 0.2.1 (Fedora 44's)
-  does not. The workspace row is the module waybar could not do for that
-  reason, and here it is one Repeater.
-- **Several waybar icons were blank.** The CPU, memory, temperature, Wi-Fi,
-  plugged-in, submap, Chromium and terminal glyphs in `config.jsonc` are
-  plain spaces — private-use characters lost along the way. The shell has
-  its own, each checked with `fc-list ":charset=XXXX"` against JetBrainsMono
-  Nerd Font. Write them as `\uXXXX` escapes in QML, never as literals.
-- **The calendar is a rich-text tooltip** in the palette's colours, so
-  theme.sh's `patch_waybar_json` does not apply to it. Week numbers come
-  from each row's fourth day: ISO's rule for a Monday-first week, and right
-  for a Sunday-first locale too.
+  does not. The workspace row is one Repeater.
+- **Glyphs are escapes.** Private-use characters get lost along the way (a
+  bar's icons and the power menu's were once plain spaces). Write them as
+  `\uXXXX` in QML and `$'\U000FXXXX'` in bash, each checked with
+  `fc-list ":charset=XXXX"` against JetBrainsMono Nerd Font.
+- **The calendar is a rich-text tooltip** in the palette's colours. Week
+  numbers come from each row's fourth day: ISO's rule for a Monday-first
+  week, and right for a Sunday-first locale too.
 - **Its API floor is 0.2.1.** Lint against a package's own types, extracted
-  to a scratch directory: `qmllint -I <pkg>/usr/lib/qt6/qml FILE`. The
-  singletons (Theme, Settings, Hypr, Sys, Apps) show as missing members,
-  because quickshell registers them at runtime; that and PanelWindow's
-  `anchor.*`/`margins.*` are not errors.
+  to a scratch directory, with Qt 6's qmllint (`/usr/lib/qt6/bin/qmllint`;
+  the `qmllint` on PATH may be Qt 5's and report nothing): `qmllint -I
+  <pkg>/usr/lib/qt6/qml FILE`. The singletons (Theme, Settings, Hypr, Sys,
+  Apps) show as missing members, because quickshell registers them at
+  runtime; that and PanelWindow's `anchor.*`/`margins.*` are not errors.
 - **Test it headless** by copying the directory, turning each PanelWindow
   into a FloatingWindow, wrapping its children in an Item and grabbing that
   to a PNG (a window's own content item has no QML engine and cannot be
   grabbed). A fake `hyprctl` on PATH that prints sample `-j clients` drives
   the workspaces and the dock. Icons never load headless, even hicolor ones,
   so judge them in a session. **Stub `pkill` and `pgrep` too** when running
-  bar.sh or dock.sh that way: the real ones reach the desktop you are on.
-- **The panel's right-hand modules are tighter than waybar's** (padding 6
-  rather than 10, margin 1 rather than 2), and each glyph sits 4px from its
-  figure rather than two spaces. The top bar's islands keep waybar's
-  padding. In the panel the dock follows the workspaces rather than sitting
-  in the middle, so it moves right as workspaces 6-10 appear.
+  bar.sh or dock.sh that way: the real ones reach the desktop you are on. A
+  nested Hyprland (`Hyprland -c FILE` from a session) with `grim` is the
+  other way, and draws the real thing.
+- **The panel's right-hand modules are tighter than the top bar's islands**
+  (padding 6 rather than 10, margin 1 rather than 2), and each glyph sits 4px
+  from its figure. In the panel the dock follows the workspaces rather than
+  sitting in the middle, so it moves right as workspaces 6-10 appear.
+- **The edge is `~/.config/lucent/dock-position`**, bottom or top. Left and
+  right were tried and taken out (2026-10-31): the panel's status items do not
+  fit a column, so they only worked in dock style, and an option that did
+  nothing in panel style read as broken.
 - **Not yet judged on a retina MacBook.** Sharpness at 1.33 is the reason
   lucent has its own dock; that has to be seen on the hardware.
 
@@ -199,34 +176,7 @@ Lua table.** `floatall.lua` marks the windows it floated with the tag
 floated alone; a list in the module would be emptied by the first reload.
 Whether the mode is on is a file, `~/.config/lucent/float-all`, read on every
 `window.open`. The dock's hidden state is `~/.config/lucent/dock-hidden` for
-the same reason, and its pins are `~/.config/lucent/dock-pinned`. Hidden
-means stopped, which gives back its exclusive zone.
-
-**With the waybar fallback, panel mode is waybar and the GTK dock, composed,
-and it is the default.** (lucent-shell's panel is one window and needs none of
-this.)
-`~/.config/lucent/dock-mode` set to anything but `dock`, or missing, makes
-`waybar.sh` start `waybar/panel.jsonc` instead of the top bar — `waybar.sh`,
-`dock.sh`, `dock.py` and the Dock page all test `!= dock` for that reason: a full-width strip along the bottom that `include`s `config.jsonc` and
-changes only the shape and the module lists. Waybar's include merges objects
-key by key with the including file winning, so overriding `clock.format`
-keeps the calendar theme.sh colours. The middle of the strip is empty, and
-the dock draws its icons there with no slab, an exclusive zone of -1 (it must
-ignore waybar's zone, or Hyprland stacks it above the panel) and the panel's
-height. The tray, network, audio and the rest were not rewritten in GTK 4: a
-status-notifier host alone is a project. Two things hold the composition
-together: the dock has to map after the panel to draw on top of it, so
-`dock.sh` waits for waybar before starting it in panel mode and `--mode`
-restarts the bar first — and waybar recreates its surface on every reload (theme.sh sends SIGUSR2), so the dock watches for `openlayer>>panel` and maps itself again, or a theme change leaves it faint and unclickable under the panel; and `PANEL_HEIGHT` in `dock.py` must equal the
-`height` in `panel.jsonc`.
-
-The edge is `~/.config/lucent/dock-position`. A panel at the top is
-`panel-top.jsonc`, which includes `panel.jsonc` and changes only `position` —
-includes nest, verified on waybar 0.15. Waybar has no command-line switch for
-the position, so a file per edge is the only way to keep one module list.
-Bottom and top only: left and right were tried and taken out (2026-10-31) —
-the panel's status items do not fit a column, so they only worked in dock
-style, and an option that did nothing in panel style read as broken.
+the same reason, and its pins are `~/.config/lucent/dock-pinned`.
 
 ## install.sh
 
@@ -286,18 +236,19 @@ there is no uwsm to have set it already.
 **26.04 has no Quickshell, so install.sh builds one.** The source is Ubuntu's own
 package from the next release, pinned by hash in `QUICKSHELL_SHA256`, without its
 crash handler because `libcpptrace-dev` is the one build dependency 26.04 lacks. It
-is a real `.deb`, the build dependencies are removed afterwards, and a failure only
-warns and leaves waybar. Its log is `/tmp/lucent-quickshell-build.log`. Two costs: a
-superseded source leaves the pool, which turns that URL into a 404 and the bar into
-waybar; and it depends on `qt6-base-private-abi` and `qt6-declarative-private-abi`,
+is a real `.deb`, the build dependencies are removed afterwards (suggests ignored, or
+`xml-core` keeps `debhelper`), and a failure stops the install after that clean-up,
+so a re-run retries. Its log is `/tmp/lucent-quickshell-build.log`. Two costs: a
+superseded source leaves the pool, which turns that URL into a 404 and a fresh install
+into a refusal until `QUICKSHELL_DSC` is moved on; and it depends on `qt6-base-private-abi` and `qt6-declarative-private-abi`,
 so a Qt ABI update in `resolute-updates` needs a rebuild. A release that packages
 it skips all of this, because a candidate wins.
 
 **Ubuntu's packages enable their user units for every graphical session**, in
 `/etc/systemd/user/graphical-session.target.wants/`. autostart.lua starts
 `hyprland-session.target`, which brings them all up beside the copies it starts
-itself, so a Hyprland session had a second waybar (default config, so the top bar)
-and a second hypridle. At GDM's greeter the same units fail in a restart loop.
+itself, so a Hyprland session had a second hypridle and, while lucent still installed
+waybar, a second bar. At GDM's greeter the same units fail in a restart loop.
 install.sh masks `waybar`, `hypridle`, `mako`, `swaync` and `hyprsunset` on Ubuntu.
 `foot-server`, uwsm's `fumon` and `spice-vdagent` are left: they do no harm. Anything
 new that runs twice, or fails only at the login screen, is worth checking here
@@ -417,7 +368,18 @@ did not move:
     diff <(cd ../starch && ./extract-packages.sh) <previous output>
 
 Idempotent by design: a second run detects that packages and services are in
-place and becomes a config sync. It backs up only files that actually changed.
+place and becomes a config sync, and asks for root only for what changed. It
+backs up only files that actually changed. Two synced files are patched after
+they land — theme.sh writes the palette and font into `hyprlock.conf` and
+between markers in wofi's `style.css`, and wallpaper.sh the wallpaper into
+`hyprlock.conf` — so the sync compares them with those values masked
+(`themed_view`), or every run would back them up and copy them again.
+
+**What lucent-config owns is seeded, not synced.** `defaults/` holds files that
+are copied only when missing: today `hypr/hypridle.conf`. Shipping it in
+`config/` put the default timeouts back over the Idle page's on every run, the
+`keys.lua` trap again, silently. `colors.lua` is not shipped at all: theme.sh
+writes it, and `theme.lua` falls back to a built-in palette until it exists.
 `monitors.lua` is left alone once written, so a hand-tuned layout survives,
 and so is the lid drop-in — lucent-config owns it afterwards. It used to be
 rewritten whenever it differed from the default, which put a lid set to
@@ -466,8 +428,8 @@ GNOME's design language and resists being overridden.
   still reads dark; a light one turns grey and swallows its own dark text.
   `theme.py` decides light-vs-dark from `@base` luminance and the stylesheet
   carries two sets of alphas. Test any visual change against Catppuccin Latte.
-- It is themed from `waybar/colors.css`, the palette `theme.sh` already
-  renders, watched via a monitor on the *directory* — `theme.sh` moves a temp
+- It is themed from `~/.config/lucent/colors.css`, the palette `theme.sh`
+  renders for the shell too, watched via a monitor on the *directory* — `theme.sh` moves a temp
   file into place, so a watch on the old inode goes deaf after one switch.
 - It never edits a hand-written config. It owns `monitors.lua`,
   `hypridle.conf` and `settings.lua`, rewrites them whole and keeps a `.bak`.
@@ -503,10 +465,10 @@ writing OSC 4/10/11/12/17/19 to each one's pty. The font cannot follow that
 way, so a theme's `mono` reaches new terminals only.
 
 **A theme can carry fonts and icons** (`font`, `mono`, `icons`; Adwaita Light
-uses them). Each target gets the family where it can be overridden: waybar
-from `font.css`, kept out of `colors.css` because the dock imports that,
-and lucent-config appends `font.css` after its own stylesheet so its
-monospace look stays the default; foot and mako from their included files, which come after
+uses them). Each target gets the family where it can be overridden: the shell
+from `font.css`, kept out of `colors.css` so that lucent-config can take the
+palette alone and append `font.css` after its own stylesheet, keeping its
+monospace look the default; foot and mako from their included files, which come after
 their own `font=`; wofi inside its theme markers, its hand-written `*` rule
 no longer naming a family; hyprlock and `colors.lua` by substitution. GTK's
 font family is theme.sh's too, with the size left alone because it is the
@@ -523,9 +485,8 @@ default back, so switching away restores everything.
   colours, so redefining its named colours (`@theme_bg_color`) changes almost
   nothing. Every GTK 3 toplevel — window, dialog, message dialog, menu,
   tooltip — carries the class `background`, so the rules hang off
-  `.background:not(#window):not(#waybar)`: wofi's window is `#window` and
-  waybar's `#waybar`, both already themed by their own stylesheets, which
-  these would otherwise override. Note that `:not(#id)` counts as an id for
+  `.background:not(#window)`: wofi's window is `#window`, already themed by its
+  own stylesheet, which these would otherwise override. Note that `:not(#id)` counts as an id for
   specificity, so every rule carries the prefix or loses to the bare one.
 - **GTK 4: libadwaita only.** libadwaita (1.6+) takes its colours from CSS
   variables (`--window-bg-color` and the rest), set in `:root`. GTK 4's own
@@ -625,7 +586,8 @@ Test against a nested compositor, which leaves your own session alone: run
 
 ## Broadcom: check the kernel's table, not a datasheet
 
-`WL_IDS` in `install.sh` and `installer/broadcom-live` is the list of cards the
+The `wl` card list in `install.sh` (a `case` pattern in the Broadcom detection)
+and in `installer/broadcom-live` is the list of cards the
 in-kernel drivers *cannot* drive. Two were wrong — 43ba (BCM43602) and 43a3
 (BCM4350) — and brcmfmac claims both outright and ships their firmware, so
 listing them blacklisted the driver that works and loaded `wl`, which cannot

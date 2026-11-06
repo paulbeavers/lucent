@@ -33,8 +33,10 @@ with this desktop on it.
 
 ## On Fedora
 
-Fedora 41 or later (the script uses dnf5), any edition, x86_64 or aarch64 —
-including Fedora Asahi Remix on Apple silicon. The steps are the same:
+Fedora 44 or later, any edition, x86_64 or aarch64 — including Fedora Asahi
+Remix on Apple silicon. 44 is the first Fedora to package Quickshell, which draws
+lucent's bar and dock; on an older release the script stops before changing
+anything. The steps are the same:
 
 ```bash
 sudo dnf install git
@@ -45,13 +47,13 @@ cd ~/lucent
 
 What differs from Arch:
 
-- **Hyprland comes from a COPR.** Fedora does not package it. If a Hyprland
-  is already installed, or an enabled repository already offers one, that is
-  what gets used. Only when nothing does is the
+- **Hyprland comes from a COPR.** Fedora does not package it. The config is
+  Lua, so Hyprland has to be 0.55 or newer. If one that new is already
+  installed, or an enabled repository already offers one, that is what gets
+  used. Only when nothing does is the
   [`nett00n/hyprland`](https://copr.fedorainfracloud.org/coprs/nett00n/hyprland/)
-  COPR enabled. It also supplies `uwsm`, `hyprpolkitagent`, `swayosd`,
-  `cliphist` and a current `waybar` (Fedora 43's bar; see below). The config is Lua, so Hyprland has to be
-  0.55 or newer, and the script warns if it is not.
+  COPR enabled, and an older Hyprland already installed is upgraded from it. It
+  also supplies `uwsm`, `hyprpolkitagent`, `swayosd` and `cliphist`.
 - **Your login screen stays.** Fedora Workstation already has GDM, which lists
   Hyprland's sessions by itself, so greetd is not installed. Pick
   **Hyprland (uwsm-managed)** from the session menu. `--login-manager`
@@ -105,9 +107,18 @@ What differs from Arch:
   [`ppa:cppiber/hyprland`](https://launchpad.net/~cppiber/+archive/ubuntu/hyprland)
   enabled. It supplies `hyprland` itself plus `hyprlock`, `hypridle`,
   `hyprpicker`, `hyprsunset`, `hyprpolkitagent`, `hyprland-guiutils` and
-  `xdg-desktop-portal-hyprland`. Everything else — `uwsm`, `swaybg`, `waybar`,
-  `swayosd`, `swappy`, `cliphist`, `nwg-look`, `nwg-displays`, `tuigreet` —
-  is in Ubuntu's own archive on 26.04.
+  `xdg-desktop-portal-hyprland`. A Hyprland from universe is replaced, not
+  upgraded in place, because the PPA's packages collide with its files. Everything
+  else — `uwsm`, `swaybg`, `swayosd`, `swappy`, `cliphist`, `nwg-look`,
+  `nwg-displays`, `tuigreet` — is in Ubuntu's own archive on 26.04. The PPA builds
+  for amd64 only, so on arm64 the script stops unless you have enabled a
+  repository with Hyprland 0.55 or newer yourself.
+- **Quickshell is built.** 26.04 does not package it, so the script builds
+  Ubuntu's own package from the next release (with its crash reporter left out,
+  because 26.04 lacks one library it needs), installs it as a normal `.deb` and
+  removes the compilers afterwards. It takes several minutes, and the machine is
+  kept from suspending meanwhile. If the build fails the script stops, and
+  running it again retries.
 - **universe is enabled if it is not already.** Most of the desktop lives
   there. On Ubuntu Desktop it is on by default; on a minimal image or some
   derivatives it is not, so it is checked rather than assumed.
@@ -117,7 +128,9 @@ What differs from Arch:
   you get a real `.deb` — the same browser Arch and Fedora install, and one
   that honours the `MOZ_ENABLE_WAYLAND=1` the config already sets. The pin
   matters: Ubuntu's stub carries a higher version number and apt would
-  otherwise keep choosing it.
+  otherwise keep choosing it. On Ubuntu Desktop, which arrives with the snap,
+  your Firefox profile is copied across and then the snap is removed; close
+  Firefox first, or the script leaves it for the next run.
 - **Your login screen stays.** Ubuntu Desktop already has GDM, which lists
   Hyprland's sessions by itself, so greetd is not installed. Pick
   **Hyprland (uwsm-managed)** from the session menu. `--login-manager`
@@ -140,6 +153,13 @@ What differs from Arch:
   gets it, along with the blacklist that keeps the in-kernel drivers off it.
 - **`--gaming` enables multiverse and the i386 architecture**, because Steam
   lives in multiverse and is a 32-bit package.
+- **Ubuntu's session services are reined in.** Ubuntu's packages start
+  `hypridle`, `mako` and others in every graphical session, which gave Hyprland
+  a second copy of each and filled the GDM login screen with failures. The
+  script masks the ones lucent starts itself or does not use, keeps the polkit
+  agent to Hyprland sessions, and tells Apport to ignore the programs that
+  abort when a session ends, so logging out no longer leaves crash dialogs for
+  the next login.
 
 ## What it does not touch
 
@@ -168,15 +188,19 @@ already in place and becomes a fast config sync:
 
 It compares file by file, so:
 
-- identical files are not touched at all — verified down to mtime: three
-  consecutive runs leave every file's timestamp, size and mode unchanged
-  and create no backup directory
+- identical files are not touched at all. `hyprlock.conf` and wofi's
+  `style.css` count as identical when they differ only by the colours, font
+  and wallpaper your theme put there
 - only files that actually changed are backed up, into
   `~/.config-backup-<timestamp>/` with their paths preserved
-- files that exist only in `~/.config` are never deleted
-- **`monitors.lua` is left alone**, so a hand-tuned display layout
-  survives a re-run (`--redetect-monitors` rebuilds it)
-- sudo is only requested if something genuinely needs root
+- files that exist only in `~/.config` are never deleted; configs an older
+  lucent shipped and this one no longer does (the waybar bar and GTK dock) are
+  moved into that backup directory rather than left behind
+- **what lucent-config owns is left alone**: `monitors.lua` (a hand-tuned
+  layout survives; `--redetect-monitors` rebuilds it), `keys.lua`, and your
+  idle timeouts in `hypridle.conf`, which is installed only when it is missing
+- root is only asked for when something needs it: an unchanged settings app,
+  dconf default or lid setting is left alone
 - `gpu.lua` carries no timestamp on purpose: its content is a pure function of
   the detected hardware, so it is rewritten only when the GPU actually changes
 
@@ -240,13 +264,20 @@ perfectly can come up with two pointers, or with programs that cannot draw.
 
 What has been worked through:
 
-- **Parallels on a Mac** works. lucent switches Hyprland to the legacy DRM
-  path and its own cursor there, so the Mac's pointer stays hidden.
-- **QEMU** needs a virtio-gpu display with GL (virgl) on. `-vga std` gives
-  no usable OpenGL at all.
+- **On a Mac: Parallels, VMware Fusion and UTM.** lucent switches Hyprland to
+  the legacy DRM path and its own cursor, so the Mac's pointer stays hidden.
+  Confirmed on Parallels, on Fusion and on UTM's QEMU backend; UTM with
+  Apple's Virtualization framework is handled the same way but untested. On
+  UTM windows get square corners, because the rounded ones came out black. On
+  VMware the bar, the dock and lucent-config draw on the CPU, because Hyprland
+  refuses their GPU buffers there.
+- **QEMU on a Linux host** needs a virtio-gpu display with GL (virgl) on.
+  `-vga std` gives no usable OpenGL at all.
 
-On Parallels the keys start with Option rather than Command,
-because the Mac keeps Command for itself — see [Keys](#keys).
+In a VM on a Mac the keys start with Option rather than Command, because the
+Mac keeps Command for itself — see [Keys](#keys). VMware Workstation on a
+Windows or Linux host cannot be told apart from Fusion, so it starts with
+Option too; lucent-config's Input page switches it back.
 
 ## What it installs
 
@@ -290,11 +321,17 @@ config/hypr/
                    layout toggle, keyboard backlight, dock
 
   hyprlock.conf    lock screen        (hyprlock's own format)
-  hypridle.conf    idle timeouts      (hypridle's own format)
+
+defaults/hypr/
+  hypridle.conf    idle timeouts      (hypridle's own format), installed only
+                   when missing: lucent-config's Idle page owns it after that
 
 generated, never shipped:
   monitors.lua     written at install time from your connected displays
   gpu.lua          written from the card that was detected
+  keyboard.lua     written at install time from the system's keyboard layout
+  keys.lua         the modifier: written by lucent-config, or at install time
+                   in a VM on a Mac
   colors.lua       written by scripts/theme.sh from the active palette
   settings.lua     written by lucent-config; loaded last, so it wins
 ```
@@ -391,7 +428,7 @@ keymap keeps one shape.
 - **Config syntax targets Hyprland 0.56+.** The window-rule syntax changed in
   0.56 (`windowrulev2` is now a hard error) and gestures changed in 0.51.
   `rules.lua` and `input.lua` use the current forms.
-- **Default scale is 1.6** (`DEFAULT_SCALE` at the top of `install.sh`). A scale
+- **Default scale is 4/3** (`DEFAULT_SCALE` at the top of `install.sh`). A scale
   is only applied where `RESOLUTION / SCALE` is a whole number, which Hyprland
   requires; on a display it does not divide (1366x768, 1600x900) the script
   falls back to scale 1 for that monitor and says so.
@@ -407,20 +444,15 @@ keymap keeps one shape.
   left alone.
 - **The bar and the dock are one program.** `config/lucent-shell/`, drawn by
   Quickshell: the workspaces, the clock with a calendar, the tray and the
-  status modules, and the dock. Ubuntu 26.04 does not package Quickshell, so
-  `install.sh` builds it, which takes several minutes. Where it cannot be had —
-  Fedora 43, or if that build fails — `install.sh` puts in waybar
-  (`config/waybar/`) and a GTK dock (`config/lucent-dock/`) instead, which look and
-  behave the same;
-  `bar.sh` starts whichever is installed.
+  status modules, and the dock. Quickshell is required: Arch and Fedora 44
+  package it, and on Ubuntu 26.04, which does not, `install.sh` builds it.
 - **A dock, on by default**, along the bottom: one icon per app, pinned apps first, dots for open windows, and the
   app launcher. Click opens the app or focuses it, and clicking again cycles
   its windows; middle-click opens a new window; right-click lists its
-  windows and offers New window, Pin / Unpin and Close. It takes an exclusive
-  zone, so windows tile above it, and it follows the theme. `SUPER + D`
-  hides it and the choice is remembered: hidden, it is stopped, which gives
-  the space back, and `~/.config/lucent/dock-hidden` keeps it hidden at the
-  next login. The pins are `~/.config/lucent/dock-pinned`, one desktop file
+  windows and offers New window, Pin / Unpin and Close. Windows tile clear of
+  it, and it follows the theme. `SUPER + D` hides it and the choice is
+  remembered: hidden, it gives its space back, and
+  `~/.config/lucent/dock-hidden` keeps it hidden at the next login. The pins are `~/.config/lucent/dock-pinned`, one desktop file
   ID per line. lucent's own because the packaged docks draw blurred icons on
   a scaled panel.
 - **Panel or dock.** lucent-config's Dock page picks whether the dock shows
@@ -458,8 +490,10 @@ keymap keeps one shape.
   `SUPER + ALT + ...` binds drive the tape and do nothing under dwindle.
 - **`lucent-config` is the settings app.** `SUPER + I`, or "Settings" in the
   launcher. It also opens on its welcome page at first login, and that page
-  has a switch to stop it doing so. It covers display scale, resolution and refresh; the idle timeouts
-  and the lid; keyboard, mouse speed and touchpad; theme, wallpaper, cursor and font. Two
+  has a switch to stop it doing so. It covers display scale, resolution and
+  refresh; the idle timeouts and the lid; keyboard, mouse speed, touchpad and
+  the modifier key; floating every window; theme, wallpaper, cursor and font;
+  and the dock. Two
   things worth knowing about it. It never edits a hand-written config: it owns
   `monitors.lua`, `hypridle.conf`, `settings.lua` and `keys.lua` outright and
   rewrites them whole, keeping the previous version as `.bak`, and
@@ -477,10 +511,8 @@ keymap keeps one shape.
   and a failed dispatch is silent. Every call in this repo uses the Lua form
   (`hyprctl dispatch 'hl.dsp.focus({ workspace = 3 })'`); `hyprctl repl` will
   show you what is available under `hl.dsp`. The catch is third-party programs
-  that send the old strings and cannot be told otherwise. Waybar's
-  `hyprland/workspaces` is one, which is why the waybar fallback draws its
-  workspace row out of ten custom modules instead — see `waybar/config.jsonc`;
-  lucent-shell sends Lua itself. Anything else
+  that send the old strings and cannot be told otherwise; Waybar's
+  `hyprland/workspaces` is one. lucent-shell sends Lua itself. Anything else
   you add that "does nothing when clicked" is worth checking here first.
 - **Mac-style copy and paste.** `SUPER + C` and `SUPER + V` are bound to
   `clipboard.sh`, which looks at the focused window's class and forwards the
