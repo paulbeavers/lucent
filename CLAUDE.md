@@ -584,6 +584,29 @@ Test against a nested compositor, which leaves your own session alone: run
 `kill -ABRT` is the crash and `kill -USR1` a real unlock. Restarts are logged under
 `journalctl -t lucent-lock`.
 
+**A hyprlock that ends without a password counts as a failed login.** It
+starts `pam_authenticate` as it locks, and when it goes for any other reason
+than a correct password — unlocked by `SIGUSR1`, or refused because the session
+is already locked — PAM records the abandoned conversation as a failure
+(`conversation failed`). On Arch hyprlock's stack is `login` → `system-auth`,
+whose `pam_faillock` (defaults: 3 within 15 minutes locks for 10) is shared with
+`sudo`, so three of those lock you out of both, the lock screen included, with
+the right password. A hyprlock that is killed or crashes records nothing.
+
+That is what happened on 2026-11-03: after the KVM crash above, hypridle started
+hyprlock three times over the dead lock, each was refused and counted, and the
+account locked. `misc.allow_session_lock_restore` lets a new hyprlock take the
+lock over instead, which a nested test confirmed adds no failure, so this path
+is closed. Do not reopen it: nothing in lucent should unlock hyprlock by signal,
+or start a second one alongside it (`lock.sh` holds a lock file for that). The
+lock screen keeps `pam_faillock` deliberately; exempting it would end these
+lockouts and allow unlimited guessing. Ubuntu's default PAM has no faillock.
+
+The way out of a lockout needs no root: the tally is a file the user owns, so
+`faillock --user $USER --reset` clears it, over ssh too. Test anything that
+touches this in a nested compositor, check `faillock --user $USER` before and
+after, and reset it afterwards: the tally is the real account's.
+
 ## Broadcom: check the kernel's table, not a datasheet
 
 The `wl` card list in `install.sh` (a `case` pattern in the Broadcom detection)
