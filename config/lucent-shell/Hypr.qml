@@ -77,19 +77,6 @@ Singleton {
         return m && m.activeWorkspace ? m.activeWorkspace.id : -1;
     }
 
-    // The window to name on a monitor: the most recently focused one on the
-    // workspace it is showing. Hyprland counts focusHistoryID from 0.
-    function lastWindowOn(workspaceId) {
-        let best = null;
-        for (const w of clients) {
-            if ((w.workspace || {}).id !== workspaceId)
-                continue;
-            if (!best || (w.focusHistoryID ?? 1e9) < (best.focusHistoryID ?? 1e9))
-                best = w;
-        }
-        return best;
-    }
-
     function refresh() {
         if (holdRefresh) {
             stale = true;

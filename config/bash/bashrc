@@ -182,7 +182,7 @@ __lucent_prompt() {
     local mark=❯
     (( EUID == 0 )) && mark='#'
 
-    # The window title, which Hyprland and the bar show.
+    # The terminal's window title.
     local title=${PWD/#"$HOME"/'~'}
     __lucent_ps1=$'\001\e]0;'"$title"$'\a\002'
     __lucent_ps1+="$venv$who$__lucent_path$__lucent_git "

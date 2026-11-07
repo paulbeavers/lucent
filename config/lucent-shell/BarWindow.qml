@@ -1,5 +1,5 @@
 // The top bar, in dock style: three islands across the top of each screen —
-// workspaces, submap and the window title; the clock; the status modules.
+// workspaces and submap; the clock; the status modules.
 
 import QtQuick
 import Quickshell
@@ -31,7 +31,6 @@ PanelWindow {
         anchors.left: parent.left
         Workspaces { screen: bar.screen; anchors.verticalCenter: parent.verticalCenter }
         Submap { anchors.verticalCenter: parent.verticalCenter }
-        WindowTitle { screen: bar.screen; anchors.verticalCenter: parent.verticalCenter }
     }
 
     Island {
