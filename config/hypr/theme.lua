@@ -28,6 +28,9 @@ local function palette()
 end
 
 local c = palette()
+-- The inactive window border: a theme's optional `border`, else surface0.
+-- colors.lua written before the key existed has none.
+local border = c.border or c.surface0
 
 -- hyprlang wrote colours as rgb(hex); the Lua API takes the same string form.
 local function rgb(hex) return "rgb(" .. hex .. ")" end
@@ -42,7 +45,7 @@ hl.config({
         col = {
             -- 45deg makes the gradient read as a light source.
             active_border   = { colors = { rgb(c.mauve), rgb(c.blue) }, angle = 45 },
-            inactive_border = rgb(c.surface0),
+            inactive_border = rgb(border),
         },
 
         resize_on_border     = true,
@@ -124,7 +127,7 @@ hl.config({
     group = {
         col = {
             border_active   = { colors = { rgb(c.mauve), rgb(c.blue) }, angle = 45 },
-            border_inactive = rgb(c.surface0),
+            border_inactive = rgb(border),
         },
         groupbar = {
             enabled     = true,
