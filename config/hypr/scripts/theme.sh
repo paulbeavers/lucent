@@ -46,6 +46,11 @@
 # foot then takes that theme's colours and mode, so a light desktop can keep a
 # dark terminal. Its font stays this theme's mono.
 #
+#   terminal_alpha = 0.98
+#
+# foot's opacity, 0 to 1, in place of the default: 1.0 under a light palette,
+# 0.95 under a dark one.
+#
 # Two configs are patched in place instead of getting their own file:
 #
 #   wofi/style.css       wofi hands GTK the stylesheet as a string rather than
@@ -816,9 +821,11 @@ render_foot() {
     local -A outer=()
     for key in "${!C[@]}"; do outer[$key]="${C[$key]}"; done
     load_theme "$THEME_DIR/$other.theme"
-    # The font is the desktop theme's, not the terminal palette's.
-    unset 'C[mono]'
+    # The font and the opacity are the desktop theme's, not the terminal
+    # palette's.
+    unset 'C[mono]' 'C[terminal_alpha]'
     [[ -n ${outer[mono]:-} ]] && C[mono]="${outer[mono]}"
+    [[ -n ${outer[terminal_alpha]:-} ]] && C[terminal_alpha]="${outer[terminal_alpha]}"
     C[name]="${outer[name]:-} (terminal: ${C[name]:-$other})"
     render_foot_palette
     C=()
@@ -850,7 +857,9 @@ render_foot_palette() {
         fi
         # foot.ini's translucency over a dark wallpaper only greys a light
         # theme out, so a light one is opaque.
-        if [[ $mode == light ]]; then
+        if [[ -n ${C[terminal_alpha]:-} ]]; then
+            echo "alpha=${C[terminal_alpha]}"
+        elif [[ $mode == light ]]; then
             echo "alpha=1.0"
         else
             echo "alpha=0.95"

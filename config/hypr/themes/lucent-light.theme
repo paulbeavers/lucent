@@ -24,6 +24,8 @@ border = 6e6e6e
 # The terminal stays dark: foot takes Catppuccin Mocha Blue High Contrast's
 # palette rather than this one.
 terminal = catppuccin-mocha-blue-contrast
+# A touch more solid than the dark themes' 0.95.
+terminal_alpha = 0.98
 
 crust     = ffffff
 mantle    = f3f3f3
