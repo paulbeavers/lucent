@@ -174,8 +174,11 @@ the hardware, as every scaling question must be. Not visible from the code:
 Lua table.** `floatall.lua` marks the windows it floated with the tag
 `floatall`, so turning the mode off tiles those and leaves the ones a rule
 floated alone; a list in the module would be emptied by the first reload.
-Whether the mode is on is a file, `~/.config/lucent/float-all`, read on every
-`window.open`. The dock's hidden state is `~/.config/lucent/dock-hidden` for
+Which workspaces float is a file, `~/.config/lucent/float-workspaces`, read on
+every `window.open` and `window.move_to_workspace`. The old all-or-nothing
+marker, `float-all`, still reads as workspaces 1-10 until the first change
+replaces it; nothing migrates on load, because `tools/keymap-dump.lua` loads
+the module too. The dock's hidden state is `~/.config/lucent/dock-hidden` for
 the same reason, and its pins are `~/.config/lucent/dock-pinned`.
 
 ## install.sh
@@ -441,12 +444,14 @@ GNOME's design language and resists being overridden.
 - The Dock page keeps no state of its own. "Show at login" is the
   `dock-hidden` marker SUPER+D writes, and the style is `dock-mode`, applied
   through `dock.sh --mode`; the page reads both back.
-- Nor does the Windows page. "Float every window" is floatall.lua's mode, the
-  one SUPER+SHIFT+V toggles: it reads `~/.config/lucent/float-all` back, and
-  Apply calls `require("floatall").set(on)` through `hyprctl repl`. That reaches
-  the module keybinds.lua already loaded, so open windows float or tile at once.
-  `set` rather than `toggle`, because a switch means on or off whatever the key
-  did since the page was drawn.
+- Nor does the Windows page. Its switches, one per workspace 1-10, are
+  floatall.lua's floating workspaces, which SUPER+SHIFT+V toggles for the
+  workspace in front of you: the page reads `~/.config/lucent/float-workspaces`
+  back, and Apply calls `require("floatall").set_workspaces({...})` through
+  `hyprctl repl`. That reaches the module keybinds.lua already loaded, so open
+  windows float or tile at once. Apply sends only the switches you touched,
+  laid over the file as it is then, because the key may have changed other
+  workspaces since the page was drawn.
 
 Display scale is the setting worth understanding: a scale is legal only if it
 is a multiple of 1/120 *and* divides the resolution into whole pixels both

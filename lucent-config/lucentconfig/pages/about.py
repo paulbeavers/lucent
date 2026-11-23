@@ -64,7 +64,7 @@ def build(window):
                                 dim=True),
                  "dock-hidden, which the page writes as the key does; "
                  "dock-mode and dock-position, through dock.sh."))
-    card.add(Row("Windows", _value(_short(paths.FLOAT_ALL), dim=True),
+    card.add(Row("Windows", _value(_short(paths.FLOAT_WORKSPACES), dim=True),
                  "Written by floatall.lua, which the page asks to switch."))
     card.add(Row("Cursor and font size", _value("gsettings", dim=True),
                  "org.gnome.desktop.interface cursor-size and font-name; the "

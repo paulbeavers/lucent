@@ -27,7 +27,7 @@ TOUR = [
      "Mac), keyboard layout, what Caps Lock does, key repeat, and the "
      "touchpad."),
     ("\U000f05b2", "Windows",
-     "Tiled, or every window floating like a stacking desktop."),
+     "Tiled or floating like a stacking desktop, workspace by workspace."),
     ("\U000f03d8", "Look",
      "Theme, wallpaper, cursor and font size. The theme applies everywhere at "
      "once, including this window."),

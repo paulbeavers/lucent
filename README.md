@@ -314,7 +314,7 @@ config/hypr/
   keybinds.lua     every shortcut
   rules.lua        window / layer / workspace rules
   autostart.lua    what launches at login
-  floatall.lua     the float-every-window mode (SUPER+SHIFT+V)
+  floatall.lua     floating workspaces (SUPER+SHIFT+V)
   programs.lua     which terminal, browser, editor and launcher to use
   themes/          the palettes SUPER+SHIFT+T switches between
   scripts/         theme, wallpaper, power menu, cheatsheet, clipboard,
@@ -406,7 +406,7 @@ keymap keeps one shape.
 | `SUPER + Q` | Close window |
 | `SUPER + F` | Fullscreen |
 | `SUPER + CTRL + V` | Toggle floating |
-| `SUPER + SHIFT + V` | Float every window, new ones too (toggle) |
+| `SUPER + SHIFT + V` | Float this workspace, new windows too (toggle) |
 | `SUPER + CTRL + C` | Centre window |
 | `SUPER + C` / `SUPER + V` | Copy / paste (Mac-style) |
 | `SUPER + 1..0` | Switch workspace |
@@ -473,14 +473,16 @@ keymap keeps one shape.
   Sans and Adwaita Mono, Adwaita icons. Open terminals change colour but keep
   their font until reopened. A first install starts in Catppuccin Mocha Blue
   High Contrast (`DEFAULT_THEME` in `install.sh`).
-- **Float everything.** `SUPER + SHIFT + V` floats every open window and
-  every one that opens after, for a stacking desktop; pressed again, it
-  tiles them. Windows a rule floats (dialogs, pavucontrol) stay floating.
+- **Floating workspaces.** Each workspace tiles or floats on its own.
+  `SUPER + SHIFT + V` floats every window on the workspace in front of you,
+  and every one that opens there or is moved there, for a stacking desktop
+  beside tiled ones; pressed again, it tiles them. A window moved to a tiled
+  workspace tiles. Windows a rule floats (dialogs, pavucontrol) stay floating.
   Hyprland draws no title bars, so a floating window moves with
   `SUPER + left-drag` and resizes with `SUPER + right-drag` or by its border.
-  `floatall.lua` explains the tag it uses to tell them apart; the mode
-  survives a reload and a login through `~/.config/lucent/float-all`.
-  lucent-config's Windows page has the same switch.
+  `floatall.lua` explains the tag it uses to tell them apart; the choice
+  survives a reload and a login through `~/.config/lucent/float-workspaces`.
+  lucent-config's Windows page has a switch for each workspace.
 - **Two tiling layouts.** `theme.lua` sets `general:layout` (dwindle by
   default) and `SUPER + T` flips the running session between dwindle and
   Hyprland's built-in scrolling layout — a PaperWM-style tape of columns.

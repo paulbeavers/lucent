@@ -107,9 +107,9 @@ bind(mod .. " + SHIFT + P", hl.dsp.window.pin(), "Pin across workspaces")
 bind(mod .. " + CTRL + V", hl.dsp.window.float({ action = "toggle" }), "Toggle floating")
 bind(mod .. " + CTRL + C", hl.dsp.window.center(), "Centre window")
 
--- Every window, as a mode: floatall.lua. One modifier on from the single
--- window's toggle above, and SUPER + SHIFT + V is free in both layouts.
-bind(mod .. " + SHIFT + V", function() floatall.toggle(mod) end, "Float all windows (toggle)")
+-- The whole workspace, as a mode: floatall.lua. One modifier on from the
+-- single window's toggle above, and SUPER + SHIFT + V is free in both layouts.
+bind(mod .. " + SHIFT + V", function() floatall.toggle(mod) end, "Float this workspace (toggle)")
 
 -- Exit Hyprland. Deliberately awkward so you cannot hit it by accident.
 bind(mod .. " + SHIFT + M", hl.dsp.exit(), "Exit Hyprland")

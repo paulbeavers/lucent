@@ -53,6 +53,9 @@ DOCK_HIDDEN = CONFIG / "lucent" / "dock-hidden"
 DOCK_MODE = CONFIG / "lucent" / "dock-mode"
 DOCK_POSITION = CONFIG / "lucent" / "dock-position"
 
-# Float every window. floatall.lua writes it and reads it on every window.open;
-# like the dock's, the file is the record and the page only reads it back.
+# Which workspaces float, one name per line. floatall.lua writes it and reads
+# it on every window.open; like the dock's, the file is the record and the page
+# only reads it back. FLOAT_ALL is the older all-or-nothing marker, which
+# floatall.lua reads as workspaces 1-10 until the first change removes it.
+FLOAT_WORKSPACES = CONFIG / "lucent" / "float-workspaces"
 FLOAT_ALL = CONFIG / "lucent" / "float-all"
