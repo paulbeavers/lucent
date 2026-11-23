@@ -315,6 +315,7 @@ config/hypr/
   rules.lua        window / layer / workspace rules
   autostart.lua    what launches at login
   floatall.lua     floating workspaces (SUPER+SHIFT+V)
+  minimize.lua     minimize to the dock (SUPER+M)
   programs.lua     which terminal, browser, editor and launcher to use
   themes/          the palettes SUPER+SHIFT+T switches between
   scripts/         theme, wallpaper, power menu, cheatsheet, clipboard,
@@ -407,6 +408,8 @@ keymap keeps one shape.
 | `SUPER + F` | Fullscreen |
 | `SUPER + CTRL + V` | Toggle floating |
 | `SUPER + SHIFT + V` | Float this workspace, new windows too (toggle) |
+| `SUPER + M` | Minimize window (to the dock) |
+| `SUPER + CTRL + M` | Bring back the last minimized window |
 | `SUPER + CTRL + C` | Centre window |
 | `SUPER + C` / `SUPER + V` | Copy / paste (Mac-style) |
 | `SUPER + 1..0` | Switch workspace |
@@ -455,6 +458,20 @@ keymap keeps one shape.
   `~/.config/lucent/dock-hidden` keeps it hidden at the next login. The pins are `~/.config/lucent/dock-pinned`, one desktop file
   ID per line. lucent's own because the packaged docks draw blurred icons on
   a scaled panel.
+- **More from the dock.** The wheel over an app steps through its windows;
+  anywhere else on the dock it changes workspace. Drag a pinned app to
+  reorder, up off the dock to unpin, or drag a running app in among the pins
+  to pin it there. An app started from the dock pulses until its window
+  appears. `SUPER + M` minimizes a window: it waits after the separator,
+  and a click brings it back to the workspace you are on (`SUPER + CTRL + M`
+  brings back the last one). Apps' own minimize buttons do nothing, because
+  Hyprland ignores them.
+- **Which apps, and auto-hide.** The Dock page can list only the apps with a
+  window on the workspace in front of you (pinned ones and minimized windows
+  show either way), and can hide the dock until the pointer reaches the
+  edge, giving windows its space; in panel style the whole panel hides.
+  `dock.sh --scope workspace` and `dock.sh --autohide on` from a terminal;
+  `~/.config/lucent/dock-scope` and `dock-autohide` record them.
 - **Panel or dock.** lucent-config's Dock page picks whether the dock shows
   at login and its style. *Panel*, the default, is one strip across the
   bottom: workspaces on the left with the dock right after them, the tray, status

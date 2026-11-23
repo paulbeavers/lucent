@@ -1,8 +1,8 @@
 pragma Singleton
 
 // The dock's settings: marker files in ~/.config/lucent that dock.sh writes
-// and lucent-config's Dock page reads back. Mode and position are read once:
-// dock.sh restarts the shell when either changes. Whether the dock is hidden
+// and lucent-config's Dock page reads back. Mode, position, scope and
+// auto-hide are read once: dock.sh restarts the shell when any changes. Whether the dock is hidden
 // comes from bar.sh at start (LUCENT_DOCK_HIDDEN) and from dock.sh over IPC
 // afterwards, because a file's absence cannot be watched.
 
@@ -18,6 +18,15 @@ Singleton {
     // tests `!= dock` the same way.
     readonly property bool panelMode: modeFile.text().trim() !== "dock"
     readonly property string edge: positionFile.text().trim() === "top" ? "top" : "bottom"
+
+    // Which apps the dock shows: every running one, or (dock-scope says
+    // "workspace") only those with a window on the workspace in front of you.
+    // Pinned apps and minimized windows show either way.
+    readonly property bool scopeWorkspace: scopeFile.text().trim() === "workspace"
+    // dock-autohide says "on": whatever holds the dock (the floating dock, or
+    // the whole panel) slides off the edge, gives windows its space, and
+    // comes back when the pointer reaches that edge.
+    readonly property bool autohide: autohideFile.text().trim() === "on"
 
     // In dock style the bar is at the top whatever the dock's edge.
     readonly property bool barAtTop: !panelMode || edge === "top"
@@ -37,6 +46,20 @@ Singleton {
     FileView {
         id: modeFile
         path: Theme.config + "/lucent/dock-mode"
+        blockLoading: true
+        printErrors: false
+    }
+
+    FileView {
+        id: scopeFile
+        path: Theme.config + "/lucent/dock-scope"
+        blockLoading: true
+        printErrors: false
+    }
+
+    FileView {
+        id: autohideFile
+        path: Theme.config + "/lucent/dock-autohide"
         blockLoading: true
         printErrors: false
     }

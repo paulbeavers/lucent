@@ -52,6 +52,8 @@ DOCK_SH = SCRIPTS / "dock.sh"
 DOCK_HIDDEN = CONFIG / "lucent" / "dock-hidden"
 DOCK_MODE = CONFIG / "lucent" / "dock-mode"
 DOCK_POSITION = CONFIG / "lucent" / "dock-position"
+DOCK_SCOPE = CONFIG / "lucent" / "dock-scope"
+DOCK_AUTOHIDE = CONFIG / "lucent" / "dock-autohide"
 
 # Which workspaces float, one name per line. floatall.lua writes it and reads
 # it on every window.open; like the dock's, the file is the record and the page

@@ -106,7 +106,8 @@ Waybar and a GTK dock used to stand in where Quickshell was missing; they were
 removed on 2026-11-05, and install.sh moves their deployed configs into the
 backup directory. `autostart.lua` starts `bar.sh`; SUPER+SHIFT+R is `bar.sh
 --restart`; theme.sh calls `bar.sh --theme`. The shell reads dock-mode,
-dock-position, dock-pinned and dock-hidden in `~/.config/lucent`, and the
+dock-position, dock-scope, dock-autohide, dock-pinned and dock-hidden in
+`~/.config/lucent`, and the
 palette theme.sh renders beside them, `~/.config/lucent/colors.css` and
 `font.css`, which lucent-config reads too.
 
@@ -125,9 +126,32 @@ the hardware, as every scaling question must be. Not visible from the code:
 - **Hiding the dock is IPC, not a stop.** `dock.sh` writes or removes
   `dock-hidden` and then runs `qs -p ~/.config/lucent-shell ipc call dock
   hide|show`; at start `bar.sh` passes the file's state as
-  `LUCENT_DOCK_HIDDEN`, because a file's absence cannot be watched. Mode and
-  position are read at start, so `dock.sh --mode` and `--position` restart
-  the shell.
+  `LUCENT_DOCK_HIDDEN`, because a file's absence cannot be watched. Mode,
+  position, scope and auto-hide are read at start, so `dock.sh --mode`,
+  `--position`, `--scope` and `--autohide` restart the shell.
+- **Minimized is a place, not a state.** Hyprland has none, so
+  `minimize.lua` parks a window on `special:minimized`, which nothing shows,
+  and the dock lists what is there (`Hypr.minimized`). Bringing one back is a
+  *silent* move then a focus: a plain move out of a special workspace also
+  closes whatever special workspace that monitor shows, scratchpad included.
+  Apps' own minimize buttons cannot work on 0.57: xdg-shell's
+  `set_minimized` only feeds the fullscreen-request path and never reaches
+  Lua. Only foreign-toplevel requests arrive, as `window.minimize`.
+- **Auto-hide is an input region, not an unmap.** The window stays mapped
+  with `ExclusionMode.Ignore`; the content slides off the edge, and `mask`
+  shrinks to a 3px strip there so windows underneath keep their clicks.
+  Once out, the region is the content *plus* the strip: without the strip a
+  pointer resting on the edge beside the floating dock left it, hid it,
+  reached the strip and showed it again, forever.
+- **A drag in the dock holds refreshes, like the menu.** The Repeater
+  rebuilds every button on any list change, so a drag only draws offsets and
+  saves on release. Held refreshes stop window events, not launch timeouts
+  or new desktop files, so `DockRow` drops a drag when its list changes
+  under it rather than leave `holdRefresh` stuck on.
+- **Launching from a test runs the app.** `Apps.launch` executes the desktop
+  file's command, so a headless test that launches anything needs a stub of
+  that command on its PATH; an mpv test once left two players running. File
+  reads from a QML test need `QML_XHR_ALLOW_FILE_READ=1`.
 - **Qt does not read GTK's icon theme.** `bar.sh` passes `QS_ICON_THEME` from
   gsettings at start; `bar.sh --theme` restarts the shell only when a theme
   brought a different icon theme. Colours and the font are watched, but

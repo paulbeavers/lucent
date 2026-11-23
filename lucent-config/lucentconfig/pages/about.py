@@ -63,7 +63,8 @@ def build(window):
     card.add(Row("Dock", _value(_short(paths.DOCK_HIDDEN.parent) + "/dock-*",
                                 dim=True),
                  "dock-hidden, which the page writes as the key does; "
-                 "dock-mode and dock-position, through dock.sh."))
+                 "dock-mode, dock-position, dock-scope and dock-autohide, "
+                 "through dock.sh."))
     card.add(Row("Windows", _value(_short(paths.FLOAT_WORKSPACES), dim=True),
                  "Written by floatall.lua, which the page asks to switch."))
     card.add(Row("Cursor and font size", _value("gsettings", dim=True),

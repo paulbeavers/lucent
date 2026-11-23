@@ -32,8 +32,9 @@ TOUR = [
      "Theme, wallpaper, cursor and font size. The theme applies everywhere at "
      "once, including this window."),
     ("\U000f10a9", "Dock",
-     "Whether the dock shows at login, at the bottom or the top, and whether it "
-     "floats or is a panel that takes the top bar's place."),
+     "Whether the dock shows at login, at the bottom or the top, whether it "
+     "floats or is a panel that takes the top bar's place, which apps it lists "
+     "and whether it hides itself."),
 ]
 
 

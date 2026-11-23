@@ -1,8 +1,9 @@
-"""Dock — whether it shows at login, dock or panel, and bottom or top.
+"""Dock — whether it shows at login, dock or panel, bottom or top, which apps
+it lists, and whether it hides itself.
 
-All three settings already have a home outside this app: dock.sh hides and
-shows the dock (SUPER+D) and switches its style and edge, and records each in
-a marker file that the shell reads at start. The page reads those files back
+Every setting already has a home outside this app: dock.sh hides and shows
+the dock (SUPER+D) and switches its style, edge, scope and auto-hide, and
+records each in a marker file that the shell reads at start. The page reads those files back
 and drives that script, so the key and the page can never disagree about what
 the dock will do.
 """
@@ -22,6 +23,27 @@ POSITIONS = [
     ("bottom", "Bottom"),
     ("top", "Top"),
 ]
+
+
+SCOPES = [
+    ("all", "All workspaces"),
+    ("workspace", "This workspace only"),
+]
+
+
+def _scope():
+    try:
+        value = paths.DOCK_SCOPE.read_text().strip()
+    except OSError:
+        return "all"
+    return "workspace" if value == "workspace" else "all"
+
+
+def _autohide():
+    try:
+        return paths.DOCK_AUTOHIDE.read_text().strip() == "on"
+    except OSError:
+        return False
 
 
 def _position():
@@ -111,11 +133,70 @@ def build(window):
         "alike.",
     ))
 
+    card = page.section("Behaviour")
+    scopes = [slug for slug, _ in SCOPES]
+
+    def on_scope(index):
+        if not 0 <= index < len(SCOPES):
+            return
+        chosen = scopes[index]
+        if chosen == _scope():
+            window.unstage("dock:scope")
+        else:
+            window.stage("dock:scope", lambda: _dock_sh("--scope", chosen),
+                         f"dock shows → {dict(SCOPES)[chosen].lower()}")
+
+    card.add(Row(
+        "Apps shown",
+        dropdown([name for _, name in SCOPES], scopes.index(_scope()),
+                 on_change=on_scope),
+        "This workspace only lists the apps with a window on the workspace in "
+        "front of you, and a click on one with none there opens a new window "
+        "here. Pinned apps and minimized windows show either way.",
+    ))
+
+    def on_autohide(value):
+        if bool(value) == _autohide():
+            window.unstage("dock:autohide")
+        else:
+            window.stage("dock:autohide",
+                         lambda: _dock_sh("--autohide", "on" if value else "off"),
+                         "dock auto-hide " + ("on" if value else "off"))
+
+    card.add(Row(
+        "Hide automatically",
+        switch(_autohide(), on_change=on_autohide),
+        "Slides off the edge and gives windows its space, and comes back when "
+        "the pointer reaches that edge. In panel style the whole panel hides, "
+        "since the dock is part of it.",
+    ))
+
+    card = page.section("Using it")
+    card.add(Row(
+        "Scroll",
+        None,
+        "Over an app, its next or previous window. Anywhere else on the "
+        "dock, the next or previous workspace.",
+    ))
+    card.add(Row(
+        "Drag",
+        None,
+        "Drag a pinned app to reorder, or off the dock to unpin it. Drag a "
+        "running app in among the pinned ones to pin it there.",
+    ))
+    card.add(Row(
+        "Minimize",
+        None,
+        f"{key}+M minimizes the window in front of you; it waits after the "
+        f"separator until a click brings it back here. {key}+CTRL+M brings "
+        "back the last one.",
+    ))
+
     page.note(
-        "Style and position take effect at once when applied: the bar and "
-        "the dock restart. Showing at login takes effect at the next login. "
-        "The settings are files in ~/.config/lucent — dock-hidden, dock-mode "
-        "and dock-position."
+        "Style, position, apps shown and hiding take effect at once when "
+        "applied: the bar and the dock restart. Showing at login takes effect "
+        "at the next login. The settings are files in ~/.config/lucent — "
+        "dock-hidden, dock-mode, dock-position, dock-scope and dock-autohide."
     )
     return page
 

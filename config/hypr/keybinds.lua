@@ -15,6 +15,7 @@
 
 local p = require("programs")
 local floatall = require("floatall")
+local minimize = require("minimize")
 
 -- SUPER is the primary modifier and ALT the secondary. lucent-config points
 -- the primary at ALT when you pick Alt/Option in Input → Primary modifier,
@@ -110,6 +111,11 @@ bind(mod .. " + CTRL + C", hl.dsp.window.center(), "Centre window")
 -- The whole workspace, as a mode: floatall.lua. One modifier on from the
 -- single window's toggle above, and SUPER + SHIFT + V is free in both layouts.
 bind(mod .. " + SHIFT + V", function() floatall.toggle(mod) end, "Float this workspace (toggle)")
+
+-- Minimize: minimize.lua. Command+M on a Mac; the dock shows what is parked
+-- and brings a window back with a click, or the last one comes back here.
+bind(mod .. " + M",          function() minimize.minimize() end,     "Minimize window")
+bind(mod .. " + CTRL + M",   function() minimize.restore_last() end, "Restore last minimized window")
 
 -- Exit Hyprland. Deliberately awkward so you cannot hit it by accident.
 bind(mod .. " + SHIFT + M", hl.dsp.exit(), "Exit Hyprland")

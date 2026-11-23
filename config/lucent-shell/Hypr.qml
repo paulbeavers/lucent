@@ -9,8 +9,12 @@ pragma Singleton
 // both.
 //
 // The windows are `hyprctl -j clients`, read again after window and workspace
-// events, never on a timer, and not while the dock's menu is open (holdRefresh):
-// rebuilding the dock's buttons would pull the menu out from under the pointer.
+// events, never on a timer, and not while the dock's menu is open or an icon
+// is being dragged (holdRefresh): rebuilding the dock's buttons would pull the
+// menu, or the icon, out from under the pointer.
+//
+// Minimized windows are the ones on special:minimized (minimize.lua); they
+// are kept apart from `clients`, which leaves out every special workspace.
 // Which workspace each monitor shows comes from Quickshell's own tracking.
 
 import QtQuick
@@ -22,6 +26,8 @@ Singleton {
     id: hypr
 
     property var clients: []      // mapped, outside special workspaces, oldest first
+    property var minimized: []    // on special:minimized, most recently focused first
+    readonly property string minimizedWorkspace: "special:minimized"
     property string activeAddress: ""
     property string submap: ""
     property bool holdRefresh: false
@@ -41,6 +47,36 @@ Singleton {
 
     function dispatch(lua) {
         Quickshell.execDetached(["hyprctl", "dispatch", lua]);
+    }
+
+    // Several dispatches, run in order: separate processes would race.
+    function dispatchAll(luas) {
+        Quickshell.execDetached(["hyprctl", "--batch",
+            luas.map(l => "dispatch " + l).join(" ; ")]);
+    }
+
+    function windowSelector(address) {
+        return luaString("address:" + address);
+    }
+
+    function minimizeWindow(address) {
+        dispatch("hl.dsp.window.move({ workspace = " + luaString(minimizedWorkspace)
+            + ", follow = false, window = " + windowSelector(address) + " })");
+    }
+
+    // Back to `workspaceId`, the one in front of the dock, then focused. A
+    // silent move: a plain one out of a special workspace closes whatever
+    // special workspace that monitor shows (see minimize.lua). A named
+    // workspace, or a screen Quickshell has no monitor for, has no positive
+    // id; "e+0" is the one in front of you on the focused monitor, which is
+    // where the click was.
+    function restoreWindow(address, workspaceId) {
+        const target = workspaceId > 0 ? String(workspaceId) : luaString("e+0");
+        dispatchAll([
+            "hl.dsp.window.move({ workspace = " + target
+                + ", follow = false, window = " + windowSelector(address) + " })",
+            "hl.dsp.focus({ window = " + windowSelector(address) + " })"
+        ]);
     }
 
     function focusWindow(address) {
@@ -101,10 +137,12 @@ Singleton {
                 } catch (e) {
                     list = [];
                 }
-                hypr.clients = list.filter(w =>
-                    w.mapped !== false
-                    && !String((w.workspace || {}).name || "").startsWith("special")
-                    && (w.class || w.initialClass));
+                const named = w => String((w.workspace || {}).name || "");
+                const real = w => w.mapped !== false && (w.class || w.initialClass);
+                hypr.clients = list.filter(w => real(w) && !named(w).startsWith("special"));
+                hypr.minimized = list
+                    .filter(w => real(w) && named(w) === hypr.minimizedWorkspace)
+                    .sort((a, b) => (a.focusHistoryID ?? 1e9) - (b.focusHistoryID ?? 1e9));
                 const active = list.find(w => w.focusHistoryID === 0);
                 hypr.activeAddress = active ? active.address : "";
             }

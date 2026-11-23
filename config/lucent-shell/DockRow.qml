@@ -1,10 +1,21 @@
 // The dock's icons: one per app, pinned or running, with a dot per window,
-// then a separator and the launcher. Drawn on a slab of its own in dock style
-// (DockWindow) and straight onto the panel in panel style (PanelBar).
+// then a separator, the minimized windows and the launcher. Drawn on a slab
+// of its own in dock style (DockWindow) and straight onto the panel in panel
+// style (PanelBar).
 //
 //     left click     open the app, or focus its window; again cycles its windows
 //     middle click   a new window
 //     right click    its windows, New window, Pin / Unpin, Close
+//     wheel          the app's next or previous window
+//     drag           reorder the pins; drag a running app in among them to pin
+//                    it, or a pinned one up off the dock to unpin it
+//
+// A minimized window (minimize.lua) is an icon of its own after the
+// separator; a click brings it back to the workspace in front of you.
+//
+// With Settings.scopeWorkspace the dock lists only the apps with a window on
+// that workspace, plus the pinned ones, and an app's dots, clicks and wheel
+// only count its windows there.
 
 import QtQuick
 import Quickshell
@@ -13,20 +24,100 @@ import Quickshell.Hyprland
 Row {
     id: dock
 
+    property var screen
+    readonly property int workspace: Hypr.activeWorkspaceOn(screen)
+    readonly property var apps: Settings.scopeWorkspace
+        ? Apps.forWorkspace(Apps.list, workspace) : Apps.list
+
     readonly property int iconSize: 40
     readonly property int maxDots: 3
+    readonly property int slot: iconSize + 10 + spacing
     // Popups open away from the edge the dock is on.
     readonly property bool popupsBelow: Settings.edge === "top"
+    // Something the dock must stay out for: auto-hide waits on it.
+    readonly property bool busy: menu.visible || dragIndex >= 0
+
+    // ── dragging ────────────────────────────────────────────────────────────
+    // The buttons are not moved while a drag is on, only drawn offset: the
+    // Repeater rebuilds every button when the list changes, which would take
+    // the one under the pointer away. Window events are held off meanwhile
+    // (Hypr.holdRefresh), and the order is saved on release.
+    property int dragIndex: -1
+    property real dragDx: 0
+    property real dragDy: 0
+    readonly property int pinnedCount: apps.filter(a => a.pinned).length
+    readonly property bool dragPinned: dragIndex >= 0 && dragIndex < apps.length
+        && apps[dragIndex].pinned
+    // Up off the dock (or down, at the top), far enough to mean "remove".
+    readonly property bool dragOff: dragPinned
+        && (Settings.edge === "top" ? dragDy : -dragDy) > iconSize
+
+    function dropIndex() {
+        if (dragIndex < 0 || dragOff)
+            return -1;
+        const t = dragIndex + Math.round(dragDx / slot);
+        if (dragPinned)
+            return Math.max(0, Math.min(t, pinnedCount - 1));
+        // A running app pins only if it is dragged in among the pins.
+        return t < dragIndex ? Math.max(0, Math.min(t, pinnedCount)) : -1;
+    }
+
+    function offsetFor(index) {
+        if (dragIndex < 0)
+            return 0;
+        if (index === dragIndex)
+            return dragDx;
+        const t = dropIndex();
+        if (t < 0 || t === dragIndex)
+            return 0;
+        if (dragIndex < t && index > dragIndex && index <= t)
+            return -slot;
+        if (t < dragIndex && index >= t && index < dragIndex)
+            return slot;
+        return 0;
+    }
+
+    function startDrag(index) {
+        dragIndex = index;
+        Hypr.holdRefresh = true;
+    }
+
+    function resetDrag() {
+        dragIndex = -1;
+        dragDx = 0;
+        dragDy = 0;
+        Hypr.holdRefresh = menu.visible;
+    }
+
+    function endDrag() {
+        const a = apps[dragIndex];
+        const t = dropIndex();
+        const off = dragOff;
+        resetDrag();
+        if (!a)
+            return;
+        if (off)
+            Apps.unpin(a.key);
+        else if (t >= 0 && (t !== apps.indexOf(a) || !a.pinned))
+            Apps.pinAt(a.key, t, apps.filter(x => x.pinned).map(x => x.key));
+    }
+
+    // Held refreshes stop window events, not everything: a launch timing out
+    // or an app being installed still rebuilds the list, and the button being
+    // dragged goes with it. Drop the drag rather than leave it hanging.
+    onAppsChanged: if (dragIndex >= 0) resetDrag()
 
     spacing: 2
 
     Repeater {
-        model: Apps.list
+        model: dock.apps
 
         delegate: Rectangle {
             id: button
             required property var modelData
+            required property int index
             readonly property var app: modelData
+            readonly property bool dragged: dock.dragIndex === index
 
             width: dock.iconSize + 10
             // The icon and its dots are 46px; 48 leaves the highlight 5px
@@ -34,7 +125,16 @@ Row {
             height: dock.iconSize + 8
             anchors.verticalCenter: parent.verticalCenter
             radius: 10
-            color: app.active ? Theme.alpha("surface1", 0.9)
+            z: dragged ? 10 : 0
+            opacity: dragged && dock.dragOff ? 0.35 : 1
+            transform: Translate {
+                x: dock.offsetFor(button.index)
+                Behavior on x {
+                    enabled: !button.dragged
+                    NumberAnimation { duration: 120; easing.type: Easing.OutQuad }
+                }
+            }
+            color: app.active || dragged ? Theme.alpha("surface1", 0.9)
                  : mouse.containsMouse ? Theme.alpha("surface1", 0.7)
                  : "transparent"
 
@@ -45,6 +145,7 @@ Row {
                 // The dots sit between the icon and the screen edge, as on a Mac.
                 Dots { visible: Settings.edge === "top"; app: button.app }
                 Image {
+                    id: icon
                     anchors.horizontalCenter: parent.horizontalCenter
                     width: dock.iconSize
                     height: dock.iconSize
@@ -60,25 +161,94 @@ Row {
                 Dots { visible: Settings.edge === "bottom"; app: button.app }
             }
 
+            // Starting up: the icon breathes until the app has a new window.
+            SequentialAnimation {
+                running: button.app.launching
+                loops: Animation.Infinite
+                onStopped: icon.opacity = 1
+                NumberAnimation {
+                    target: icon; property: "opacity"; to: 0.35
+                    duration: 450; easing.type: Easing.InOutQuad
+                }
+                NumberAnimation {
+                    target: icon; property: "opacity"; to: 1
+                    duration: 450; easing.type: Easing.InOutQuad
+                }
+            }
+
             MouseArea {
                 id: mouse
                 anchors.fill: parent
                 hoverEnabled: true
                 acceptedButtons: Qt.LeftButton | Qt.MiddleButton | Qt.RightButton
+
+                property real pressX: 0
+                property real pressY: 0
+                property bool dragging: false
+                property bool swallowClick: false
+                property real wheel: 0
+
+                onPressed: event => {
+                    pressX = event.x;
+                    pressY = event.y;
+                    swallowClick = false;
+                }
+                onPositionChanged: event => {
+                    if (!(event.buttons & Qt.LeftButton))
+                        return;
+                    const dx = event.x - pressX;
+                    const dy = event.y - pressY;
+                    // Only an app with a desktop file can be pinned, so only
+                    // those drag.
+                    if (!dragging && button.app.entry
+                            && Math.abs(dx) + Math.abs(dy) > 10) {
+                        dragging = true;
+                        dock.startDrag(button.index);
+                    }
+                    if (dragging) {
+                        dock.dragDx = dx;
+                        dock.dragDy = dy;
+                    }
+                }
+                onReleased: {
+                    if (dragging) {
+                        dragging = false;
+                        swallowClick = true;
+                        dock.endDrag();
+                    }
+                }
+                onCanceled: {
+                    if (dragging) {
+                        dragging = false;
+                        dock.resetDrag();
+                    }
+                }
                 onClicked: event => {
+                    if (swallowClick) {
+                        swallowClick = false;
+                        return;
+                    }
                     if (event.button === Qt.LeftButton)
-                        Apps.activate(button.app);
+                        Apps.activate(button.app, dock.workspace);
                     else if (event.button === Qt.MiddleButton)
                         Apps.launch(button.app);
                     else
                         menu.openFor(button, button.app);
+                }
+                onWheel: event => {
+                    wheel += event.angleDelta.y;
+                    while (Math.abs(wheel) >= 120) {
+                        const step = wheel > 0 ? 1 : -1;
+                        wheel -= step * 120;
+                        Apps.cycle(button.app, step);
+                    }
                 }
             }
 
             HoverTip {
                 text: button.app.name
                 below: dock.popupsBelow
-                hovered: mouse.containsMouse && !menu.visible
+                hovered: mouse.containsMouse && !menu.visible && !button.dragged
             }
         }
     }
@@ -92,6 +262,70 @@ Row {
             width: 2
             height: parent.height - 8
             color: Theme.alpha("surface1", 0.9)
+        }
+    }
+
+    // Minimized windows, one each, most recently focused first. A smaller icon
+    // on a card, so it reads as a window put away rather than another app.
+    Repeater {
+        model: Hypr.minimized
+
+        delegate: Rectangle {
+            id: parked
+            required property var modelData
+            readonly property var win: modelData
+            readonly property string title: String(win.title || win.class || "").trim()
+
+            width: dock.iconSize + 10
+            height: dock.iconSize + 8
+            anchors.verticalCenter: parent.verticalCenter
+            radius: 10
+            color: parkedMouse.containsMouse ? Theme.alpha("surface1", 0.7) : "transparent"
+
+            Rectangle {
+                anchors.centerIn: parent
+                width: dock.iconSize - 2
+                height: dock.iconSize - 6
+                radius: 7
+                color: Theme.alpha("surface0", 0.9)
+                border.width: 1
+                border.color: Theme.alpha("surface1", 0.9)
+
+                Image {
+                    anchors.centerIn: parent
+                    width: dock.iconSize - 14
+                    height: dock.iconSize - 14
+                    sourceSize.width: dock.iconSize - 14
+                    sourceSize.height: dock.iconSize - 14
+                    fillMode: Image.PreserveAspectFit
+                    smooth: true
+                    mipmap: true
+                    source: Apps.windowIcon(parked.win)
+                }
+            }
+
+            MouseArea {
+                id: parkedMouse
+                anchors.fill: parent
+                hoverEnabled: true
+                acceptedButtons: Qt.LeftButton | Qt.RightButton
+                onClicked: event => {
+                    if (event.button === Qt.LeftButton)
+                        Hypr.restoreWindow(parked.win.address, dock.workspace);
+                    else
+                        menu.openWith(parked, [
+                            { label: "Restore", run: () => Hypr.restoreWindow(parked.win.address, dock.workspace) },
+                            { separator: true },
+                            { label: "Close window", run: () => Hypr.closeWindow(parked.win.address) }
+                        ]);
+                }
+            }
+
+            HoverTip {
+                text: parked.title.length > 60 ? parked.title.slice(0, 59) + "…" : parked.title
+                below: dock.popupsBelow
+                hovered: parkedMouse.containsMouse && !menu.visible
+            }
         }
     }
 
@@ -133,13 +367,14 @@ Row {
         }
     }
 
+    // A dot per window, minimized ones included: the app is running.
     component Dots: Row {
         property var app
         anchors.horizontalCenter: parent.horizontalCenter
         height: 4
         spacing: 3
         Repeater {
-            model: Math.min(app.windows.length, dock.maxDots)
+            model: Math.min(app.windows.length + app.minimized.length, dock.maxDots)
             delegate: Rectangle {
                 width: 4
                 height: 4
@@ -160,14 +395,20 @@ Row {
         property Item target: null
         property real menuWidth: 160
 
+        function shorten(title) {
+            title = String(title).trim();
+            return title.length > 48 ? title.slice(0, 47) + "…" : title;
+        }
+
         function openFor(item, a) {
             const list = [];
-            for (const w of a.windows) {
-                let title = String(w.title || a.name).trim();
-                if (title.length > 48)
-                    title = title.slice(0, 47) + "…";
-                list.push({ label: title, run: () => Hypr.focusWindow(w.address) });
-            }
+            for (const w of a.windows)
+                list.push({ label: shorten(w.title || a.name), run: () => Hypr.focusWindow(w.address) });
+            for (const w of a.minimized)
+                list.push({
+                    label: shorten(w.title || a.name) + "  (minimized)",
+                    run: () => Hypr.restoreWindow(w.address, dock.workspace)
+                });
             if (list.length)
                 list.push({ separator: true });
             if (a.entry) {
@@ -184,6 +425,10 @@ Row {
                     run: () => Apps.closeAll(a)
                 });
             }
+            openWith(item, list);
+        }
+
+        function openWith(item, list) {
             let widest = 160;
             for (const it of list) {
                 if (it.separator)
@@ -202,7 +447,7 @@ Row {
             visible = false;
         }
 
-        onVisibleChanged: if (!visible) Hypr.holdRefresh = false
+        onVisibleChanged: if (!visible && dock.dragIndex < 0) Hypr.holdRefresh = false
 
         anchor.window: dock.QsWindow.window
         anchor.item: target

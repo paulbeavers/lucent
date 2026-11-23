@@ -16,7 +16,7 @@
 --
 --  A window follows the workspace it is on. Moved onto a floating one it
 --  floats; moved onto a tiled one it tiles, if this module was what floated
---  it. Hyprland emits window.move_to_workspace from inside the layout's own
+--  it. Special workspaces (the scratchpad, minimized windows) change nothing. Hyprland emits window.move_to_workspace from inside the layout's own
 --  move, so the float or tile waits for a one-shot timer rather than
 --  re-entering the layout from its callback.
 --
@@ -213,7 +213,10 @@ end)
 
 hl.on("window.move_to_workspace", function(w, ws)
     local name = ws and ws.name
-    if not name then return end
+    -- A special workspace is somewhere a window waits (the scratchpad, or
+    -- minimize.lua's), not where it lives: it keeps what it was, so a window
+    -- minimized from a floating workspace comes back floating.
+    if not name or name:sub(1, 8) == "special:" then return end
     hl.timer(function()
         -- The window may have closed, or moved on again, in the meantime;
         -- a field read on a destroyed window raises.

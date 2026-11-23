@@ -6,6 +6,14 @@ pragma Singleton
 // Pins are ~/.config/lucent/dock-pinned, one desktop file ID per line. With
 // no file the defaults below are shown; the file is written the first time a
 // pin changes.
+//
+// An app's minimized windows (Hypr.minimized) count as its windows for being
+// listed and for its dots, but are kept apart: focusing one would open the
+// special workspace it waits on, so it is brought back instead.
+//
+// An app launched from the dock is `launching` until it has a window more
+// than it had, or for ten seconds, whichever is first; the icon pulses
+// meanwhile, so a slow start does not read as a missed click.
 
 import QtQuick
 import Quickshell
@@ -19,6 +27,9 @@ Singleton {
     property var pinned: []
     property var order: []        // keys of unpinned running apps, first seen first
     property var list: []         // what the dock shows, in order
+    property var launching: ({})  // key -> { count, until }
+
+    readonly property int launchTimeout: 10000
 
     FileView {
         id: pinnedFile
@@ -48,6 +59,32 @@ Singleton {
         function onApplicationsChanged() { apps.rebuild(); }
     }
 
+    Connections {
+        target: Hypr
+        function onMinimizedChanged() { apps.rebuild(); }
+    }
+
+    Timer {
+        interval: 1000
+        repeat: true
+        running: Object.keys(apps.launching).length > 0
+        onTriggered: {
+            const now = Date.now();
+            const left = {};
+            let changed = false;
+            for (const k in apps.launching) {
+                if (apps.launching[k].until > now)
+                    left[k] = apps.launching[k];
+                else
+                    changed = true;
+            }
+            if (changed) {
+                apps.launching = left;
+                apps.rebuild();
+            }
+        }
+    }
+
     function entryById(id) {
         return DesktopEntries.byId(id.replace(/\.desktop$/, ""));
     }
@@ -59,44 +96,91 @@ Singleton {
         return Quickshell.iconPath(name, "application-x-executable");
     }
 
+    // The dock's key for a window's app: its desktop file, or its class.
+    function keyFor(w) {
+        const cls = w.class || w.initialClass;
+        const entry = DesktopEntries.heuristicLookup(cls);
+        return { key: entry ? entry.id + ".desktop" : "class:" + cls.toLowerCase(),
+                 entry: entry, cls: cls };
+    }
+
+    function windowIcon(w) {
+        const k = keyFor(w);
+        return iconSource(k.entry, k.cls);
+    }
+
     function rebuild() {
         const byKey = {};
         for (const id of pinned) {
             const entry = entryById(id);
             if (entry)
-                byKey[id] = { key: id, entry: entry, cls: "", windows: [] };
+                byKey[id] = { key: id, entry: entry, cls: "", windows: [], minimized: [] };
         }
 
         const seen = order.slice();
-        for (const w of Hypr.clients) {
-            const cls = w.class || w.initialClass;
-            const entry = DesktopEntries.heuristicLookup(cls);
-            const key = entry ? entry.id + ".desktop" : "class:" + cls.toLowerCase();
-            if (!byKey[key]) {
-                byKey[key] = { key: key, entry: entry, cls: cls, windows: [] };
-                if (seen.indexOf(key) < 0 && pinned.indexOf(key) < 0)
-                    seen.push(key);
+        const add = (w, field) => {
+            const k = keyFor(w);
+            if (!byKey[k.key]) {
+                byKey[k.key] = { key: k.key, entry: k.entry, cls: k.cls, windows: [], minimized: [] };
+                if (seen.indexOf(k.key) < 0 && pinned.indexOf(k.key) < 0)
+                    seen.push(k.key);
             }
-            byKey[key].cls = byKey[key].cls || cls;
-            byKey[key].windows.push(w);
+            byKey[k.key].cls = byKey[k.key].cls || k.cls;
+            byKey[k.key][field].push(w);
+        };
+        for (const w of Hypr.clients)
+            add(w, "windows");
+        for (const w of Hypr.minimized)
+            add(w, "minimized");
+
+        // A launch is over once its app has a window more than it had.
+        let settled = false;
+        const still = {};
+        for (const k in launching) {
+            const a = byKey[k];
+            const n = a ? a.windows.length + a.minimized.length : 0;
+            if (n > launching[k].count)
+                settled = true;
+            else
+                still[k] = launching[k];
         }
+        if (settled)
+            launching = still;
 
         order = seen.filter(k => byKey[k] && pinned.indexOf(k) < 0);
         const keys = pinned.filter(k => byKey[k]).concat(order);
 
-        list = keys.map(k => {
-            const a = byKey[k];
-            return {
-                key: a.key,
-                entry: a.entry,
-                name: a.entry ? a.entry.name : (a.cls || a.key),
-                icon: iconSource(a.entry, a.cls),
-                windows: a.windows,
-                active: a.windows.some(w => w.address === Hypr.activeAddress),
-                urgent: a.windows.some(w => w.urgent),
-                pinned: pinned.indexOf(a.key) >= 0
-            };
-        });
+        list = keys.map(k => describe(byKey[k], byKey[k].windows));
+    }
+
+    function describe(a, windows) {
+        return {
+            key: a.key,
+            entry: a.entry,
+            cls: a.cls,
+            name: a.entry ? a.entry.name : (a.cls || a.key),
+            icon: iconSource(a.entry, a.cls),
+            windows: windows,
+            allWindows: a.windows,
+            minimized: a.minimized,
+            active: windows.some(w => w.address === Hypr.activeAddress),
+            urgent: windows.some(w => w.urgent),
+            pinned: pinned.indexOf(a.key) >= 0,
+            launching: launching[a.key] !== undefined
+        };
+    }
+
+    // The dock for one workspace (Settings.scopeWorkspace): each app's windows
+    // there, and only the apps that have some, are pinned, or have a window
+    // minimized.
+    function forWorkspace(all, workspaceId) {
+        const out = [];
+        for (const a of all) {
+            const here = a.allWindows.filter(w => (w.workspace || {}).id === workspaceId);
+            if (a.pinned || here.length > 0 || a.minimized.length > 0)
+                out.push(describe(a, here));
+        }
+        return out;
     }
 
     function savePinned(ids) {
@@ -122,15 +206,28 @@ Singleton {
         if (entry.runInTerminal)
             command = [Theme.config + "/hypr/scripts/terminal.sh"].concat(command);
         run(command, entry.workingDirectory);
+
+        const next = Object.assign({}, launching);
+        next[app.key] = {
+            count: app.allWindows.length + app.minimized.length,
+            until: Date.now() + launchTimeout
+        };
+        launching = next;
+        rebuild();
     }
 
     function openLauncher() {
         run(["wofi", "--show", "drun"]);
     }
 
-    function activate(app) {
+    // `workspaceId` is the one in front of the dock, where a minimized window
+    // comes back to.
+    function activate(app, workspaceId) {
         if (app.windows.length === 0) {
-            launch(app);
+            if (app.minimized.length > 0)
+                Hypr.restoreWindow(app.minimized[0].address, workspaceId);
+            else
+                launch(app);
             return;
         }
         const addresses = app.windows.map(w => w.address);   // stable: oldest first
@@ -143,6 +240,31 @@ Singleton {
                 (a.focusHistoryID ?? 1e9) - (b.focusHistoryID ?? 1e9));
             Hypr.focusWindow(recent[0].address);
         }
+    }
+
+    // The wheel over an icon: the next (step < 0, scrolling down) or previous
+    // of its windows, in the same oldest-first order a click cycles through.
+    function cycle(app, step) {
+        if (app.windows.length === 0)
+            return;
+        const addresses = app.windows.map(w => w.address);
+        const i = addresses.indexOf(Hypr.activeAddress);
+        if (i < 0) {
+            activate(app, -1);
+            return;
+        }
+        const n = addresses.length;
+        Hypr.focusWindow(addresses[(i + (step < 0 ? 1 : -1) + n) % n]);
+    }
+
+    // A drag in the dock: `key` to position `index` among the pinned apps the
+    // dock shows (`shown`, in order). Pins the dock is not showing, because
+    // their desktop file is gone, keep their place at the end.
+    function pinAt(key, index, shown) {
+        const visible = shown.filter(k => k !== key);
+        index = Math.max(0, Math.min(index, visible.length));
+        visible.splice(index, 0, key);
+        savePinned(visible.concat(pinned.filter(k => visible.indexOf(k) < 0)));
     }
 
     function pin(key) {
