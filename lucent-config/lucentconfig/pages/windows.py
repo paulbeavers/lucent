@@ -7,6 +7,8 @@ compositor to switch, so open windows float or tile at once and the key and the
 page never disagree.
 """
 
+from gi.repository import Gio
+
 from .. import hypr, paths, readback
 from ..widgets import Page, Row, switch
 
@@ -36,9 +38,10 @@ def build(window):
     # compared or applied: the key may change other workspaces meanwhile, and
     # after an Apply the page stays open.
     touched = {}
+    switches = {}
+    syncing = False
 
-    def on_switch(name, value):
-        touched[name] = bool(value)
+    def restage():
         current = _floating()
         if all((n in current) == on for n, on in touched.items()):
             window.unstage("windows:float")
@@ -46,6 +49,29 @@ def build(window):
         want = _wanted(touched)
         window.stage("windows:float", lambda: _apply(dict(touched), key),
                      "windows: " + (_describe(want) if want else "every workspace tiles"))
+
+    def on_switch(name, value):
+        if syncing:
+            return
+        touched[name] = bool(value)
+        restage()
+
+    # The key changes the file while the page is open, so the page watches it.
+    # A switch nobody touched here follows the file; a touched one keeps the
+    # edit until the file agrees with it, which is also how an Apply settles.
+    def sync():
+        nonlocal syncing
+        current = _floating()
+        for name in [n for n, on in touched.items() if (n in current) == on]:
+            del touched[name]
+        syncing = True
+        try:
+            for name, widget in switches.items():
+                if name not in touched and widget.get_active() != (name in current):
+                    widget.set_active(name in current)
+        finally:
+            syncing = False
+        restage()
 
     card = page.section("Floating workspaces")
     card.add(Row(
@@ -59,10 +85,11 @@ def build(window):
     ))
     floating = _floating()
     for name in WORKSPACES:
-        card.add(Row(
-            f"Workspace {name}",
-            switch(name in floating, on_change=lambda v, n=name: on_switch(n, v)),
-        ))
+        switches[name] = switch(name in floating,
+                                on_change=lambda v, n=name: on_switch(n, v))
+        card.add(Row(f"Workspace {name}", switches[name]))
+
+    _watch(window, page, sync)
 
     card = page.section("Moving a floating window")
     card.add(Row(
@@ -77,6 +104,47 @@ def build(window):
         "~/.config/lucent/float-workspaces."
     )
     return page
+
+
+_EVENTS = {
+    Gio.FileMonitorEvent.CHANGES_DONE_HINT,
+    Gio.FileMonitorEvent.CREATED,
+    Gio.FileMonitorEvent.DELETED,
+    Gio.FileMonitorEvent.MOVED_IN,
+    Gio.FileMonitorEvent.MOVED_OUT,
+    Gio.FileMonitorEvent.RENAMED,
+}
+
+
+def _watch(window, page, on_change):
+    """Call on_change when floatall.lua rewrites its file.
+
+    A monitor on the directory, not the file: floatall.lua writes a temp file
+    and renames it over the old one, and a watch on the old inode would go deaf
+    after the first change, as theme.py found. The monitor lives on the page
+    and only the newest Windows page answers it: Revert rebuilds every page,
+    and the old one, shown or not, must not re-stage or unstage anything for
+    the page that replaced it.
+    """
+    names = {paths.FLOAT_WORKSPACES.name, paths.FLOAT_ALL.name}
+    try:
+        paths.FLOAT_WORKSPACES.parent.mkdir(parents=True, exist_ok=True)
+        directory = Gio.File.new_for_path(str(paths.FLOAT_WORKSPACES.parent))
+        monitor = directory.monitor_directory(Gio.FileMonitorFlags.WATCH_MOVES, None)
+    except Exception:
+        return  # no inotify is a reason to not follow along, not to fail
+
+    def changed(_monitor, file, other, event):
+        if getattr(window, "_windows_page", None) is not page:
+            monitor.cancel()
+            return
+        touched = {f.get_basename() for f in (file, other) if f is not None}
+        if event in _EVENTS and touched & names:
+            on_change()
+
+    monitor.connect("changed", changed)
+    page._float_monitor = monitor
+    window._windows_page = page
 
 
 def _wanted(touched):

@@ -452,6 +452,8 @@ GNOME's design language and resists being overridden.
   windows float or tile at once. Apply sends only the switches you touched,
   laid over the file as it is then, because the key may have changed other
   workspaces since the page was drawn.
+  It watches the file's directory (floatall.lua replaces the file by rename),
+  so the switches follow the key while the page is open.
 
 Display scale is the setting worth understanding: a scale is legal only if it
 is a multiple of 1/120 *and* divides the resolution into whole pixels both
