@@ -10,8 +10,6 @@
 // region is the slab and the space down to the edge, plus the strip, so a
 // pointer resting on the edge beside the slab keeps it out rather than
 // flickering it.
-//
-// The wheel over the slab, away from the icons, changes workspace.
 
 import QtQuick
 import Quickshell
@@ -88,8 +86,6 @@ PanelWindow {
             Behavior on y {
                 NumberAnimation { duration: 180; easing.type: Easing.OutCubic }
             }
-
-            WheelArea { anchors.fill: parent }
 
             DockRow {
                 id: row

@@ -8,8 +8,6 @@
 // reaches the edge. While it is away the input region (mask) is a strip at the
 // edge, so the windows underneath keep their clicks, and the background is on
 // the content rather than the window so nothing is left drawn there.
-//
-// The wheel over the panel where nothing else takes it changes workspace.
 
 import QtQuick
 import Quickshell
@@ -71,8 +69,6 @@ PanelWindow {
             Behavior on y {
                 NumberAnimation { duration: 180; easing.type: Easing.OutCubic }
             }
-
-            WheelArea { anchors.fill: parent }
 
             // A 1px border on whichever side faces the desktop.
             Rectangle {

@@ -6,7 +6,6 @@
 //     left click     open the app, or focus its window; again cycles its windows
 //     middle click   a new window
 //     right click    its windows, New window, Pin / Unpin, Close
-//     wheel          the app's next or previous window
 //     drag           reorder the pins; drag a running app in among them to pin
 //                    it, or a pinned one up off the dock to unpin it
 //
@@ -14,8 +13,8 @@
 // separator; a click brings it back to the workspace in front of you.
 //
 // With Settings.scopeWorkspace the dock lists only the apps with a window on
-// that workspace, plus the pinned ones, and an app's dots, clicks and wheel
-// only count its windows there.
+// that workspace, plus the pinned ones, and an app's dots and clicks only
+// count its windows there.
 
 import QtQuick
 import Quickshell
@@ -186,7 +185,6 @@ Row {
                 property real pressY: 0
                 property bool dragging: false
                 property bool swallowClick: false
-                property real wheel: 0
 
                 onPressed: event => {
                     pressX = event.x;
@@ -234,14 +232,6 @@ Row {
                         Apps.launch(button.app);
                     else
                         menu.openFor(button, button.app);
-                }
-                onWheel: event => {
-                    wheel += event.angleDelta.y;
-                    while (Math.abs(wheel) >= 120) {
-                        const step = wheel > 0 ? 1 : -1;
-                        wheel -= step * 120;
-                        Apps.cycle(button.app, step);
-                    }
                 }
             }
 

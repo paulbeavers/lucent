@@ -458,10 +458,8 @@ keymap keeps one shape.
   `~/.config/lucent/dock-hidden` keeps it hidden at the next login. The pins are `~/.config/lucent/dock-pinned`, one desktop file
   ID per line. lucent's own because the packaged docks draw blurred icons on
   a scaled panel.
-- **More from the dock.** The wheel over an app steps through its windows;
-  anywhere else on the dock it changes workspace. Drag a pinned app to
-  reorder, up off the dock to unpin, or drag a running app in among the pins
-  to pin it there. An app started from the dock pulses until its window
+- **More from the dock.** Drag a pinned app to reorder, up off the dock to
+  unpin, or drag a running app in among the pins to pin it there. An app started from the dock pulses until its window
   appears. `SUPER + M` minimizes a window: it waits after the separator,
   and a click brings it back to the workspace you are on (`SUPER + CTRL + M`
   brings back the last one). Apps' own minimize buttons do nothing, because

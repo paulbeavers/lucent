@@ -242,21 +242,6 @@ Singleton {
         }
     }
 
-    // The wheel over an icon: the next (step < 0, scrolling down) or previous
-    // of its windows, in the same oldest-first order a click cycles through.
-    function cycle(app, step) {
-        if (app.windows.length === 0)
-            return;
-        const addresses = app.windows.map(w => w.address);
-        const i = addresses.indexOf(Hypr.activeAddress);
-        if (i < 0) {
-            activate(app, -1);
-            return;
-        }
-        const n = addresses.length;
-        Hypr.focusWindow(addresses[(i + (step < 0 ? 1 : -1) + n) % n]);
-    }
-
     // A drag in the dock: `key` to position `index` among the pinned apps the
     // dock shows (`shown`, in order). Pins the dock is not showing, because
     // their desktop file is gone, keep their place at the end.

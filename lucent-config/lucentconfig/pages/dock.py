@@ -173,12 +173,6 @@ def build(window):
 
     card = page.section("Using it")
     card.add(Row(
-        "Scroll",
-        None,
-        "Over an app, its next or previous window. Anywhere else on the "
-        "dock, the next or previous workspace.",
-    ))
-    card.add(Row(
         "Drag",
         None,
         "Drag a pinned app to reorder, or off the dock to unpin it. Drag a "
